@@ -637,7 +637,7 @@ function tcStartGame() {
 // ── 學生進入遊戲 ──
 function tcLaunchStudentIfNeeded() {
     const p = window.state.perspective;
-    if (p==='teacher' || p==='guest') return;
+    if (p==='teacher') return;
     const pData = window.pStates[p];
     if (!pData || !pData.joined) return;
 
@@ -781,7 +781,7 @@ setInterval(() => {
     }
 
     const p = window.state.perspective;
-    if (p === 'teacher' || p === 'guest') return;
+    if (p === 'teacher') return;
     const pData = window.pStates && window.pStates[p];
     if (!pData || !pData.joined) return;
     if (!r || !r.open) {
@@ -974,7 +974,7 @@ function renderRoomList() {
       return `<div class="room-card ${isFull ? 'room-full' : ''}" onclick="${isFull ? "showToast('房間已滿')" : `selectRoom('${code}', '${r.roomNum}')`}">
           <div style="display:flex;flex-direction:column;gap:4px">
             <div style="font-weight:900;font-size:1.1rem">${r.teacherName || '老師'} 的房間</div>
-            <div style="font-size:.8rem;color:#888">房間代碼：${code}</div>
+            <div style="font-size:.8rem;color:#888">房間 #${r.roomNum}</div>
           </div>
           <div class="${isFull ? 'room-full-badge' : 'room-num-badge'}">${r.playerCount || 0}/5</div>
         </div>`;
@@ -1111,7 +1111,7 @@ function renderLobby() {
 function updateStudentWaitDisplay() {
   // 更新目前視角學生的頭像和組別
   const p = window.state.perspective;
-  if (!p || p === 'teacher' || p === 'guest') return;
+  if (!p || p === 'teacher') return;
   const pData = window.pStates[p];
   if (!pData || !pData.joined) return;
   const symEl  = document.getElementById('sw-my-symbol');
