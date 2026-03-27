@@ -1014,13 +1014,17 @@ function renderRoomList() {
   } else {
     emptyEl.style.display = 'none';
     listEl.innerHTML = openRooms.map(([code, r]) => {
-      const isFull = (r.playerCount || 0) >= 5;
+      const isPlaying = r.status === 'playing';
+      // 如果遊戲已經開始，開放點擊進入，方便斷線重連
+      const isFull = (r.playerCount || 0) >= 5 && !isPlaying; 
+      const statusBadge = isPlaying ? `<span style="margin-left:8px;background:var(--yellow);color:var(--ink);padding:2px 8px;border-radius:6px;font-size:0.7rem;font-weight:900;">遊戲中</span>` : '';
+      
       return `<div class="room-card ${isFull ? 'room-full' : ''}" onclick="${isFull ? "showToast('房間已滿')" : `selectRoom('${code}', '${r.roomNum}')`}">
           <div style="display:flex;flex-direction:column;gap:4px">
-            <div style="font-weight:900;font-size:1.1rem">${r.teacherName || '老師'} 的房間</div>
+            <div style="font-weight:900;font-size:1.1rem">${r.teacherName || '老師'} 的房間${statusBadge}</div>
             <div style="font-size:.8rem;color:#888">房間 #${r.roomNum}</div>
           </div>
-          <div class="${isFull ? 'room-full-badge' : 'room-num-badge'}">${r.playerCount || 0}/5</div>
+          <div class="${(r.playerCount || 0) >= 5 ? 'room-full-badge' : 'room-num-badge'}">${r.playerCount || 0}/5</div>
         </div>`;
     }).join('');
   }
@@ -1066,13 +1070,19 @@ function joinRoom() {
       window.state.takenSymbols = window.state.players.map(p => p.symbol);
   }
 
-  if (window.state.players.length >= 5) { window.showToast('⚠️ 房間已滿'); window.goToJoin(); return; }
-
   const groupName = `第 ${window.state.selectedGroup} 組`;
-  if (window.state.players.some(p => p.group === groupName)) { window.showToast('❌ 此組別已被加入，請選擇其他組別'); return; }
+  const existingIndex = window.state.players.findIndex(p => p.group === groupName);
+
+  if (existingIndex !== -1) {
+      // 允許中途重連：覆蓋原有的符號
+      window.state.players[existingIndex].symbol = window.state.selectedSymbol;
+  } else {
+      // 新玩家加入
+      if (window.state.players.length >= 5) { window.showToast('⚠️ 房間已滿'); window.goToJoin(); return; }
+      window.state.players.push({group: groupName, symbol: window.state.selectedSymbol});
+  }
   
-  window.state.players.push({group: groupName, symbol: window.state.selectedSymbol});
-  window.state.takenSymbols.push(window.state.selectedSymbol);
+  window.state.takenSymbols = window.state.players.map(p => p.symbol);
 
   // 同時寫入 players 陣列
   rooms[window.state.roomCode].players = window.state.players;
@@ -1202,13 +1212,6 @@ function teacherLogin() {
   
   const rooms = window.getRooms();
 
-  // 1. 關閉之前所有已開啟的房間，避免同個老師密碼同時產生多個房間
-  Object.keys(rooms).forEach(k => {
-      if (rooms[k].open) {
-          rooms[k].open = false;
-      }
-  });
-  
   // 動態產生 4 位數房間代碼
   let code = Math.floor(1000 + Math.random() * 9000).toString();
   while (rooms[code] && rooms[code].open) {
