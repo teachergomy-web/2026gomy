@@ -6,7 +6,6 @@
 <title>誰是遊戲王！</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
-<!-- 引入 QR Code 產生庫 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 /* ═══════════════════════════════════════════
@@ -24,45 +23,6 @@
   --purple: #9030c8;
   --outline:#1a1200;
 }
-
-/* ═══════════════════════════════════════════
-   TEST NAV BAR (測試專用列 - 頂部導覽)
-   ═══════════════════════════════════════════ */
-#test-nav-bar {
-  position: fixed; top: -40px; left: 0; right: 0;
-  height: 40px; background: #222; color: #fff;
-  display: flex; align-items: center; justify-content: center;
-  gap: 8px; z-index: 10000; font-size: 11px;
-  border-bottom: 2px solid var(--yellow);
-  box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-  font-family: 'Nunito', sans-serif;
-  transition: top .25s ease;
-}
-#test-nav-bar.open { top: 0; }
-.test-nav-btn {
-  padding: 3px 12px; border-radius: 6px; cursor: pointer;
-  background: #444; border: 1px solid #666; color: #ccc;
-  transition: all 0.2s; font-weight: 700;
-}
-.test-nav-btn:hover { background: #555; color: white; }
-.test-nav-btn.active { background: var(--yellow); border-color: var(--yellow2); color: #000; }
-.test-nav-label { color: var(--yellow); font-weight: 900; margin-right: 4px; }
-
-#btn-test-h { background: rgba(232, 32, 32, 0.85); border-color: var(--red2); color: white; margin-left: 10px; }
-#btn-test-h:hover { background: #ff4d4d; color: white; }
-#btn-test-h.active { background: var(--red); border-color: white; color: white; box-shadow: 0 0 6px rgba(255,255,255,0.4); }
-
-/* 小拉把 — 右上角固定顯示 */
-#test-nav-toggle {
-  position: fixed; top: 0; right: 0; z-index: 10001;
-  background: #222; border: 2px solid var(--yellow);
-  border-top: none; border-right: none;
-  color: var(--yellow); font-family: 'Nunito', sans-serif; font-weight: 900;
-  font-size: 11px; padding: 3px 10px; cursor: pointer;
-  border-radius: 0 0 0 8px;
-  transition: background .15s;
-}
-#test-nav-toggle:hover { background: #333; }
 
 /* ═══════════════════════════════════════════
    RESET & BASE
@@ -132,8 +92,6 @@ body::before {
   overflow-y: auto; -webkit-overflow-scrolling: touch;
 }
 .screen.active { display: flex; }
-/* 深色全螢幕畫面：align-items stretch，不留邊距，不允許捲動
-   同時隱藏地面裝飾條和背景粒子避免藍色滲漏 */
 
 /* 深色畫面背景覆蓋 */
 /* 深色全螢幕畫面：align-items stretch，不留邊距，不允許捲動 */
@@ -263,22 +221,6 @@ body::before {
 <div class="ground-bar"></div>
 <div id="toast"></div>
 
-<!-- 測試專用導覽列 -->
-<!-- 測試列收合拉把 -->
-<button id="test-nav-toggle" onclick="document.getElementById('test-nav-bar').classList.toggle('open');this.textContent=document.getElementById('test-nav-bar').classList.contains('open')?'✕ 收合':'🛠️ 測試'">🛠️ 測試</button>
-
-<div id="test-nav-bar">
-    <span class="test-nav-label">🛠️ 視角切換：</span>
-    <div class="test-nav-btn" id="btn-test-t" onclick="testSetPerspective('teacher')">老師視角</div>
-    <div class="test-nav-btn" id="btn-test-s1" onclick="testSetPerspective('s1')">學生 1</div>
-    <div class="test-nav-btn" id="btn-test-s2" onclick="testSetPerspective('s2')">學生 2</div>
-    <div class="test-nav-btn" id="btn-test-s3" onclick="testSetPerspective('s3')">學生 3</div>
-    <div class="test-nav-btn" id="btn-test-s4" onclick="testSetPerspective('s4')">學生 4</div>
-    <div class="test-nav-btn" id="btn-test-s5" onclick="testSetPerspective('s5')">學生 5</div>
-    <div class="test-nav-btn" id="btn-test-h" onclick="testResetToHome()">🔄 重置</div>
-</div>
-
-<!-- QR Code 彈窗 -->
 <div id="qr-popup" onclick="toggleQR()">
     <div class="qr-container" onclick="event.stopPropagation()">
         <div style="font-family:'Nunito',sans-serif;font-weight:900;color:#1a1d30;font-size:1.2rem;margin-bottom:10px">📱 掃碼加入遊戲房間</div>
@@ -288,9 +230,6 @@ body::before {
     </div>
 </div>
 
-<!-- ════════════════════════════════════
-     SCREEN 1 — HOME
-     ════════════════════════════════════ -->
 <div id="screen-home" class="screen active" style="justify-content:center;gap:20px">
   <div class="hero-block">
     <span class="hero-icon">🎲</span>
@@ -309,9 +248,6 @@ body::before {
   </div>
 </div>
 
-<!-- ════════════════════════════════════
-     SCREEN 2 — JOIN
-     ════════════════════════════════════ -->
 <div id="screen-join" class="screen">
   <div style="width:100%;max-width:560px"><button class="back-link" onclick="goTo('screen-home')">◀ 返回首頁</button></div>
 
@@ -362,9 +298,6 @@ body::before {
   </div>
 </div>
 
-<!-- ════════════════════════════════════
-     SCREEN 3 — LOBBY (老師端大廳)
-     ════════════════════════════════════ -->
 <div id="screen-lobby" class="screen" style="padding:0;background:#0d0f1a;overflow:hidden;flex-direction:column;height:100%">
   <div class="kr-header">
     <div style="display:flex;flex-direction:column">
@@ -382,12 +315,10 @@ body::before {
   </div>
 
   <div class="kr-body vertical" style="overflow:hidden">
-    <!-- 玩家座位：固定高度，永遠顯示5個格子 -->
     <div class="kr-panel" style="border-bottom:1px solid rgba(255,255,255,0.1);flex-shrink:0;padding:12px 18px">
       <div class="kr-panel-title" style="margin-bottom:8px">👥 已加入玩家</div>
       <div class="kr-seats" id="lobby-players"></div>
     </div>
-    <!-- 遊戲格子：填滿剩餘空間，垂直置中 -->
     <div class="kr-panel" style="flex:1;min-height:0;justify-content:center;padding:16px 18px">
       <div class="kr-panel-title" style="margin-bottom:10px">🎮 選擇遊戲</div>
       <div class="kr-games-grid" id="lobby-games"></div>
@@ -403,9 +334,6 @@ body::before {
   </div>
 </div>
 
-<!-- ════════════════════════════════════
-     SCREEN — 老師選關卡
-     ════════════════════════════════════ -->
 <div id="screen-level-select" class="screen" style="padding:0;background:#0d0f1a;flex-direction:column;overflow:hidden">
   <div class="kr-header">
     <div style="display:flex;flex-direction:column;gap:2px">
@@ -420,7 +348,6 @@ body::before {
 
   <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;padding:32px 20px">
 
-    <!-- 關卡顯示 -->
     <div style="text-align:center">
       <div style="color:rgba(255,255,255,.4);font-family:'Nunito',sans-serif;font-weight:900;font-size:.8rem;letter-spacing:.1em;margin-bottom:12px">選擇關卡</div>
       <div style="display:flex;align-items:center;gap:24px">
@@ -433,14 +360,12 @@ body::before {
       </div>
     </div>
 
-    <!-- 快速選頁 -->
     <div style="display:flex;gap:10px">
       <button class="kr-btn kr-btn-ghost" style="font-size:.8rem;padding:8px 16px" onclick="jumpToPhase(1)">🌿 1–10</button>
       <button class="kr-btn kr-btn-ghost" style="font-size:.8rem;padding:8px 16px" onclick="jumpToPhase(2)">⚡ 11–20</button>
       <button class="kr-btn kr-btn-ghost" style="font-size:.8rem;padding:8px 16px" onclick="jumpToPhase(3)">🔥 21–30</button>
     </div>
 
-    <!-- 開始按鈕 -->
     <button class="kr-btn kr-btn-start" style="font-size:1.2rem;padding:18px 60px" onclick="tcStartGame()">▶ 全班開始！</button>
   </div>
 
@@ -449,12 +374,8 @@ body::before {
   </div>
 </div>
 
-<!-- ════════════════════════════════════
-     SCREEN — 老師控制台（即時分數）
-     ════════════════════════════════════ -->
 <div id="screen-teacher-console" class="screen" style="padding:0;background:#0d0f1a;flex-direction:column;overflow:hidden">
 
-  <!-- Header -->
   <div class="kr-header" style="border-bottom:3px solid var(--red);flex-shrink:0">
     <div style="display:flex;flex-direction:column;gap:2px">
       <div style="color:var(--red);font-size:.65rem;font-weight:900;letter-spacing:.08em">🔴 LIVE</div>
@@ -470,16 +391,12 @@ body::before {
     <button class="kr-btn kr-btn-ghost" onclick="exitToLobby()" style="font-size:.82rem">← 大廳</button>
   </div>
 
-  <!-- 即時分數區 -->
   <div id="tc-scores-area" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:20px;overflow:hidden">
     <div style="color:rgba(255,255,255,.25);font-family:'Nunito',sans-serif;font-size:.9rem">按「全班開始」後顯示即時分數</div>
   </div>
 
 </div>
 
-<!-- ════════════════════════════════════
-     SCREEN — 結算畫面
-     ════════════════════════════════════ -->
 <div id="screen-settlement" class="screen" style="padding:0;background:#0d0f1a;flex-direction:column;overflow:hidden">
   <div class="kr-header" style="border-bottom:3px solid #f5c800;flex-shrink:0">
     <div style="color:#f5c800;font-family:'Nunito',sans-serif;font-weight:900;font-size:1.1rem">🏆 最終結算</div>
@@ -488,9 +405,6 @@ body::before {
   <div id="settlement-list" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;overflow-y:auto"></div>
 </div>
 
-<!-- ════════════════════════════════════
-     SCREEN — 學生遊戲畫面
-     ════════════════════════════════════ -->
 <div id="screen-student-game" class="screen" style="padding:0;background:#000;flex-direction:column;overflow:hidden">
   <div style="width:100%;background:#111;padding:8px 16px;display:flex;align-items:center;gap:12px;border-bottom:2px solid #f5c800;flex-shrink:0">
     <span id="sg-title" style="color:white;font-weight:900;font-size:.9rem;flex:1">🎮 遊戲中</span>
@@ -499,9 +413,6 @@ body::before {
   <iframe id="sg-iframe" style="flex:1;border:none;width:100%;height:calc(100% - 42px)" allow="autoplay"></iframe>
 </div>
 
-<!-- ════════════════════════════════════
-     SCREEN 4 — STUDENT WAIT (學生端等待室)
-     ════════════════════════════════════ -->
 <div id="screen-student-wait" class="screen" style="padding:0;background:#0d0f1a;overflow:hidden">
     <div class="kr-header">
         <div style="display:flex;flex-direction:column">
@@ -522,7 +433,6 @@ body::before {
         <div class="kr-panel" style="border-bottom:1px solid rgba(255,255,255,0.1); align-items:center; justify-content:center; text-align:center; padding-bottom: 20px;">
             <div class="kr-panel-title" style="width:100%; text-align:left;">🎮 老師選擇的遊戲</div>
             
-            <!-- 自己的頭像卡片 -->
             <div id="sw-my-card" style="display:flex;align-items:center;gap:14px;background:rgba(255,255,255,0.08);border:2px solid rgba(245,200,0,0.4);border-radius:16px;padding:12px 20px;margin:10px 0;width:85%;max-width:300px">
                 <div id="sw-my-symbol" style="font-size:2.8rem;line-height:1">🎮</div>
                 <div style="text-align:left">
@@ -532,8 +442,7 @@ body::before {
             </div>
             
             <div id="sw-selected-game-card" style="background:rgba(255,255,255,0.05); border:3px solid var(--yellow); border-radius:24px; padding:15px 30px; width:85%; max-width:300px; box-shadow: 0 0 20px rgba(245,200,0,0.15); margin-top:10px; transition:all 0.3s ease; display:flex; flex-direction:column; align-items:center;">
-                <!-- JS 渲染 -->
-            </div>
+                </div>
         </div>
 
         <div class="kr-panel" style="padding-top: 16px;">
@@ -547,7 +456,6 @@ body::before {
     </div>
 </div>
 
-<!-- 老師登入 -->
 <div id="screen-teacher-login" class="screen">
   <div style="width:100%;max-width:560px"><button class="back-link" onclick="goTo('screen-home')">◀ 返回</button></div>
   <div class="card" style="text-align:center">
@@ -851,14 +759,23 @@ window.addEventListener('message', (e) => {
     }
 });
 
-// 學生端輪詢：偵測遊戲開始 + 房間關閉
+// 輪詢：偵測玩家加入、遊戲狀態 + 房間關閉
 setInterval(() => {
     if (!window.state || !window.state.roomCode) return;
+    const rooms = window.getRooms();
+    const r = rooms[window.state.roomCode];
+
+    // 新增：多方測試同步大廳人數，讓分頁能彼此看到新加入的玩家
+    if (r && r.players && r.players.length !== window.state.players.length) {
+        window.state.players = r.players;
+        window.state.takenSymbols = r.players.map(p => p.symbol);
+        window.renderLobby();
+    }
+
     const p = window.state.perspective;
     if (p === 'teacher' || p === 'guest') return;
     const pData = window.pStates && window.pStates[p];
     if (!pData || !pData.joined) return;
-    const r = window.getRooms()[window.state.roomCode];
     if (!r || !r.open) {
         pData.joined = false; pData.screen = 'screen-home';
         window.goTo('screen-home');
@@ -887,7 +804,7 @@ setInterval(() => {
         window.goTo('screen-student-wait');
         window.showToast('🏁 遊戲結束！');
     }
-}, 1000);;
+}, 1000);
 
 
 // ── 環境動畫：雲朵 + 金幣 ──
@@ -948,10 +865,6 @@ const GAMES = [
   {id:7, name:'星際大富翁', icon:'🚀', desc:'擲骰冒險奪寶'},
   {id:8, name:'記憶大考驗', icon:'🧠', desc:'腦力連線挑戰'}
 ];
-const SYMBOLS = ['🐉', '🦁', '🐸', '🌟', '🚀', '🔮', '🦊', '🌊', '🔥', '🌍'];
-const TEACHER_PW = '3758';
-
-
 
 // ── 排行榜更新與轉播畫面更新 ──
 let isSwitchingPerspective = false;
@@ -1094,6 +1007,13 @@ function joinRoom() {
   if (!window.state.selectedGroup || !window.state.selectedSymbol) { window.showToast('❌ 請完成選擇'); return; }
   const rooms = window.getRooms();
   if (!rooms[window.state.roomCode] || !rooms[window.state.roomCode].open) { window.showToast('⚠️ 房間已關閉'); window.goToJoin(); return; }
+
+  // 新增：同步最新玩家狀態，避免多開分頁時互相覆蓋
+  if (rooms[window.state.roomCode].players) {
+      window.state.players = rooms[window.state.roomCode].players;
+      window.state.takenSymbols = window.state.players.map(p => p.symbol);
+  }
+
   if (window.state.players.length >= 5) { window.showToast('⚠️ 房間已滿'); window.goToJoin(); return; }
 
   const groupName = `第 ${window.state.selectedGroup} 組`;
@@ -1226,6 +1146,8 @@ function teacherLogin() {
   const pwEl = document.getElementById('tl-pw');
   if (pwEl && pwEl.value !== window.TEACHER_PW) { window.showToast('❌ 密碼錯誤'); return; }
   
+  window.state.perspective = 'teacher'; // 設定此分頁為老師視角
+  
   const code = '0000'; 
   const rooms = window.getRooms();
   rooms[code] = { open: true, teacherName: '老師', roomNum: 0, playerCount: window.state.players.length, status: 'lobby', finishedGroups: [] };
@@ -1269,10 +1191,6 @@ function doCloseRoom() {
 }
 
 function testResetToHome() {
-    document.querySelectorAll('.test-nav-btn').forEach(b => b.classList.remove('active'));
-    const btnTestH = document.getElementById('btn-test-h');
-    if (btnTestH) btnTestH.classList.add('active');
-
     // 真正清空所有狀態
     Object.keys(window.pStates).forEach(k => {
         window.pStates[k].screen = 'screen-home';
@@ -1308,11 +1226,6 @@ function testResetToHome() {
 }
 
 function testSetPerspective(p) {
-    document.querySelectorAll('.test-nav-btn').forEach(b => b.classList.remove('active'));
-    const targetId = (p === 'teacher') ? 'btn-test-t' : 'btn-test-' + p;
-    const targetBtn = document.getElementById(targetId);
-    if (targetBtn) targetBtn.classList.add('active');
-    
     window.state.perspective = p;
     let pData = window.pStates[p];
 
@@ -1376,12 +1289,11 @@ function setViewTeacher() { window.testSetPerspective('teacher'); }
 function setViewStudent() { window.testSetPerspective('s1'); }
 function goToTeacherLogin() { window.goTo('screen-teacher-login'); }
 
-// ── 頁面載入：預設老師視角高亮，停在首頁 ──
+// ── 頁面載入 ──
 window._initLoad = true;
 document.addEventListener('DOMContentLoaded', () => {
-    const btn = document.getElementById('btn-test-t');
-    if (btn) btn.classList.add('active');
-    window.state.perspective = 'teacher';
+    // 預設為訪客視角，讓每個分頁或裝置能自行選擇登入身份
+    window.state.perspective = 'guest';
     window._initLoad = false;
 
     // 防止雙擊縮放（iOS Safari）
