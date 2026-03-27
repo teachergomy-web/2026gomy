@@ -622,6 +622,7 @@ function tcStartGame() {
     if (rooms[window.state.roomCode]) {
         rooms[window.state.roomCode].status   = 'playing';
         rooms[window.state.roomCode].gameLevel = TC.level;
+        rooms[window.state.roomCode].scores = {}; // 重新開始遊戲時清空分數
         window.saveRooms(rooms);
     }
 
@@ -749,19 +750,36 @@ function exitToLobby() {
     }
 }
 
-// 接收 W1 postMessage
+// 接收 W1 postMessage (處理分數同步)
 window.addEventListener('message', (e) => {
     if (!e.data || !e.data.type) return;
-    if (e.data.type==='W1_SCORE'    && e.data.group) tcUpdateScore(e.data.group, e.data.score);
+    if (e.data.type==='W1_SCORE' && e.data.group) {
+        tcUpdateScore(e.data.group, e.data.score);
+        // 學生端將自己最新的分數同步到 rooms
+        const rooms = window.getRooms();
+        if (rooms[window.state.roomCode]) {
+            if (!rooms[window.state.roomCode].scores) rooms[window.state.roomCode].scores = {};
+            rooms[window.state.roomCode].scores[e.data.group] = e.data.score;
+            window.saveRooms(rooms);
+        }
+    }
     if (e.data.type==='W1_GAMEOVER' && e.data.group) {
         tcUpdateScore(e.data.group, e.data.score);
-        showToast(`🏁 ${e.data.group} 完成！得分：${e.data.score}`);
+        const rooms = window.getRooms();
+        if (rooms[window.state.roomCode]) {
+            if (!rooms[window.state.roomCode].scores) rooms[window.state.roomCode].scores = {};
+            rooms[window.state.roomCode].scores[e.data.group] = e.data.score;
+            window.saveRooms(rooms);
+        }
+        if (window.state.perspective === 'teacher') {
+            showToast(`🏁 ${e.data.group} 完成！得分：${e.data.score}`);
+        }
     }
 });
 
-// 輪詢：偵測玩家加入、遊戲狀態 + 房間關閉
+// 輪詢：偵測玩家加入、遊戲狀態、分數同步 + 房間關閉
 setInterval(() => {
-    // 新增：如果停留在加入房間列表，自動更新列表，確保老師創房後學生立刻看見
+    // 停留在加入房間列表，自動更新列表
     if (window.state && window.pStates) {
         const currentPState = window.pStates[window.state.perspective];
         if (currentPState && currentPState.screen === 'screen-join' && currentPState.joinStep === 1) {
@@ -772,8 +790,34 @@ setInterval(() => {
     if (!window.state || !window.state.roomCode) return;
     const rooms = window.getRooms();
     const r = rooms[window.state.roomCode];
+    if (!r) return;
 
-    // 多方測試同步大廳人數，讓分頁能彼此看到新加入的玩家
+    // 老師端透過輪詢從 shared rooms 讀取所有學生即時同步的最新分數
+    if (r.scores) {
+        let scoreChanged = false;
+        for (let g in r.scores) {
+            if (TC.scores[g] !== r.scores[g]) {
+                TC.scores[g] = r.scores[g];
+                scoreChanged = true;
+                
+                // 如果目前是老師端，只針對有變動的項目觸發跳動特效
+                if (window.state.perspective === 'teacher' && window.pStates['teacher'].screen === 'screen-teacher-console') {
+                    const el = document.getElementById('tc-score-' + g.replace(/\s/g,''));
+                    if (el) {
+                        el.textContent = r.scores[g];
+                        el.style.transform = 'scale(1.4)';
+                        setTimeout(() => { if(el) el.style.transform = 'scale(1)'; }, 250);
+                    }
+                }
+            }
+        }
+        // 如果分數有變且是老師端，重新排序並渲染
+        if (scoreChanged && window.state.perspective === 'teacher' && window.pStates['teacher'].screen === 'screen-teacher-console') {
+            tcRenderScores();
+        }
+    }
+
+    // 多方測試同步大廳人數
     if (r && r.players && r.players.length !== window.state.players.length) {
         window.state.players = r.players;
         window.state.takenSymbols = r.players.map(p => p.symbol);
@@ -1016,7 +1060,7 @@ function joinRoom() {
   const rooms = window.getRooms();
   if (!rooms[window.state.roomCode] || !rooms[window.state.roomCode].open) { window.showToast('⚠️ 房間已關閉'); window.goToJoin(); return; }
 
-  // 新增：同步最新玩家狀態，避免多開分頁時互相覆蓋
+  // 同步最新玩家狀態，避免多開分頁時互相覆蓋
   if (rooms[window.state.roomCode].players) {
       window.state.players = rooms[window.state.roomCode].players;
       window.state.takenSymbols = window.state.players.map(p => p.symbol);
@@ -1030,7 +1074,7 @@ function joinRoom() {
   window.state.players.push({group: groupName, symbol: window.state.selectedSymbol});
   window.state.takenSymbols.push(window.state.selectedSymbol);
 
-  // 同時寫入 players 陣列，避免 processRoomStateUpdate 每秒清空
+  // 同時寫入 players 陣列
   rooms[window.state.roomCode].players = window.state.players;
   rooms[window.state.roomCode].playerCount = window.state.players.length;
   window.saveRooms(rooms);
@@ -1061,7 +1105,7 @@ function leaveRoomStudent() {
             const groupName = pData.group;
             window.state.players = window.state.players.filter(p => p.group !== groupName);
             window.state.takenSymbols = window.state.takenSymbols.filter(s => s !== pData.symbol);
-            // 同時更新 rooms.players，否則 processRoomStateUpdate 會把玩家加回來
+            // 同時更新 rooms.players
             const rooms = window.getRooms();
             if(rooms[window.state.roomCode]) {
                 rooms[window.state.roomCode].players = window.state.players;
@@ -1111,7 +1155,7 @@ function renderLobby() {
 function updateStudentWaitDisplay() {
   // 更新目前視角學生的頭像和組別
   const p = window.state.perspective;
-  if (!p || p === 'teacher') return;
+  if (!p || p === 'teacher' || p === 'guest') return;
   const pData = window.pStates[p];
   if (!pData || !pData.joined) return;
   const symEl  = document.getElementById('sw-my-symbol');
@@ -1138,7 +1182,7 @@ function simulateJoin() {
     window.pStates[pKey].screen = 'screen-student-wait';
   }
   
-  // 把 players 陣列寫入 rooms，避免 processRoomStateUpdate 每秒清空
+  // 把 players 陣列寫入 rooms
   const rooms = window.getRooms();
   if (rooms[window.state.roomCode]) {
     rooms[window.state.roomCode].players = window.state.players;
@@ -1156,9 +1200,17 @@ function teacherLogin() {
   
   window.state.perspective = 'teacher'; // 設定此分頁為老師視角
   
+  const rooms = window.getRooms();
+
+  // 1. 關閉之前所有已開啟的房間，避免同個老師密碼同時產生多個房間
+  Object.keys(rooms).forEach(k => {
+      if (rooms[k].open) {
+          rooms[k].open = false;
+      }
+  });
+  
   // 動態產生 4 位數房間代碼
   let code = Math.floor(1000 + Math.random() * 9000).toString();
-  const rooms = window.getRooms();
   while (rooms[code] && rooms[code].open) {
       code = Math.floor(1000 + Math.random() * 9000).toString();
   }
@@ -1167,7 +1219,11 @@ function teacherLogin() {
   let roomNum = parseInt(localStorage.getItem('playroom_counter') || '0') + 1;
   localStorage.setItem('playroom_counter', roomNum);
 
-  rooms[code] = { open: true, teacherName: '老師', roomNum: roomNum, playerCount: window.state.players.length, status: 'lobby', finishedGroups: [] };
+  rooms[code] = { 
+      open: true, teacherName: '老師', roomNum: roomNum, 
+      playerCount: window.state.players.length, status: 'lobby', 
+      finishedGroups: [], scores: {} 
+  };
   window.saveRooms(rooms);
   
   window.state.roomCode = code;
