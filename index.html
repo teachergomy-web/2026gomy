@@ -1467,44 +1467,51 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2500);
 }
 
+let _joinRoomListener = null; // 選組畫面的即時監聽器
+
+function stopJoinListener() {
+    if (_joinRoomListener) { _joinRoomListener(); _joinRoomListener = null; }
+}
+
+function startJoinListener(roomCode) {
+    stopJoinListener();
+    if (!isFirebase || !db || !fsOnSnap || !roomCode) return;
+    const ref = fsDoc(db, 'rooms', roomCode);
+    _joinRoomListener = fsOnSnap(ref, (snap) => {
+        if (!snap.exists()) return;
+        const data = snap.data();
+        window.state.players      = data.players || [];
+        window.state.takenSymbols = window.state.players.map(p => p.symbol);
+        window.state.takenGroups  = window.state.players.map(p => p.group);
+        // 如果目前在選組畫面，即時更新組別顯示
+        const step = window.pStates[window.state.perspective]?.joinStep;
+        if (step === 2) {
+            window.renderGroupSelect();
+            window.renderSymbolPicker();
+        }
+    }, () => {});
+}
+
 function syncJoinDOM() {
     const step = window.pStates[window.state.perspective]?.joinStep || 1;
     document.getElementById('join-step-1').style.display = step === 1 ? 'block' : 'none';
     document.getElementById('join-step-password').style.display = step === 1.5 ? 'block' : 'none';
     document.getElementById('join-step-2').style.display = step === 2 ? 'block' : 'none';
     if (step === 2) {
-        // 進入選組步驟前先從 Firebase 即時同步最新玩家資料（防止選到已佔用的組）
-        window.state.selectedGroup = ''; window.state.selectedSymbol = '';
+        window.state.selectedGroup = '';
+        window.state.selectedSymbol = '';
         document.getElementById('group-select').value = '';
-
-        const refreshAndRender = () => {
-            window.renderGroupSelect();
-            window.renderSymbolPicker();
-        };
-
-        if (isFirebase && db && fsGetDoc && isFirebaseAuthComplete && window.state.roomCode) {
-            fsGetDoc(fsDoc(db, 'rooms', window.state.roomCode)).then(snap => {
-                if (snap.exists()) {
-                    const latest = snap.data();
-                    window.state.players      = latest.players || [];
-                    window.state.takenSymbols = window.state.players.map(p => p.symbol);
-                    window.state.takenGroups  = window.state.players.map(p => p.group);
-                }
-                refreshAndRender();
-            }).catch(() => refreshAndRender());
-        } else {
-            const rooms = window.getRooms();
-            if (window.state.roomCode && rooms[window.state.roomCode]?.players) {
-                window.state.players      = rooms[window.state.roomCode].players;
-                window.state.takenSymbols = window.state.players.map(p => p.symbol);
-                window.state.takenGroups  = window.state.players.map(p => p.group);
-            }
-            refreshAndRender();
-        }
+        // 啟動選組即時監聽（其他裝置加入時本機立即更新）
+        startJoinListener(window.state.roomCode);
+        window.renderGroupSelect();
+        window.renderSymbolPicker();
+    } else {
+        // 離開選組畫面時停止監聽
+        stopJoinListener();
     }
 }
 
-function goToJoin() { if (window.pStates[window.state.perspective]) window.pStates[window.state.perspective].joinStep = 1; window.syncJoinDOM(); window.renderRoomList(); window.goTo('screen-join'); }
+function goToJoin() { if (window.pStates[window.state.perspective]) window.pStates[window.state.perspective].joinStep = 1; stopJoinListener(); window.syncJoinDOM(); window.renderRoomList(); window.goTo('screen-join'); }
 
 function renderRoomList() {
   const rooms = window.getRooms();
@@ -1589,6 +1596,13 @@ function joinRoom() {
   const restoreBtn = () => { if (joinBtn) { joinBtn.disabled = false; joinBtn.textContent = '準備完成！→'; } };
 
   // ── 用 Firebase Transaction 保證原子性，防止同時加入同組 ──
+  // 如果 Firebase auth 還沒完成，等待後再試
+  if (isFirebase && db && fsTransaction && !isFirebaseAuthComplete) {
+      window.showToast('⏳ 連線中，請稍後再試...');
+      restoreBtn();
+      setTimeout(() => joinRoom(), 1500);
+      return;
+  }
   if (isFirebase && db && fsTransaction && isFirebaseAuthComplete) {
       const ref = fsDoc(db, 'rooms', roomCode);
       fsTransaction(db, async (tx) => {
@@ -1685,6 +1699,7 @@ function joinRoom() {
 }
 
 function _finishJoin(groupName, symbol, roomCode) {
+  stopJoinListener(); // 加入成功，停止選組監聽
   const pData = window.pStates[window.state.perspective];
   if (pData) {
     pData.joined = true;
