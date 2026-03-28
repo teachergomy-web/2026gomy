@@ -228,7 +228,6 @@ let myGroup = '';
 let myRole  = 'spectator'; // teacher|player|spectator
 window.GROUP_ID = '';
 
-let rollIntervals = [null, null];
 let countdownTimers = [null, null];
 let audioCtx = null;
 
@@ -312,26 +311,23 @@ function drawLots(){
 
 function startRolling(mi, blackFinal, whiteFinal){
     const m=state.matches[mi];
-    m.status='rolling';m.black='???';m.white='???';
+    m.status='rolling';m.black=blackFinal;m.white=whiteFinal;
     m.cells=Array(GRID*GRID).fill(0);m.turn='black';m.lastMove=-1;m.winner=null;
     m.blackReady=false;m.whiteReady=false;
 
-    // 更新場次
     state.scores[blackFinal]=state.scores[blackFinal]||{wins:0,matches:0};
     state.scores[whiteFinal]=state.scores[whiteFinal]||{wins:0,matches:0};
     state.scores[blackFinal].matches++;
     state.scores[whiteFinal].matches++;
 
-    broadcast(); // 先廣播 rolling 狀態
+    broadcast(); // 廣播 rolling（名字已確定，CSS 做動畫效果）
 
     setTimeout(()=>{
-        clearInterval(rollIntervals[mi]);
-        rollIntervals[mi]=null;
         const m2=state.matches[mi];
-        m2.status='ready';m2.black=blackFinal;m2.white=whiteFinal;
-        m2.blackReady=false;m2.whiteReady=false;
-        broadcast(); // 廣播 ready 狀態
-    },2500);
+        if(m2.status!=='rolling')return; // 已被其他操作中斷
+        m2.status='ready';
+        broadcast();
+    },3000); // 3秒後進入準備階段
 }
 
 function runCountdown(mi){
@@ -534,18 +530,13 @@ function renderMatch(mi){
     document.getElementById('idle-'+mi).classList.toggle('hidden',s!=='idle');
     document.getElementById('roll-'+mi).classList.toggle('hidden',s!=='rolling');
 
-    // Roll animation
+    // Roll animation：直接顯示組名，CSS 做跳動效果
     if(s==='rolling'){
-        if(!rollIntervals[mi]){
-            rollIntervals[mi]=setInterval(()=>{
-                const pool=state.activePlayers.length>0?state.activePlayers:Object.keys(state.scores);
-                if(pool.length<2)return;
-                document.getElementById('rb-black-'+mi).textContent=pool[Math.floor(Math.random()*pool.length)];
-                document.getElementById('rb-white-'+mi).textContent=pool[Math.floor(Math.random()*pool.length)];
-                playSound('roll');
-            },120);
-        }
-    }else{clearInterval(rollIntervals[mi]);rollIntervals[mi]=null;}
+        const rb=document.getElementById('rb-black-'+mi);
+        const rw=document.getElementById('rb-white-'+mi);
+        if(rb) rb.textContent=m.black||'???';
+        if(rw) rw.textContent=m.white||'???';
+    }
 
     // Player headers
     document.getElementById('pname-black-'+mi).textContent=m.black||'—';
