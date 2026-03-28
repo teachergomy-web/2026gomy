@@ -545,35 +545,40 @@ let isFirebaseAuthComplete = false;
     }
 })();
 
-// ── localStorage 讀寫（本地快取 + 記憶體快取合併）──
+// ── 房間資料：Firebase 是唯一真相來源 ──
+// _allRoomsCache 存放 Firebase 最新快照，localStorage 只用於備份自己的房間
+window._allRoomsCache = {};
+
 window.getRooms = function() {
-    const local = JSON.parse(localStorage.getItem('playroom_rooms') || '{}');
-    // 合併記憶體快取（不覆蓋本機有的）
-    const cache = window._allRoomsCache || {};
-    const merged = Object.assign({}, cache, local);
-    return merged;
-};
-window.saveRooms = function(r) {
-    // 只把自己的房間存到 localStorage（避免多房間互相污染）
-    const myCode = window.state && window.state.roomCode;
-    if (myCode && r[myCode]) {
-        const local = JSON.parse(localStorage.getItem('playroom_rooms') || '{}');
-        local[myCode] = r[myCode];
-        localStorage.setItem('playroom_rooms', JSON.stringify(local));
+    // 優先用 Firebase 快取（最新）
+    if (Object.keys(window._allRoomsCache).length > 0) {
+        return Object.assign({}, window._allRoomsCache);
     }
-    if (!isFirebase || !db || !isFirebaseAuthComplete) return;
-    // Firebase 只寫自己的房間
-    if (myCode && r[myCode]) {
+    // Firebase 還未連線時才用 localStorage 備份
+    return JSON.parse(localStorage.getItem('playroom_rooms') || '{}');
+};
+
+window.saveRooms = function(r) {
+    const myCode = window.state && window.state.roomCode;
+    if (!myCode || !r[myCode]) return;
+    // 更新記憶體快取
+    window._allRoomsCache[myCode] = r[myCode];
+    // 備份到 localStorage
+    const local = JSON.parse(localStorage.getItem('playroom_rooms') || '{}');
+    local[myCode] = r[myCode];
+    localStorage.setItem('playroom_rooms', JSON.stringify(local));
+    // 寫入 Firebase
+    if (isFirebase && db && isFirebaseAuthComplete) {
         fsSet(fsDoc(db, 'rooms', myCode), r[myCode])
             .catch(e => console.error("Firebase Save Error:", e));
     }
 };
 
-// ── 刪除單一房間（Firebase + localStorage）──
 window.deleteRoom = function(code) {
-    const rooms = window.getRooms();
-    delete rooms[code];
-    localStorage.setItem('playroom_rooms', JSON.stringify(rooms));
+    delete window._allRoomsCache[code];
+    const local = JSON.parse(localStorage.getItem('playroom_rooms') || '{}');
+    delete local[code];
+    localStorage.setItem('playroom_rooms', JSON.stringify(local));
     if (isFirebase && db && isFirebaseAuthComplete) {
         fsDelete(fsDoc(db, 'rooms', code)).catch(e => console.error("Firebase Delete Error:", e));
     }
@@ -582,10 +587,7 @@ window.deleteRoom = function(code) {
 let roomSyncUnsubscribe = null;
 let allRoomsUnsubscribe = null;
 
-// ── 全房間快取（記憶體，不寫 localStorage 避免互相污染）──
-window._allRoomsCache = {};
-
-// ── 監聽所有房間（讓學生看到房間列表）──
+// ── 監聽所有房間（Firebase → 記憶體，Firebase 刪了就從快取移除）──
 function startAllRoomsListener() {
     if (!isFirebase || !db) return;
     if (allRoomsUnsubscribe) { allRoomsUnsubscribe(); allRoomsUnsubscribe = null; }
@@ -595,19 +597,28 @@ function startAllRoomsListener() {
         const newCache = {};
         snapshot.forEach(doc => {
             const data = doc.data();
-            if (!data.createdAt || (now - data.createdAt) < 2 * 60 * 60 * 1000) {
-                newCache[doc.id] = data;
+            if (data.createdAt && (now - data.createdAt) > 2 * 60 * 60 * 1000) {
+                // 超過2小時靜默刪除
+                if (isFirebaseAuthComplete) fsDelete(fsDoc(db, 'rooms', doc.id)).catch(()=>{});
             } else {
-                window.deleteRoom(doc.id);
+                newCache[doc.id] = data;
             }
         });
-        // 只存在記憶體，不污染 localStorage
+        // Firebase 快照完整取代記憶體快取（確保刪除即時反映）
         window._allRoomsCache = newCache;
 
-        // Firebase 資料到了，重新渲染房間列表
+        // 同時清理 localStorage 中已不在 Firebase 的房間
+        const local = JSON.parse(localStorage.getItem('playroom_rooms') || '{}');
+        let changed = false;
+        Object.keys(local).forEach(id => {
+            if (!newCache[id]) { delete local[id]; changed = true; }
+        });
+        if (changed) localStorage.setItem('playroom_rooms', JSON.stringify(local));
+
+        // 重新渲染房間列表
         const p = window.state && window.state.perspective;
         const pData = p && window.pStates && window.pStates[p];
-        if (pData && (pData.screen === 'screen-join') && pData.joinStep === 1) {
+        if (pData && pData.screen === 'screen-join' && pData.joinStep === 1) {
             window.renderRoomList();
         }
     }, err => console.error('All rooms sync error:', err));
