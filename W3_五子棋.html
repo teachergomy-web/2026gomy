@@ -85,6 +85,7 @@ body,html{margin:0;padding:0;width:100%;height:100%;background:var(--bg);font-fa
 @keyframes cdBounce{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
 .cd-vs{font-family:'Fredoka One',sans-serif;font-size:clamp(18px,4vw,28px);color:rgba(255,255,255,.5);}
 
+/* Pause overlay */
 #pause-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:999;flex-direction:column;align-items:center;justify-content:center;gap:12px;}
 #pause-overlay.show{display:flex;}
 #toast-w3{position:fixed;bottom:70px;left:50%;transform:translateX(-50%) translateY(20px);background:#1A0A4A;border:3px solid var(--yellow);border-radius:12px;padding:10px 22px;font-family:'Nunito',sans-serif;font-weight:900;color:var(--yellow);opacity:0;transition:.25s cubic-bezier(.34,1.56,.64,1);pointer-events:none;z-index:500;white-space:nowrap;}
@@ -165,9 +166,11 @@ body,html{margin:0;padding:0;width:100%;height:100%;background:var(--bg);font-fa
 <div id="teacher-view" style="position:absolute;top:100px;left:0;right:0;bottom:60px;display:none;flex-direction:column;overflow:hidden;z-index:10;background:var(--bg);">
 
   <!-- 頂部模式切換列 -->
-  <div style="display:flex; justify-content:center; gap:20px; padding:10px; background:rgba(0,0,0,0.3); border-bottom:2px solid rgba(255,214,0,0.3); flex-shrink:0;">
+  <div style="display:flex; justify-content:center; align-items:center; gap:15px; padding:10px; background:rgba(0,0,0,0.3); border-bottom:2px solid rgba(255,214,0,0.3); flex-shrink:0;">
     <button id="btn-mode-designated" onclick="setMatchMode('designated')" style="padding:8px 20px; border-radius:8px; font-family:'Nunito',sans-serif; font-weight:900; cursor:pointer; border:2px solid transparent; transition:all 0.2s;">🎯 指定模式</button>
     <button id="btn-mode-free" onclick="setMatchMode('free')" style="padding:8px 20px; border-radius:8px; font-family:'Nunito',sans-serif; font-weight:900; cursor:pointer; border:2px solid transparent; transition:all 0.2s;">🤝 自由對戰</button>
+    <div style="width:2px; height:24px; background:rgba(255,255,255,0.2); margin:0 5px;"></div>
+    <button id="btn-w3-pause" onclick="toggleW3Pause()" style="padding:8px 20px; border-radius:8px; font-family:'Nunito',sans-serif; font-weight:900; cursor:pointer; border:2px solid transparent; transition:all 0.2s; background:rgba(255,255,255,0.1); color:rgba(255,255,255,0.5);">⏸ 暫停遊戲</button>
   </div>
 
   <div style="flex:1; display:flex; flex-direction:row; min-height:0;">
@@ -238,7 +241,7 @@ body,html{margin:0;padding:0;width:100%;height:100%;background:var(--bg);font-fa
 <!-- Pause overlay -->
 <div id="pause-overlay">
   <div style="font-size:56px">⏸</div>
-  <div style="font-family:'Fredoka One',sans-serif;font-size:1.8rem;color:var(--yellow)">暫停中</div>
+  <div style="font-family:'Fredoka One',sans-serif;font-size:1.8rem;color:var(--yellow)">遊戲暫停</div>
 </div>
 <div id="toast-w3"></div>
 
@@ -257,8 +260,9 @@ let state = {
     scores: {},          // {組名:{wins,matches}}
     activePlayers: [],   // 實際加入的組別
     started: false,      // 是否已啟動
-    invites: [],         // 新增：對戰邀請
-    matchMode: 'designated' // 新增：老師模式 (designated | free)
+    invites: [],         // 對戰邀請
+    matchMode: 'designated', // 老師模式 (designated | free)
+    paused: false        // 遊戲暫停狀態
 };
 
 let myGroup = '';
@@ -278,6 +282,7 @@ function getFreeMatchIndex() {
 }
 
 function sendInvite(target) {
+    if (state.paused) return; // 暫停時禁止操作
     if (!state.invites) state.invites = [];
     if (state.invites.some(i => i.from === myGroup && i.to === target)) return;
     state.invites.push({ from: myGroup, to: target });
@@ -286,6 +291,7 @@ function sendInvite(target) {
 }
 
 function acceptInvite(from) {
+    if (state.paused) return; // 暫停時禁止操作
     if (!isGroupIdle(myGroup)) {
         showToast('⚠️ 你們已經在對戰中了！');
         return;
@@ -314,8 +320,17 @@ function acceptInvite(from) {
 }
 
 function rejectInvite(from) {
+    if (state.paused) return; // 暫停時禁止操作
     state.invites = state.invites.filter(i => !(i.from === from && i.to === myGroup));
     broadcast();
+}
+
+function toggleW3Pause() {
+    if (myRole !== 'teacher') return;
+    state.paused = !state.paused;
+    broadcast();
+    if (state.paused) showToast('⏸ 已暫停學生畫面');
+    else showToast('▶ 已恢復對戰');
 }
 // ------------------------------
 
@@ -476,6 +491,7 @@ function runCountdown(mi){
     countdownTimers[mi] = null;
     // 只有觸發者負責倒數，其他人透過 applyState 收到更新
     countdownTimers[mi]=setInterval(()=>{
+        if (state.paused) return; // 暫停時不倒數
         const m=state.matches[mi];
         if(m.status!=='countdown'){
             clearInterval(countdownTimers[mi]);
@@ -502,6 +518,7 @@ function ensureCountdown(mi){
     if(countdownTimers[mi])return; // 已在跑
     // 這個裝置不是觸發者，只做本機倒數顯示（不廣播）
     countdownTimers[mi]=setInterval(()=>{
+        if (state.paused) return; // 暫停時不倒數
         const m2=state.matches[mi];
         if(m2.status!=='countdown'){
             clearInterval(countdownTimers[mi]);
@@ -531,54 +548,11 @@ function hideCountdownOverlay(){
     document.getElementById('countdown-overlay')?.classList.remove('show');
 }
 
-// 賽局結束後自動配對閒置組 (保留給未來需要)
-function autoNextMatch(finishedMi){
-    const inUse=new Set();
-    state.matches.forEach((m,i)=>{
-        if(i!==finishedMi && m.status!=='idle' && m.status!=='finished'){
-            if(m.black)inUse.add(m.black);
-            if(m.white)inUse.add(m.white);
-        }
-    });
-
-    const idle=state.activePlayers.filter(g=>!inUse.has(g));
-    const lastB=state.matches[finishedMi].black;
-    const lastW=state.matches[finishedMi].white;
-
-    if(idle.length<2){
-        state.matches[finishedMi].status='idle';
-        broadcast();
-        return;
-    }
-
-    const sorted=[...idle].sort((a,b)=>{
-        const d=(state.scores[a]?.matches||0)-(state.scores[b]?.matches||0);
-        return d!==0?d:Math.random()-.5;
-    });
-
-    let black=null, white=null;
-    for(let i=0;i<sorted.length;i++){
-        for(let j=i+1;j<sorted.length;j++){
-            const a=sorted[i], b=sorted[j];
-            const sameAsBefore=(a===lastB&&b===lastW)||(a===lastW&&b===lastB);
-            if(!sameAsBefore){black=a;white=b;break;}
-        }
-        if(black)break;
-    }
-
-    if(!black){
-        state.matches[finishedMi].status='idle';
-        broadcast();
-        return;
-    }
-
-    setTimeout(()=>startRolling(finishedMi,black,white),800);
-}
-
 // ══════════════════════════════════════
 // 落子
 // ══════════════════════════════════════
 function handleCellClick(mi,idx){
+    if (state.paused) return; // 暫停時禁止落子
     initAudio();
     const m=state.matches[mi];
     if(m.status!=='playing'||m.cells[idx]!==0||m.winner)return;
@@ -635,7 +609,18 @@ function applyState(newState){
     state=Object.assign({},state,newState);
     if (!state.invites) state.invites = [];
     if (!state.matchMode) state.matchMode = 'designated';
+    if (state.paused === undefined) state.paused = false;
     updateMyRole();
+
+    // 同步暫停遮罩 (僅限學生端顯示遮罩)
+    const pauseOverlay = document.getElementById('pause-overlay');
+    if (pauseOverlay) {
+        if (state.paused && myRole !== 'teacher') {
+            pauseOverlay.classList.add('show');
+        } else {
+            pauseOverlay.classList.remove('show');
+        }
+    }
 
     state.matches.forEach((m,mi)=>{
         const p=prev[mi];
@@ -646,6 +631,7 @@ function applyState(newState){
                 clearInterval(clearTimers[mi]);
                 let timeLeft = 10;
                 clearTimers[mi] = setInterval(() => {
+                    if (state.paused) return; // 暫停時凍結清空倒數
                     timeLeft--;
                     // 即時更新倒數文字
                     const txtEl = document.getElementById(`auto-clear-text-${mi}`);
@@ -710,7 +696,6 @@ function renderAll(){
     }
     
     renderTeacherView();
-    renderLobbyCards();
     renderGameView();
     renderBottom();
     renderInvites();
@@ -770,6 +755,16 @@ function renderHUD(){
     if(myRole==='teacher'){badge.textContent='🎓 老師';badge.className='role-badge role-teacher';}
     else if(myRole==='player'){badge.textContent='⚔️ '+myGroup;badge.className='role-badge role-player';}
     else{badge.textContent='👁 觀眾';badge.className='role-badge role-spectator';}
+    
+    const statusText = document.getElementById('student-status-text');
+    if(statusText) {
+        if(state.matchMode === 'free') {
+            statusText.textContent = "🤝 開放自由約戰中";
+        } else {
+            statusText.textContent = "⏳ 等待老師配對中...";
+        }
+    }
+
     const playing=state.matches.filter(m=>m.status==='playing'||m.status==='countdown');
     document.getElementById('hud-title').textContent=
         !state.started?'等待老師開始':
@@ -801,9 +796,11 @@ function renderScoreboard(){
 function renderTeacherView(){
     if(myRole!=='teacher')return;
 
-    // 更新頂部模式切換按鈕外觀
+    // 更新頂部模式切換按鈕與暫停按鈕外觀
     const btnDes = document.getElementById('btn-mode-designated');
     const btnFree = document.getElementById('btn-mode-free');
+    const btnPause = document.getElementById('btn-w3-pause');
+
     if (btnDes) {
         btnDes.style.background = state.matchMode === 'designated' ? 'var(--blue)' : 'rgba(255,255,255,0.1)';
         btnDes.style.color = state.matchMode === 'designated' ? '#fff' : 'rgba(255,255,255,0.5)';
@@ -813,6 +810,19 @@ function renderTeacherView(){
         btnFree.style.background = state.matchMode === 'free' ? 'var(--green)' : 'rgba(255,255,255,0.1)';
         btnFree.style.color = state.matchMode === 'free' ? '#fff' : 'rgba(255,255,255,0.5)';
         btnFree.style.borderColor = state.matchMode === 'free' ? '#4dff80' : 'transparent';
+    }
+    if (btnPause) {
+        if (state.paused) {
+            btnPause.textContent = '▶ 恢復遊戲';
+            btnPause.style.background = 'var(--yellow)';
+            btnPause.style.color = '#000';
+            btnPause.style.borderColor = 'var(--yellow)';
+        } else {
+            btnPause.textContent = '⏸ 暫停遊戲';
+            btnPause.style.background = 'rgba(255,255,255,0.1)';
+            btnPause.style.color = 'rgba(255,255,255,0.5)';
+            btnPause.style.borderColor = 'transparent';
+        }
     }
 
     buildTeacherBoards();
@@ -892,17 +902,6 @@ function renderTeacherView(){
         });
     });
     resizeTeacherBoards();
-}
-
-function renderLobbyCards(){
-    const statusText = document.getElementById('student-status-text');
-    if(statusText) {
-        if(state.matchMode === 'free') {
-            statusText.textContent = "🤝 開放自由約戰中";
-        } else {
-            statusText.textContent = "⏳ 等待老師配對中...";
-        }
-    }
 }
 
 function isMyMatchPlaying(){
@@ -1012,9 +1011,11 @@ window.addEventListener('message',(e)=>{
             if(e.data.data)applyState(e.data.data);
             break;
         case 'PLATFORM_PAUSE':
+            state.paused = true;
             document.getElementById('pause-overlay').classList.add('show');
             break;
         case 'PLATFORM_RESUME':
+            state.paused = false;
             document.getElementById('pause-overlay').classList.remove('show');
             break;
     }
