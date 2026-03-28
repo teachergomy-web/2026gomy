@@ -228,6 +228,13 @@ body::before {
 <div class="ground-bar"></div>
 <div id="toast"></div>
 
+<!-- 重整恢復 Loading 畫面 -->
+<div id="restore-loading" style="display:none;position:fixed;inset:0;background:#0d0f1a;z-index:9999;flex-direction:column;align-items:center;justify-content:center;gap:16px">
+  <div style="font-size:3rem;animation:spin 1s linear infinite">⚡</div>
+  <div style="font-family:'Nunito',sans-serif;font-weight:900;color:#f5c800;font-size:1rem">恢復連線中...</div>
+  <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+</div>
+
 <div id="qr-popup" onclick="toggleQR()">
     <div class="qr-container" onclick="event.stopPropagation()">
         <div style="font-family:'Nunito',sans-serif;font-weight:900;color:#1a1d30;font-size:1.2rem;margin-bottom:10px">📱 掃碼加入遊戲房間</div>
@@ -536,7 +543,7 @@ let isFirebaseAuthComplete = false;
                 // 如果已有房間代碼，再開始監聽單一房間
                 if (window.state && window.state.roomCode) startSyncListener();
                 // Firebase 連線後嘗試恢復 session（延遲讓 allRoomsListener 先拿到資料）
-                setTimeout(tryRestoreSession, 1500);
+                setTimeout(tryRestoreSession, 800);
             } else {
                 isFirebaseAuthComplete = false;
             }
@@ -1096,12 +1103,12 @@ setInterval(() => {
         }
     }
 
-    // 多方測試同步大廳人數
-    if (r && r.players && r.players.length !== window.state.players.length) {
-        window.state.players = r.players;
-        window.state.takenSymbols = r.players.map(p => p.symbol);
+    // 同步玩家列表（Firebase 為唯一真相，JSON 比較避免不必要的重繪）
+    const remotePlayers = r ? (r.players || []) : [];
+    if (JSON.stringify(remotePlayers) !== JSON.stringify(window.state.players)) {
+        window.state.players = remotePlayers;
+        window.state.takenSymbols = remotePlayers.map(p => p.symbol);
         window.renderLobby();
-        // 學生等待畫面也同步更新玩家列表
         const perspective = window.state.perspective;
         if (perspective !== 'teacher') window.updateStudentWaitDisplay();
     }
@@ -1110,6 +1117,9 @@ setInterval(() => {
     if (r && r.selectedGame !== undefined && r.selectedGame !== window.state.selectedGame) {
         window.state.selectedGame = r.selectedGame;
         window.renderLobby();
+        // 學生端也更新遊戲卡片
+        const p2 = window.state.perspective;
+        if (p2 !== 'teacher') window.updateStudentWaitDisplay();
     }
 
     const p = window.state.perspective;
@@ -1500,6 +1510,15 @@ function selectGame(i) {
     window.showToast(`已選擇：${g.icon} ${g.name}`);
 }
 function renderLobby() {
+  // 從 Firebase 同步最新玩家資料（避免 window.state.players 過期）
+  if (window.state.roomCode) {
+      const rooms = window.getRooms();
+      const r = rooms[window.state.roomCode];
+      if (r && r.players !== undefined) {
+          window.state.players = r.players;
+          window.state.takenSymbols = r.players.map(p => p.symbol);
+      }
+  }
   // 固定顯示5個座位格，有人就填，沒人就空位
   const slots = Array.from({length:5}, (_,i) => {
     const p = window.state.players[i];
@@ -1545,12 +1564,23 @@ function updateStudentWaitDisplay() {
   if (room) {
       if (swName) swName.textContent = `誰是遊戲王 — 房間 #${room.roomNum || ''}`;
       if (swCnt) swCnt.textContent = `${(room.players||[]).length}/5`;
-      // 玩家座位
+      // 玩家座位（用正確的 CSS class）
       const seatEl = document.getElementById('sw-lobby-players');
       if (seatEl && room.players) {
           seatEl.innerHTML = room.players.map(pl =>
-              `<div class="seat-card filled"><div class="seat-symbol">${pl.symbol}</div><div class="seat-name">${pl.group}</div></div>`
+              `<div class="kr-seat"><div class="kr-seat-emoji">${pl.symbol}</div><div class="kr-seat-name">${pl.group}</div></div>`
           ).join('');
+      }
+      // 老師選擇的遊戲卡片
+      const gameIdx = room.selectedGame !== undefined ? room.selectedGame : (window.state.selectedGame || 0);
+      window.state.selectedGame = gameIdx;
+      const gameCard = document.getElementById('sw-selected-game-card');
+      if (gameCard) {
+          const g = GAMES[gameIdx] || GAMES[0];
+          gameCard.innerHTML = `
+              <div style="font-size:3rem;margin-bottom:5px">${g.icon}</div>
+              <div style="font-size:1.3rem;color:var(--yellow);font-weight:900">${g.name}</div>
+              <div style="color:rgba(255,255,255,.6);font-size:.8rem;margin-top:5px">${g.desc}</div>`;
       }
   }
 }
@@ -1625,7 +1655,7 @@ function teacherLogin() {
 
   rooms[code] = { 
       open: true, teacherName: tName, roomNum: roomNum, createdAt: Date.now(),
-      playerCount: window.state.players.length, status: 'lobby', 
+      playerCount: 0, status: 'lobby', players: [],
       finishedGroups: [], scores: {}, selectedGame: window.state.selectedGame 
   };
 
@@ -1794,6 +1824,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // ── 重整恢復：等 Firebase 連線後再檢查 ──
     // 先檢查有沒有 session，有的話等 Firebase 連線後恢復
     window._pendingRestore = JSON.parse(localStorage.getItem('game_session') || 'null');
+    // 有 session 時先顯示 loading，避免閃回首頁
+    if (window._pendingRestore && window._pendingRestore.roomCode) {
+        const loading = document.getElementById('restore-loading');
+        if (loading) loading.style.display = 'flex';
+    }
 
     // 防止雙擊縮放（iOS Safari）
     let lastTap = 0;
@@ -1820,6 +1855,8 @@ function tryRestoreSession() {
     if (!room || !room.open) {
         // 房間已不存在，清除 session
         localStorage.removeItem('game_session');
+        const loading = document.getElementById('restore-loading');
+        if (loading) loading.style.display = 'none';
         return;
     }
 
@@ -1846,7 +1883,7 @@ function tryRestoreSession() {
         // 學生恢復
         window.state.perspective = saved.perspective;
         const pData = window.pStates[saved.perspective];
-        if (!pData || !saved.group) { localStorage.removeItem('game_session'); return; }
+        if (!pData || !saved.group) { localStorage.removeItem('game_session'); const ld=document.getElementById('restore-loading'); if(ld) ld.style.display='none'; return; }
 
         pData.joined = true;
         pData.group  = saved.group;
@@ -1870,6 +1907,8 @@ function tryRestoreSession() {
         }
     }
     showToast('🔄 已恢復上次連線');
+    const loading = document.getElementById('restore-loading');
+    if (loading) loading.style.display = 'none';
 }
 
 // ==========================================
