@@ -516,6 +516,7 @@ body::before {
 // ════════════════════════════════════════════
 let db = null;
 let fsDoc = null, fsSet = null, fsOnSnap = null, fsCollection = null, fsDelete = null;
+let fsTransaction = null, fsGetDoc = null;
 let appId = 'game-king';
 let isFirebase = true;
 let isFirebaseAuthComplete = false;
@@ -544,6 +545,8 @@ let isFirebaseAuthComplete = false;
         fsOnSnap     = fsModule.onSnapshot;
         fsCollection = fsModule.collection;
         fsDelete     = fsModule.deleteDoc;
+        fsTransaction = fsModule.runTransaction;
+        fsGetDoc      = fsModule.getDoc;
 
         await authModule.signInAnonymously(auth);
 
@@ -878,10 +881,10 @@ function tcStartGame() {
 
     if (window.state.selectedGame === 2) {
         // W3：老師控制台嵌入 W3 iframe（導播/老師視角）
-        // 隱藏不適用於 W3 的按鈕
+        // W3：保留結算按鈕（老師手動按才結算），隱藏關卡 badge
         const settleBtn = document.getElementById('tc-btn-settle');
         const levelBadge = document.getElementById('tc-level-badge');
-        if (settleBtn) settleBtn.style.display = 'none';
+        if (settleBtn) { settleBtn.style.display = ''; settleBtn.textContent = '🏆 結算'; }
         if (levelBadge) levelBadge.style.display = 'none';
         const sa = document.getElementById('tc-scores-area');
         if (sa) {
@@ -1060,7 +1063,18 @@ function tcSettleGame() {
     const players = window.state.players;
     const isW3 = window.state.selectedGame === 2;
     const rooms = window.getRooms();
-    const w3scores = (rooms[window.state.roomCode] || {}).w3scores || {};
+    const room  = rooms[window.state.roomCode] || {};
+
+    // W3：從 w3state.scores 讀取最新分數，並通知 tc-w3-iframe 發送分數
+    let w3scores = room.w3scores || {};
+    if (isW3 && room.w3state && room.w3state.scores) {
+        // 直接從 w3state 取得各組分數
+        const raw = room.w3state.scores;
+        Object.keys(raw).forEach(g => {
+            w3scores[g] = { wins: raw[g].wins || 0, matches: raw[g].matches || 0 };
+            TC.scores[g] = raw[g].wins || 0;
+        });
+    }
     const sorted = [...players].sort((a,b) => (TC.scores[b.group]||0) - (TC.scores[a.group]||0));
     const medals  = ['🥇','🥈','🥉','4️⃣','5️⃣'];
     const colors  = ['#FFD600','#C0C0C0','#CD7F32','#aaa','#aaa'];
@@ -1550,55 +1564,101 @@ function pickSymbol(s) { if (!window.state.takenSymbols.includes(s)) { window.st
 
 function joinRoom() {
   if (!window.state.selectedGroup || !window.state.selectedSymbol) { window.showToast('❌ 請完成選擇'); return; }
-  const rooms = window.getRooms();
-  if (!rooms[window.state.roomCode] || !rooms[window.state.roomCode].open) { window.showToast('⚠️ 房間已關閉'); window.goToJoin(); return; }
-
-  // 從 Firebase 同步最新玩家狀態（確保跨裝置不衝突）
-  if (rooms[window.state.roomCode].players) {
-      window.state.players = rooms[window.state.roomCode].players;
-      window.state.takenSymbols = window.state.players.map(p => p.symbol);
-      // 同步已佔用的組別，讓其他裝置看到
-      window.state.takenGroups = window.state.players.map(p => p.group);
-  }
 
   const groupName = `第 ${window.state.selectedGroup} 組`;
-  const existingIndex = window.state.players.findIndex(p => p.group === groupName);
+  const symbol    = window.state.selectedSymbol;
+  const roomCode  = window.state.roomCode;
 
-  if (existingIndex !== -1) {
-      // 同組重連：更新符號
-      window.state.players[existingIndex].symbol = window.state.selectedSymbol;
-  } else {
-      if (window.state.players.length >= 5) { window.showToast('⚠️ 房間已滿'); window.goToJoin(); return; }
-      window.state.players.push({group: groupName, symbol: window.state.selectedSymbol});
+  // ── 用 Firebase Transaction 保證原子性，防止同時加入同組 ──
+  if (isFirebase && db && fsTransaction && isFirebaseAuthComplete) {
+      const ref = fsDoc(db, 'rooms', roomCode);
+      fsTransaction(db, async (tx) => {
+          const snap = await tx.get(ref);
+          if (!snap.exists()) throw new Error('房間不存在');
+          const room = snap.data();
+          if (!room.open) throw new Error('房間已關閉');
+
+          const players = room.players || [];
+          const existingIdx = players.findIndex(p => p.group === groupName);
+
+          if (existingIdx !== -1) {
+              // 重連：更新符號
+              players[existingIdx].symbol = symbol;
+          } else {
+              // 新加入：檢查是否已被佔用
+              if (players.some(p => p.group === groupName)) {
+                  throw new Error('組別已被佔用');
+              }
+              if (players.length >= 5) throw new Error('房間已滿');
+              players.push({ group: groupName, symbol });
+          }
+
+          tx.update(ref, { players, playerCount: players.length });
+          return players;
+      }).then((players) => {
+          // Transaction 成功
+          window.state.players      = players;
+          window.state.takenSymbols = players.map(p => p.symbol);
+          window.state.takenGroups  = players.map(p => p.group);
+          _finishJoin(groupName, symbol, roomCode);
+      }).catch((err) => {
+          if (err.message === '組別已被佔用') {
+              window.showToast('⚠️ 該組已被其他人選走，請重新選擇');
+              window.syncJoinDOM();
+          } else if (err.message === '房間已滿') {
+              window.showToast('⚠️ 房間已滿');
+              window.goToJoin();
+          } else if (err.message === '房間已關閉') {
+              window.showToast('⚠️ 房間已關閉');
+              window.goToJoin();
+          } else {
+              console.error('joinRoom transaction error:', err);
+              window.showToast('❌ 加入失敗，請重試');
+          }
+      });
+      return; // 等 transaction 完成
   }
-  
+
+  // ── fallback：無 Firebase 時用本機邏輯 ──
+  const rooms = window.getRooms();
+  if (!rooms[roomCode] || !rooms[roomCode].open) { window.showToast('⚠️ 房間已關閉'); window.goToJoin(); return; }
+  if (rooms[roomCode].players) {
+      window.state.players      = rooms[roomCode].players;
+      window.state.takenSymbols = window.state.players.map(p => p.symbol);
+      window.state.takenGroups  = window.state.players.map(p => p.group);
+  }
+  const existingIndex = window.state.players.findIndex(p => p.group === groupName);
+  if (existingIndex !== -1) {
+      window.state.players[existingIndex].symbol = symbol;
+  } else {
+      if (window.state.players.some(p => p.group === groupName)) { window.showToast('⚠️ 組別已被佔用'); return; }
+      if (window.state.players.length >= 5) { window.showToast('⚠️ 房間已滿'); window.goToJoin(); return; }
+      window.state.players.push({ group: groupName, symbol });
+  }
   window.state.takenSymbols = window.state.players.map(p => p.symbol);
-
-  // 同時寫入 players 陣列
-  rooms[window.state.roomCode].players = window.state.players;
-  rooms[window.state.roomCode].playerCount = window.state.players.length;
+  rooms[roomCode].players     = window.state.players;
+  rooms[roomCode].playerCount = window.state.players.length;
   window.saveRooms(rooms);
+  _finishJoin(groupName, symbol, roomCode);
+}
 
+function _finishJoin(groupName, symbol, roomCode) {
   const pData = window.pStates[window.state.perspective];
   if (pData) {
     pData.joined = true;
     pData.group  = groupName;
-    pData.symbol = window.state.selectedSymbol;
+    pData.symbol = symbol;
     pData.screen = 'screen-student-wait';
   }
-
-  document.getElementById('sw-code').textContent = window.state.roomCode;
-  document.getElementById('sw-room-name').textContent = `誰是遊戲王 — 房間 #${rooms[window.state.roomCode].roomNum}`;
+  const rooms = window.getRooms();
+  const room  = rooms[roomCode] || {};
+  document.getElementById('sw-code').textContent = roomCode;
+  document.getElementById('sw-room-name').textContent = `誰是遊戲王 — 房間 #${room.roomNum || ''}`;
   document.getElementById('sw-my-group-status').innerHTML = `✅ <b>${groupName}</b> 已連線，等待老師啟動...`;
-  
   window.renderLobby();
   window.updateStudentWaitDisplay();
   window.goTo('screen-student-wait');
-  // 更新 sw-code 顯示（確保真實裝置也正確）
-  const swCodeEl = document.getElementById('sw-code');
-  if (swCodeEl) swCodeEl.textContent = window.state.roomCode;
-  // 儲存 session 讓重整可以恢復
-  localStorage.setItem('game_session', JSON.stringify({ perspective: window.state.perspective, roomCode: window.state.roomCode, group: groupName, symbol: window.state.selectedSymbol }));
+  localStorage.setItem('game_session', JSON.stringify({ perspective: window.state.perspective, roomCode, group: groupName, symbol }));
   window.showToast(`✅ ${groupName} 已加入房間！`);
 }
 
@@ -2047,7 +2107,7 @@ function tryRestoreSession() {
 Object.assign(window, {
     testResetToHome, testSetPerspective, toggleQR, goToTeacherLogin, goToJoin, goTo,
     backToStep1, verifyRoomPassword, backToPassword, onGroupSelect, joinRoom,
-    simulateJoin, doCloseRoom, selectGame, leaveRoomStudent, teacherLogin,
+    simulateJoin, doCloseRoom, selectGame, leaveRoomStudent, teacherLogin, _finishJoin,
     openTeacherConsole, changeLevel, jumpToPhase, updateLevelDisplay,
     tcStartGame, tcPauseGame, tcResumeGame, tcSettleGame, tcEndGame, exitToLobby, studentLeaveGame, tryRestoreSession,
     showToast, setViewTeacher, setViewStudent,

@@ -529,16 +529,10 @@ function handleCellClick(mi,idx){
         m.status='finished';
         playSound('win');
         showToast(`🏆 ${wG} 獲勝！`);
-        // 傳分數給平台
-        setTimeout(()=>{
-            Object.entries(state.scores).forEach(([g,d])=>{
-                window.parent.postMessage({type:'W3_SCORE',group:g,score:d.wins,wins:d.wins,matches:d.matches},'*');
-            });
-        },500);
+        broadcast();
         // 自動配下一場（4秒後，讓勝負畫面先顯示）
         if(myRole!=='teacher') setTimeout(()=>{
             autoNextMatch(mi);
-            // 同時嘗試喚醒正在等待的另一場
             const otherMi = mi===0?1:0;
             if(state.matches[otherMi].status==='idle'){
                 setTimeout(()=>autoNextMatch(otherMi),800);
