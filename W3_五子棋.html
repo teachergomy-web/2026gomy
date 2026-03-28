@@ -240,6 +240,9 @@ let state = {
     lastMove    : -1,
     winner      : null,     // 'black'|'white'|null
     scores      : {},       // {'第1組':{wins:0,matches:0}, ...}
+    activePlayers: [],      // 目前加入的組別（從 PLATFORM_START 取得）
+    lastBlack   : '',       // 上一場黑方
+    lastWhite   : '',       // 上一場白方
 };
 
 // ═══════════════════════════════════════
@@ -293,13 +296,39 @@ function buildBoard(){
 function scheduleMatch(){
     if(state.matchStatus==='rolling')return;
     initAudio();
-    // 排場次最少的兩組
-    const teams=Object.keys(state.scores);
-    const sorted=[...teams].sort((a,b)=>{
+
+    // 用實際加入的組別，至少需要2組
+    const pool = state.activePlayers.length >= 2
+        ? [...state.activePlayers]
+        : Object.keys(state.scores);
+    if(pool.length < 2){ showToast('⚠️ 至少需要2組才能對戰'); return; }
+
+    // 確保積分表有這些組別
+    pool.forEach(g=>{ if(!state.scores[g]) state.scores[g]={wins:0,matches:0}; });
+
+    // 排除上一場兩組（避免連續對戰），但如果只有2組就不排除
+    const lastTwo = [state.lastBlack, state.lastWhite].filter(Boolean);
+    let candidates = pool.length > 2
+        ? pool.filter(g => !lastTwo.includes(g))
+        : pool;
+
+    // 如果排除後不夠2組，改只排除場次最多的那一組
+    if(candidates.length < 2){
+        const maxMatches = Math.max(...pool.map(g=>state.scores[g].matches||0));
+        const mostPlayed = pool.filter(g=>(state.scores[g].matches||0)===maxMatches);
+        candidates = pool.length > 2
+            ? pool.filter(g=>!mostPlayed.includes(g)||candidates.length===0)
+            : pool;
+        if(candidates.length < 2) candidates = pool; // 最後保底
+    }
+
+    // 場次最少的兩組優先，同場次隨機
+    const sorted=[...candidates].sort((a,b)=>{
         const d=(state.scores[a].matches||0)-(state.scores[b].matches||0);
         return d!==0?d:Math.random()-.5;
     });
-    const black=sorted[0],white=sorted[1];
+    const black=sorted[0], white=sorted[1];
+
     state.scores[black].matches=(state.scores[black].matches||0)+1;
     state.scores[white].matches=(state.scores[white].matches||0)+1;
 
@@ -312,6 +341,7 @@ function scheduleMatch(){
     setTimeout(()=>{
         state.matchStatus='ready';
         state.black=black;state.white=white;
+        state.lastBlack=black;state.lastWhite=white;
         state.cells=Array(GRID*GRID).fill(0);
         state.turn='black';state.lastMove=-1;state.winner=null;
         broadcast();
@@ -563,6 +593,12 @@ window.addEventListener('message',(e)=>{
         case 'PLATFORM_START':
             if(e.data.group){myGroup=e.data.group;window.GROUP_ID=e.data.group;}
             if(e.data.isTeacher)myRole='teacher';
+            // 從平台取得實際加入的玩家列表
+            if(e.data.players && e.data.players.length > 0){
+                state.activePlayers = e.data.players.map(p=>p.group);
+                // 初始化積分（只初始化有玩家的組別）
+                state.activePlayers.forEach(g=>{if(!state.scores[g])state.scores[g]={wins:0,matches:0};});
+            }
             if(e.data.state)applyState(e.data.state);
             else render();
             break;
@@ -592,8 +628,13 @@ window.addEventListener('message',(e)=>{
     if(group){myGroup=group;window.GROUP_ID=group;}
     if(isTeacher)myRole='teacher';
 
-    // 初始化積分
-    DEFAULT_TEAMS.forEach(t=>{if(!state.scores[t])state.scores[t]={wins:0,matches:0};});
+    // 積分等 PLATFORM_START 傳入實際玩家後才初始化
+    // 若直接開啟（非平台），用預設組別
+    if(state.activePlayers.length===0){
+        const fallback=['第1組','第2組','第3組','第4組','第5組'];
+        state.activePlayers=fallback;
+        fallback.forEach(t=>{if(!state.scores[t])state.scores[t]={wins:0,matches:0};});
+    }
 
     buildBoard();
     render();
