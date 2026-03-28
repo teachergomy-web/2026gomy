@@ -30,8 +30,6 @@ body,html{margin:0;padding:0;width:100%;height:100%;background:var(--bg);font-fa
 .sc-wins{font-family:'Fredoka One',sans-serif;font-size:16px;color:var(--yellow);}
 .sc-info{font-size:9px;color:rgba(255,255,255,.3);font-family:'Nunito',sans-serif;font-weight:700;}
 
-/* lobby-view is inline styled */
-
 /* 抽籤卡片（兩排） */
 #matches-panel{display:flex;flex-direction:column;gap:12px;width:100%;max-width:480px;}
 .match-card{background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.1);border-radius:16px;padding:12px 16px;}
@@ -104,7 +102,6 @@ body,html{margin:0;padding:0;width:100%;height:100%;background:var(--bg);font-fa
 .tc-btn:disabled{opacity:.35;cursor:not-allowed;transform:none;}
 .tc-btn-blue{background:linear-gradient(160deg,#1a6fc4,#0d4a8a);border-color:var(--blue);}
 
-/* Pause */
 /* Teacher broadcast columns */
 .tv-col{flex:1;display:flex;flex-direction:column;min-width:0;padding:6px;}
 .tv-header{display:flex;align-items:center;gap:6px;flex-shrink:0;padding:0 2px 4px;border-bottom:1px solid rgba(255,255,255,.1);}
@@ -192,6 +189,15 @@ body,html{margin:0;padding:0;width:100%;height:100%;background:var(--bg);font-fa
     </div>
   </div>
 
+  <!-- 學生邀請面板 -->
+  <div id="invite-panel" style="display:none; width:100%; max-width:480px; flex-direction:column; gap:10px;">
+    <div class="match-card">
+      <div class="match-label" style="color:var(--yellow); font-size:12px;">⚔️ 發送對戰邀請</div>
+      <div id="invite-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+    </div>
+    <div id="incoming-invites"></div>
+  </div>
+
   <!-- 老師抽籤按鈕 -->
   <div id="teacher-ctrl" style="display:none;width:100%;max-width:480px;padding:0 4px;">
     <button id="btn-draw" onclick="drawLots()" style="width:100%;padding:16px;font-family:'Fredoka One',sans-serif;font-size:18px;color:#fff;background:linear-gradient(160deg,#1a6fc4,#0d4a8a);border:3px solid #2D8FFF;border-radius:16px;cursor:pointer;box-shadow:0 5px 0 rgba(0,0,0,.4);">🎲 抽籤開始</button>
@@ -235,43 +241,61 @@ body,html{margin:0;padding:0;width:100%;height:100%;background:var(--bg);font-fa
 </div>
 
 <!-- ══ 老師雙棋盤轉播（左右兩欄）══ -->
-<div id="teacher-view" style="position:absolute;top:100px;left:0;right:0;bottom:60px;display:none;flex-direction:row;overflow:hidden;z-index:10;background:var(--bg);">
+<div id="teacher-view" style="position:absolute;top:100px;left:0;right:0;bottom:60px;display:none;flex-direction:column;overflow:hidden;z-index:10;background:var(--bg);">
 
-  <!-- 場0 左欄 -->
-  <div id="tv-col-0" style="flex:1;display:flex;flex-direction:column;padding:8px;gap:6px;min-width:0;">
-    <!-- 場0 頂部狀態 -->
-    <div style="display:flex;align-items:center;justify-content:center;gap:8px;flex-shrink:0;padding:2px 40px;">
-      <div class="stone-sm black"></div>
-      <span style="font-family:'Nunito',sans-serif;font-weight:900;font-size:13px;" id="tv-black-0">—</span>
-      <span style="font-family:'Fredoka One',sans-serif;font-size:12px;color:rgba(255,255,255,.25);">VS</span>
-      <span style="font-family:'Nunito',sans-serif;font-weight:900;font-size:13px;" id="tv-white-0">—</span>
-      <div class="stone-sm white"></div>
-      <span style="font-family:'Nunito',sans-serif;font-weight:900;font-size:11px;color:rgba(255,255,255,.45);" id="tv-status-0"></span>
-    </div>
-    <div style="flex:1;display:flex;align-items:center;justify-content:center;min-height:0;min-width:0;">
-      <div id="tv-board-outer-0" style="background:#dcb35c;padding:5px;border-radius:8px;border:3px solid #8b4513;box-shadow:0 4px 16px rgba(0,0,0,.7);width:min(calc(50vw - 24px),calc(100vh - 200px));height:min(calc(50vw - 24px),calc(100vh - 200px));">
-        <div id="tv-board-0" style="display:grid;width:100%;height:100%;"></div>
-      </div>
-    </div>
+  <!-- 頂部模式切換列 -->
+  <div style="display:flex; justify-content:center; gap:20px; padding:10px; background:rgba(0,0,0,0.3); border-bottom:2px solid rgba(255,214,0,0.3); flex-shrink:0;">
+    <button id="btn-mode-designated" onclick="setMatchMode('designated')" style="padding:8px 20px; border-radius:8px; font-family:'Nunito',sans-serif; font-weight:900; cursor:pointer; border:2px solid transparent; transition:all 0.2s;">🎯 指定模式</button>
+    <button id="btn-mode-free" onclick="setMatchMode('free')" style="padding:8px 20px; border-radius:8px; font-family:'Nunito',sans-serif; font-weight:900; cursor:pointer; border:2px solid transparent; transition:all 0.2s;">🤝 自由對戰</button>
   </div>
 
-  <!-- 分隔線 -->
-  <div id="tv-divider" style="width:1px;background:rgba(255,255,255,.1);flex-shrink:0;margin:8px 0;"></div>
-
-  <!-- 場1 右欄 -->
-  <div id="tv-col-1" style="flex:1;display:flex;flex-direction:column;padding:8px;gap:6px;min-width:0;">
-    <!-- 場1 頂部狀態 -->
-    <div style="display:flex;align-items:center;justify-content:center;gap:8px;flex-shrink:0;padding:2px 40px;">
-      <div class="stone-sm black"></div>
-      <span style="font-family:'Nunito',sans-serif;font-weight:900;font-size:13px;" id="tv-black-1">—</span>
-      <span style="font-family:'Fredoka One',sans-serif;font-size:12px;color:rgba(255,255,255,.25);">VS</span>
-      <span style="font-family:'Nunito',sans-serif;font-weight:900;font-size:13px;" id="tv-white-1">—</span>
-      <div class="stone-sm white"></div>
-      <span style="font-family:'Nunito',sans-serif;font-weight:900;font-size:11px;color:rgba(255,255,255,.45);" id="tv-status-1"></span>
+  <div style="flex:1; display:flex; flex-direction:row; min-height:0;">
+    <!-- 場0 左欄 -->
+    <div id="tv-col-0" style="flex:1;display:flex;flex-direction:column;padding:8px;gap:6px;min-width:0;">
+      <!-- 上方黑子 -->
+      <div style="display:flex;align-items:center;justify-content:center;gap:8px;flex-shrink:0;">
+        <div class="stone-sm black"></div>
+        <div id="tv-black-wrap-0"></div>
+      </div>
+      <!-- 棋盤 -->
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;min-height:0;min-width:0;">
+        <div id="tv-board-outer-0" style="position:relative; background:#dcb35c;padding:5px;border-radius:8px;border:3px solid #8b4513;box-shadow:0 4px 16px rgba(0,0,0,.7);width:min(calc(50vw - 24px),calc(100vh - 260px));height:min(calc(50vw - 24px),calc(100vh - 260px));">
+          <div id="tv-board-0" style="display:grid;width:100%;height:100%;"></div>
+          <div id="tv-overlay-0" style="position:absolute;inset:0;background:rgba(0,0,0,0.7);z-index:10;border-radius:4px;display:none;flex-direction:column;align-items:center;justify-content:center;padding:10px;text-align:center;">
+            <div id="tv-overlay-content-0"></div>
+          </div>
+        </div>
+      </div>
+      <!-- 下方白子 -->
+      <div style="display:flex;align-items:center;justify-content:center;gap:8px;flex-shrink:0;">
+        <div class="stone-sm white"></div>
+        <div id="tv-white-wrap-0"></div>
+      </div>
     </div>
-    <div style="flex:1;display:flex;align-items:center;justify-content:center;min-height:0;min-width:0;">
-      <div id="tv-board-outer-1" style="background:#dcb35c;padding:5px;border-radius:8px;border:3px solid #8b4513;box-shadow:0 4px 16px rgba(0,0,0,.7);width:min(calc(50vw - 24px),calc(100vh - 200px));height:min(calc(50vw - 24px),calc(100vh - 200px));">
-        <div id="tv-board-1" style="display:grid;width:100%;height:100%;"></div>
+
+    <!-- 分隔線 -->
+    <div id="tv-divider" style="width:1px;background:rgba(255,255,255,.1);flex-shrink:0;margin:8px 0;"></div>
+
+    <!-- 場1 右欄 -->
+    <div id="tv-col-1" style="flex:1;display:flex;flex-direction:column;padding:8px;gap:6px;min-width:0;">
+      <!-- 上方黑子 -->
+      <div style="display:flex;align-items:center;justify-content:center;gap:8px;flex-shrink:0;">
+        <div class="stone-sm black"></div>
+        <div id="tv-black-wrap-1"></div>
+      </div>
+      <!-- 棋盤 -->
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;min-height:0;min-width:0;">
+        <div id="tv-board-outer-1" style="position:relative; background:#dcb35c;padding:5px;border-radius:8px;border:3px solid #8b4513;box-shadow:0 4px 16px rgba(0,0,0,.7);width:min(calc(50vw - 24px),calc(100vh - 260px));height:min(calc(50vw - 24px),calc(100vh - 260px));">
+          <div id="tv-board-1" style="display:grid;width:100%;height:100%;"></div>
+          <div id="tv-overlay-1" style="position:absolute;inset:0;background:rgba(0,0,0,0.7);z-index:10;border-radius:4px;display:none;flex-direction:column;align-items:center;justify-content:center;padding:10px;text-align:center;">
+            <div id="tv-overlay-content-1"></div>
+          </div>
+        </div>
+      </div>
+      <!-- 下方白子 -->
+      <div style="display:flex;align-items:center;justify-content:center;gap:8px;flex-shrink:0;">
+        <div class="stone-sm white"></div>
+        <div id="tv-white-wrap-1"></div>
       </div>
     </div>
   </div>
@@ -311,12 +335,69 @@ let state = {
     scores: {},          // {組名:{wins,matches}}
     activePlayers: [],   // 實際加入的組別
     started: false,      // 是否已抽過籤
+    invites: [],         // 新增：對戰邀請
+    matchMode: 'designated' // 新增：老師模式 (designated | free)
 };
 
 let myGroup = '';
 let myRole  = 'spectator'; // teacher|player|spectator
 window.GROUP_ID = '';
 
+// --- 新增：狀態判斷與邀請邏輯 ---
+function isGroupIdle(g) {
+    return !state.matches.some(m =>
+        (m.black === g || m.white === g) &&
+        (m.status === 'rolling' || m.status === 'ready' || m.status === 'countdown' || m.status === 'playing')
+    );
+}
+
+function getFreeMatchIndex() {
+    return state.matches.findIndex(m => m.status === 'idle' || m.status === 'finished');
+}
+
+function sendInvite(target) {
+    if (!state.invites) state.invites = [];
+    if (state.invites.some(i => i.from === myGroup && i.to === target)) return;
+    state.invites.push({ from: myGroup, to: target });
+    broadcast();
+    showToast(`已向 ${target} 發送邀請！`);
+}
+
+function acceptInvite(from) {
+    if (!isGroupIdle(myGroup)) {
+        showToast('⚠️ 你們已經在對戰中了！');
+        return;
+    }
+    const mi = getFreeMatchIndex();
+    if (mi < 0) {
+        showToast('⚠️ 目前沒有空閒的對戰桌！');
+        return;
+    }
+    if (!isGroupIdle(from)) {
+        showToast(`⚠️ ${from} 已經在其他對戰中！`);
+        state.invites = state.invites.filter(i => !(i.from === from && i.to === myGroup));
+        broadcast();
+        return;
+    }
+    
+    // 清理與這兩組相關的邀請
+    state.invites = state.invites.filter(i => 
+        i.from !== from && i.to !== from && 
+        i.from !== myGroup && i.to !== myGroup
+    );
+    
+    state.matches[mi] = newMatch();
+    broadcast();
+    startRolling(mi, from, myGroup); 
+}
+
+function rejectInvite(from) {
+    state.invites = state.invites.filter(i => !(i.from === from && i.to === myGroup));
+    broadcast();
+}
+// ------------------------------
+
+let clearTimers = [null, null]; // 老師端 10秒自動清空計時器
 let countdownTimers = [null, null];
 let audioCtx = null;
 
@@ -363,14 +444,12 @@ function buildTeacherBoards(){
 function resizeTeacherBoards(){
     const view=document.getElementById('teacher-view');
     if(!view||view.style.display==='none')return;
+    const availableHeight = view.clientHeight - 80; // 扣掉頂部模式切換列
     [0,1].forEach(mi=>{
-        const wrap=view.querySelectorAll('.flex-1')[mi*2+1]; // rough
         const outer=document.getElementById('tv-board-outer-'+mi);
         if(!outer)return;
-        // Each half is about (total-60)/2 height, width is full
-        const h=Math.floor((view.clientHeight-50)/2);
         const w=view.clientWidth-32;
-        const sz=Math.min(w,h-28)-8;
+        const sz=Math.min(w/2, availableHeight)-16;
         if(sz>40){outer.style.width=sz+'px';outer.style.height=sz+'px';}
     });
 }
@@ -401,15 +480,23 @@ window.addEventListener('resize',resizeSoloBoard);
 // 抽籤（只在第一次或特殊情況由老師觸發）
 // ══════════════════════════════════════
 function drawLots(){
-    showToast('👉 請使用下方的下拉選單手動配對！');
+    showToast('👉 老師已直接在棋盤上進行調度！');
 }
 
-function manualStart(mi) {
+function setMatchMode(mode) {
+    state.matchMode = mode;
+    if (mode === 'designated') {
+        state.invites = []; // 切換回指定模式時，清空學生間的邀請
+    }
+    broadcast();
+}
+
+function tvManualStart(mi) {
     initAudio();
-    const b = document.getElementById('sel-b-'+mi)?.value;
-    const w = document.getElementById('sel-w-'+mi)?.value;
-    if (!b || !w) { showToast('⚠️ 請選擇對戰組別'); return; }
-    if (b === w) { showToast('⚠️ 先手與後手不能是同一組'); return; }
+    const b = document.getElementById('tv-sel-b-'+mi)?.value;
+    const w = document.getElementById('tv-sel-w-'+mi)?.value;
+    if (!b || !w) { showToast('⚠️ 請選擇黑白雙方組別'); return; }
+    if (b === w) { showToast('⚠️ 黑白雙方不能是同一組'); return; }
     
     // 檢查是否被另一場佔用
     const otherMi = mi === 0 ? 1 : 0;
@@ -419,6 +506,16 @@ function manualStart(mi) {
             showToast('⚠️ 有組別正在另一場對戰中！'); return;
         }
     }
+
+    // 清理這兩組相關的所有邀請
+    if (!state.invites) state.invites = [];
+    state.invites = state.invites.filter(i => 
+        i.from !== b && i.to !== b && 
+        i.from !== w && i.to !== w
+    );
+
+    // 強制清除 auto-clear timer
+    clearInterval(clearTimers[mi]);
 
     state.started = true;
     state.matches[mi] = newMatch(); // 清空舊的對戰狀態
@@ -648,10 +745,37 @@ function broadcast(){
 function applyState(newState){
     const prev=state.matches.map(m=>({status:m.status,countdown:m.countdown}));
     state=Object.assign({},state,newState);
+    if (!state.invites) state.invites = [];
+    if (!state.matchMode) state.matchMode = 'designated';
     updateMyRole();
 
     state.matches.forEach((m,mi)=>{
         const p=prev[mi];
+        
+        // 老師端：當比賽結束時，啟動 10 秒自動清空計時器（每秒更新一次顯示）
+        if (myRole === 'teacher') {
+            if (m.status === 'finished' && (!p || p.status !== 'finished')) {
+                clearInterval(clearTimers[mi]);
+                let timeLeft = 10;
+                clearTimers[mi] = setInterval(() => {
+                    timeLeft--;
+                    // 即時更新倒數文字
+                    const txtEl = document.getElementById(`auto-clear-text-${mi}`);
+                    if (txtEl) txtEl.textContent = `(${timeLeft}秒後自動清空棋盤)`;
+                    
+                    if (timeLeft <= 0) {
+                        clearInterval(clearTimers[mi]);
+                        if (state.matches[mi].status === 'finished') {
+                            state.matches[mi] = newMatch();
+                            broadcast();
+                        }
+                    }
+                }, 1000);
+            } else if (m.status !== 'finished') {
+                clearInterval(clearTimers[mi]);
+            }
+        }
+
         if(m.status==='countdown'){
             // 收到倒數狀態：確保本機有 timer（不廣播版本）
             ensureCountdown(mi);
@@ -690,10 +814,8 @@ function renderAll(){
     renderScoreboard();
     // 決定顯示哪個畫面
     if(myRole==='teacher'){
-        // 老師端：rolling/ready 時顯示配對卡片，playing 後才切換到轉播棋盤
-        const anyPlaying=state.matches.some(m=>m.status==='playing'||m.status==='finished'||m.status==='countdown');
-        if(state.started && anyPlaying) showView('teacher-view');
-        else showView('lobby-view');
+        if(!state.started) state.started = true; // 老師端強制進入遊戲狀態
+        showView('teacher-view');
     } else if(myRole==='player' && isMyMatchPlaying()){
         showView('game-view');
     } else {
@@ -704,6 +826,56 @@ function renderAll(){
     renderGameView();
     renderBottom();
     renderTeacherCtrl();
+    renderInvites();
+}
+
+function renderInvites() {
+    const panel = document.getElementById('invite-panel');
+    if (!panel) return;
+    
+    // 只有學生且不在比賽中，且老師設定為「自由對戰」才顯示邀請面板
+    if (myRole !== 'player' || !state.started || !isGroupIdle(myGroup) || state.matchMode !== 'free') {
+        panel.style.display = 'none';
+        return;
+    }
+    panel.style.display = 'flex';
+    if (!state.invites) state.invites = [];
+    
+    // 渲染可邀請的組別
+    const idleGroups = state.activePlayers.filter(g => g !== myGroup && isGroupIdle(g));
+    const list = document.getElementById('invite-list');
+    if (idleGroups.length === 0) {
+        list.innerHTML = `<div style="color:rgba(255,255,255,0.4); font-size:12px; text-align:center; padding: 10px 0;">目前沒有空閒的組別可邀請</div>`;
+    } else {
+        list.innerHTML = idleGroups.map(g => {
+            const alreadySent = state.invites.some(i => i.from === myGroup && i.to === g);
+            return `<div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.05); padding:8px 12px; border-radius:8px;">
+                <span style="font-family:'Nunito',sans-serif; font-weight:900; font-size:14px;">${g}</span>
+                ${alreadySent 
+                    ? `<span style="font-size:12px; color:var(--yellow); font-family:'Nunito',sans-serif; font-weight:900;">已發送 ⏳</span>`
+                    : `<button onclick="sendInvite('${g}')" style="background:var(--blue); color:#fff; border:none; padding:6px 16px; border-radius:6px; font-weight:900; font-family:'Nunito',sans-serif; cursor:pointer; box-shadow:0 3px 0 rgba(0,0,0,.3);">⚔️ 邀請</button>`
+                }
+            </div>`;
+        }).join('');
+    }
+    
+    // 渲染收到的邀請
+    const incoming = state.invites.filter(i => i.to === myGroup && isGroupIdle(i.from));
+    const incContainer = document.getElementById('incoming-invites');
+    if (incoming.length === 0) {
+        incContainer.innerHTML = '';
+    } else {
+        incContainer.innerHTML = incoming.map(i => `
+            <div class="match-card" style="border-color:var(--yellow); background:rgba(255,214,0,0.1); margin-top:12px;">
+                <div class="match-label" style="color:var(--yellow); font-size:12px;">📥 收到對戰邀請</div>
+                <div style="font-family:'Nunito',sans-serif; font-weight:900; font-size:16px; margin-bottom:12px; text-align:center;">${i.from} 想要挑戰你們！</div>
+                <div style="display:flex; gap:12px;">
+                    <button onclick="acceptInvite('${i.from}')" style="flex:1; background:var(--green); color:#fff; border:none; padding:10px; border-radius:10px; font-weight:900; cursor:pointer; box-shadow:0 4px 0 rgba(0,0,0,.3);">✅ 接受</button>
+                    <button onclick="rejectInvite('${i.from}')" style="flex:1; background:var(--red); color:#fff; border:none; padding:10px; border-radius:10px; font-weight:900; cursor:pointer; box-shadow:0 4px 0 rgba(0,0,0,.3);">❌ 拒絕</button>
+                </div>
+            </div>
+        `).join('');
+    }
 }
 
 function renderHUD(){
@@ -739,131 +911,97 @@ function renderScoreboard(){
     }).join('');
 }
 
-function renderMatch(mi){
-    const m=state.matches[mi];
-    const s=m.status;
-
-    // Idle/roll overlays
-    document.getElementById('idle-'+mi).classList.toggle('hidden',s!=='idle');
-    document.getElementById('roll-'+mi).classList.toggle('hidden',s!=='rolling');
-
-    // Roll animation：直接顯示組名，CSS 做跳動效果
-    if(s==='rolling'){
-        const rb=document.getElementById('rb-black-'+mi);
-        const rw=document.getElementById('rb-white-'+mi);
-        if(rb) rb.textContent=m.black||'???';
-        if(rw) rw.textContent=m.white||'???';
-    }
-
-    // Player headers
-    document.getElementById('pname-black-'+mi).textContent=m.black||'—';
-    document.getElementById('pname-white-'+mi).textContent=m.white||'—';
-    document.getElementById('ph-black-'+mi).className='ph'+(m.turn==='black'&&s==='playing'&&!m.winner?' active':'')+(m.winner==='black'?' winner-side':'');
-    document.getElementById('ph-white-'+mi).className='ph'+(m.turn==='white'&&s==='playing'&&!m.winner?' active':'')+(m.winner==='white'?' winner-side':'');
-
-    // Status badge
-    const sb=document.getElementById('status-'+mi);
-    const myTurn=(myGroup===m.black&&m.turn==='black')||(myGroup===m.white&&m.turn==='white');
-    if(s==='idle'){sb.className='match-status ms-waiting';sb.textContent='等待配對';}
-    else if(s==='rolling'){sb.className='match-status ms-waiting';sb.textContent='配對中...';}
-    else if(s==='ready'){
-        const iAmBlack=myGroup===m.black, iAmWhite=myGroup===m.white;
-        const iAmPlayer=iAmBlack||iAmWhite;
-        const myReady=(iAmBlack&&m.blackReady)||(iAmWhite&&m.whiteReady);
-        if(iAmPlayer&&!myReady){
-            sb.className='match-status ms-your-turn';
-            sb.innerHTML=`<button onclick="handleReady(${mi})" style="background:var(--green);color:#000;border:none;border-radius:10px;padding:5px 16px;font-family:'Fredoka One',sans-serif;font-size:14px;cursor:pointer;animation:pulse 1.2s infinite">✋ 準備！</button>`;
-        } else if(iAmPlayer&&myReady){
-            const other=iAmBlack?'白方':'黑方';
-            sb.className='match-status ms-waiting';
-            sb.textContent=`✅ 已準備，等待${other}...`;
-        } else {
-            const readyCount=(m.blackReady?1:0)+(m.whiteReady?1:0);
-            sb.className='match-status ms-waiting';
-            sb.textContent=`準備中 ${readyCount}/2`;
-        }
-    }
-    else if(s==='countdown'){sb.className='match-status ms-countdown';sb.textContent=`⚡ ${m.countdown} 秒後開始！`;}
-    else if(s==='playing'&&myTurn){sb.className='match-status ms-your-turn';sb.textContent='⚔️ 你的回合！';}
-    else if(s==='playing'){sb.className='match-status ms-wait-turn';const tG=m.turn==='black'?m.black:m.white;sb.textContent=`等待 ${tG} 落子`;}
-    else if(s==='finished'){sb.className='match-status ms-finished';const wG=m.winner==='black'?m.black:m.white;sb.textContent=wG?`🏆 ${wG} 獲勝`:'';}
-
-    // Winner overlay
-    const wo=document.getElementById('winner-ov-'+mi);
-    if(m.winner&&(s==='finished')){
-        const wG=m.winner==='black'?m.black:m.white;
-        document.getElementById('wo-name-'+mi).textContent=wG;
-        document.getElementById('wo-sub-'+mi).textContent=(m.winner==='black'?'⚫':'⚪')+' 獲勝！';
-        wo.classList.remove('hidden');
-    }else{
-        wo.classList.add('hidden');
-    }
-
-    // Board
-    renderBoard(mi);
-}
-
-function renderBoard(mi){
-    const m=state.matches[mi];
-    const s=m.status;
-    if(s==='idle'||s==='rolling')return;
-    const cells=document.querySelectorAll('#board-'+mi+' .cell');
-    cells.forEach((cell,i)=>{
-        const val=m.cells[i];
-        const myTurn=(myGroup===m.black&&m.turn==='black')||(myGroup===m.white&&m.turn==='white');
-        const canMove=myRole==='player'&&s==='playing'&&!m.winner&&val===0&&myTurn&&(myGroup===m.black||myGroup===m.white);
-        cell.className='cell'+(canMove?' can-move':'');
-        cell.innerHTML=val===0?'':`<div class="piece ${val===1?'black':'white'}${m.lastMove===i?' last':''}"></div>`;
-    });
-}
-
 function renderTeacherCtrl(){
     const tc = document.getElementById('teacher-ctrl');
     if(tc) tc.style.display = 'none'; // 隱藏原本的大抽籤按鈕
 }
+
 function renderTeacherView(){
     if(myRole!=='teacher')return;
-    if(!state.started)return;
+
+    // 更新頂部模式切換按鈕外觀
+    const btnDes = document.getElementById('btn-mode-designated');
+    const btnFree = document.getElementById('btn-mode-free');
+    if (btnDes) {
+        btnDes.style.background = state.matchMode === 'designated' ? 'var(--blue)' : 'rgba(255,255,255,0.1)';
+        btnDes.style.color = state.matchMode === 'designated' ? '#fff' : 'rgba(255,255,255,0.5)';
+        btnDes.style.borderColor = state.matchMode === 'designated' ? '#4ab8ff' : 'transparent';
+    }
+    if (btnFree) {
+        btnFree.style.background = state.matchMode === 'free' ? 'var(--green)' : 'rgba(255,255,255,0.1)';
+        btnFree.style.color = state.matchMode === 'free' ? '#fff' : 'rgba(255,255,255,0.5)';
+        btnFree.style.borderColor = state.matchMode === 'free' ? '#4dff80' : 'transparent';
+    }
 
     buildTeacherBoards();
 
-    // 只有2組或場1是 idle → 隱藏場1欄
-    const m1show = state.activePlayers.length>=4 || state.matches[1].status!=='idle';
+    // 只有2組或場1是 idle → 隱藏場1欄 (但老師端調度介面通常全開較好，這裡維持全開)
+    const showTwo = state.activePlayers.length >= 3 || state.matches[1].status !== 'idle';
     const col1 = document.getElementById('tv-col-1');
     const div  = document.getElementById('tv-divider');
-    if(col1) col1.style.display = m1show ? 'flex' : 'none';
-    if(div)  div.style.display  = m1show ? '' : 'none';
-
-    // 只有1欄時棋盤用全寬
-    const o0 = document.getElementById('tv-board-outer-0');
-    if(o0){
-        if(m1show){
-            o0.style.width ='min(calc(50vw - 24px),calc(100vh - 200px))';
-            o0.style.height='min(calc(50vw - 24px),calc(100vh - 200px))';
-        }else{
-            o0.style.width ='min(calc(100vw - 32px),calc(100vh - 200px))';
-            o0.style.height='min(calc(100vw - 32px),calc(100vh - 200px))';
-        }
-    }
+    if(col1) col1.style.display = showTwo ? 'flex' : 'none';
+    if(div)  div.style.display  = showTwo ? '' : 'none';
 
     [0,1].forEach(mi=>{
-        if(mi===1&&!m1show)return;
+        if(mi===1&&!showTwo)return;
         const m=state.matches[mi];const s=m.status;
-        const tb=document.getElementById('tv-black-'+mi);
-        const tw=document.getElementById('tv-white-'+mi);
-        if(tb)tb.textContent=m.black||'—';
-        if(tw)tw.textContent=m.white||'—';
-        const tsb=document.getElementById('tv-side-black-'+mi);
-        const tsw=document.getElementById('tv-side-white-'+mi);
-        if(tsb)tsb.textContent=m.black||'';
-        if(tsw)tsw.textContent=m.white||'';
-        const tst=document.getElementById('tv-status-'+mi);
-        if(tst) tst.textContent=
-            s==='idle'?'等待':s==='rolling'?'配對中':s==='ready'?'準備中':
-            s==='countdown'?`${m.countdown}秒`:s==='playing'?
-            (m.turn==='black'?'⚫回合':'⚪回合'):s==='finished'?
-            (m.winner?'🏆'+(m.winner==='black'?m.black:m.white):'結束'):'';
-        if(s==='idle'||s==='rolling')return;
+        
+        const wrapB = document.getElementById('tv-black-wrap-'+mi);
+        const wrapW = document.getElementById('tv-white-wrap-'+mi);
+        const overlay = document.getElementById('tv-overlay-'+mi);
+        const ovContent = document.getElementById('tv-overlay-content-'+mi);
+
+        if (s === 'idle' || s === 'finished') {
+            if (state.matchMode === 'designated') {
+                const optsB = `<option value="">選擇先手(黑)</option>` + state.activePlayers.map(p => `<option value="${p}" ${p===m.black?'selected':''}>${p}</option>`).join('');
+                const optsW = `<option value="">選擇後手(白)</option>` + state.activePlayers.map(p => `<option value="${p}" ${p===m.white?'selected':''}>${p}</option>`).join('');
+                if(wrapB) wrapB.innerHTML = `<select id="tv-sel-b-${mi}" style="padding:4px 8px; font-family:'Nunito',sans-serif; font-size:13px; font-weight:900; border-radius:6px; outline:none; border:2px solid #555;">${optsB}</select>`;
+                if(wrapW) wrapW.innerHTML = `<select id="tv-sel-w-${mi}" style="padding:4px 8px; font-family:'Nunito',sans-serif; font-size:13px; font-weight:900; border-radius:6px; outline:none; border:2px solid #ccc;">${optsW}</select>`;
+
+                overlay.style.display = 'flex';
+                if (s === 'finished') {
+                    const wG = m.winner==='black'?m.black:m.white;
+                    ovContent.innerHTML = `
+                        <div style="color:var(--green); font-size:24px; font-weight:900; margin-bottom:8px; text-shadow:0 2px 4px rgba(0,0,0,0.8);">🏆 ${wG} 獲勝</div>
+                        <div id="auto-clear-text-${mi}" style="font-size:12px; color:#ddd; margin-bottom:16px;">(10秒後自動清空棋盤)</div>
+                        <button onclick="tvManualStart(${mi})" style="padding:10px 20px; font-size:14px; background:var(--blue); color:#fff; border:2px solid #4ab8ff; border-radius:8px; font-weight:900; cursor:pointer; box-shadow:0 4px 0 rgba(0,0,0,0.5);">⚔️ 略過並強制開始</button>`;
+                } else {
+                    ovContent.innerHTML = `<button onclick="tvManualStart(${mi})" style="padding:12px 28px; font-size:18px; background:linear-gradient(160deg,#1a6fc4,#0d4a8a); color:#fff; border:3px solid #2D8FFF; border-radius:12px; font-weight:900; cursor:pointer; box-shadow:0 4px 0 rgba(0,0,0,0.5); transition:transform 0.1s;">⚔️ 開始這桌對戰</button>`;
+                }
+            } else {
+                if(wrapB) wrapB.innerHTML = `<span style="font-family:'Nunito',sans-serif;font-weight:900;font-size:14px;color:rgba(255,255,255,0.5);">— 等待學生約戰 —</span>`;
+                if(wrapW) wrapW.innerHTML = `<span style="font-family:'Nunito',sans-serif;font-weight:900;font-size:14px;color:rgba(255,255,255,0.5);">— 等待學生約戰 —</span>`;
+                
+                overlay.style.display = 'flex';
+                if (s === 'finished') {
+                    const wG = m.winner==='black'?m.black:m.white;
+                    ovContent.innerHTML = `<div style="color:var(--green); font-size:24px; font-weight:900; text-shadow:0 2px 4px rgba(0,0,0,0.8);">🏆 ${wG} 獲勝</div><div id="auto-clear-text-${mi}" style="font-size:12px; color:#ddd; margin-top:10px;">(10秒後自動清空棋盤)</div>`;
+                } else {
+                    ovContent.innerHTML = `<div style="color:var(--yellow); font-size:20px; font-weight:900; text-shadow:0 2px 4px rgba(0,0,0,0.8);">🤝 開放自由約戰中</div><div style="color:rgba(255,255,255,0.6); font-size:12px; margin-top:8px;">請學生在裝置上發送邀請</div>`;
+                }
+            }
+        } else {
+            // playing, countdown, ready, rolling
+            if(wrapB) wrapB.innerHTML = `<span style="font-family:'Nunito',sans-serif;font-weight:900;font-size:16px;color:#fff;">${m.black||'???'}</span>`;
+            if(wrapW) wrapW.innerHTML = `<span style="font-family:'Nunito',sans-serif;font-weight:900;font-size:16px;color:#fff;">${m.white||'???'}</span>`;
+            
+            if (s === 'playing') {
+                overlay.style.display = 'none';
+            } else {
+                overlay.style.display = 'flex';
+                if (s === 'rolling') ovContent.innerHTML = `<div style="color:var(--yellow); font-weight:900; font-size:24px; text-shadow:0 2px 4px rgba(0,0,0,0.8);">⚡ 配對中...</div>`;
+                else if (s === 'ready') ovContent.innerHTML = `<div style="color:var(--green); font-weight:900; font-size:22px; text-shadow:0 2px 4px rgba(0,0,0,0.8);">等待雙方準備...</div>`;
+                else if (s === 'countdown') ovContent.innerHTML = `<div style="color:#00E5FF; font-weight:900; font-size:64px; text-shadow:0 4px 12px rgba(0,0,0,0.8);">${m.countdown}</div>`;
+            }
+        }
+
+        // 渲染棋盤棋子
+        if(s==='idle'||s==='rolling') {
+            // 清空棋盤 DOM
+            const cells=document.querySelectorAll('#tv-board-'+mi+' .cell');
+            cells.forEach(cell => { cell.innerHTML = ''; });
+            return;
+        }
         const cells=document.querySelectorAll('#tv-board-'+mi+' .cell');
         if(!cells.length)return;
         cells.forEach((cell,i)=>{
@@ -872,8 +1010,8 @@ function renderTeacherView(){
             cell.innerHTML=val===0?'':`<div class="piece ${val===1?'black':'white'}${m.lastMove===i?' last':''}"></div>`;
         });
     });
+    resizeTeacherBoards();
 }
-
 
 function renderLobbyCards(){
     // showView 已控制顯示，這裡只更新卡片內容
@@ -884,19 +1022,17 @@ function renderLobbyCards(){
         const lbl=document.getElementById('mlabel-'+mi);
         if(lbl)lbl.textContent=s==='idle'?`第${mi===0?'一':'二'}場（等待配對）`:s==='rolling'?`⚡ 配對中...`:s==='ready'?`第${mi===0?'一':'二'}場 — 準備`:s==='countdown'?`⚡ 倒數 ${m.countdown} 秒`:s==='playing'?`第${mi===0?'一':'二'}場 — 進行中`:s==='finished'?`第${mi===0?'一':'二'}場 — 結束`:`第${mi===0?'一':'二'}場`;
         const cnB=document.getElementById('cn-black-'+mi);const cnW=document.getElementById('cn-white-'+mi);
-        if (myRole === 'teacher' && (s === 'idle' || s === 'finished')) {
-            const optsB = `<option value="">選擇</option>` + state.activePlayers.map(p => `<option value="${p}" ${p===m.black?'selected':''}>${p}</option>`).join('');
-            const optsW = `<option value="">選擇</option>` + state.activePlayers.map(p => `<option value="${p}" ${p===m.white?'selected':''}>${p}</option>`).join('');
-            if(cnB) cnB.innerHTML = `<select id="sel-b-${mi}" style="color:#000; padding:2px; font-family:'Nunito',sans-serif; width:70px; font-weight:900; border-radius:4px; border:none; text-align:center;">${optsB}</select>`;
-            if(cnW) cnW.innerHTML = `<select id="sel-w-${mi}" style="color:#000; padding:2px; font-family:'Nunito',sans-serif; width:70px; font-weight:900; border-radius:4px; border:none; text-align:center;">${optsW}</select>`;
-        } else {
-            if(cnB) cnB.textContent=m.black||'—';if(cnW) cnW.textContent=m.white||'—';
-        }
+        
+        // 學生端單純顯示組別名稱
+        if(cnB) cnB.textContent=m.black||'—';
+        if(cnW) cnW.textContent=m.white||'—';
+
         const crB=document.getElementById('cr-black-'+mi);const crW=document.getElementById('cr-white-'+mi);
         const pcB=document.getElementById('pc-black-'+mi);const pcW=document.getElementById('pc-white-'+mi);
         if(crB)crB.style.display=m.blackReady?'':'none';if(crW)crW.style.display=m.whiteReady?'':'none';
         if(pcB)pcB.className='player-chip'+(m.blackReady?' ready-chip':'');if(pcW)pcW.className='player-chip'+(m.whiteReady?' ready-chip':'');
         const ma=document.getElementById('ma-'+mi);if(!ma)return;
+        
         if(s==='ready'){
             const iAmB=myGroup===m.black,iAmW=myGroup===m.white;
             const myRdy=(iAmB&&m.blackReady)||(iAmW&&m.whiteReady);
@@ -908,26 +1044,21 @@ function renderLobbyCards(){
         else if(s==='playing'){ma.innerHTML=`<div class="ready-status rs-go">🔴 對戰中</div>`;}
         else if(s==='finished'){
             const wG=m.winner==='black'?m.black:m.white;
-            if(myRole === 'teacher') {
-                ma.innerHTML=`<div style="margin-bottom:8px" class="ready-status rs-done">🏆 ${wG} 獲勝</div><button class="ready-btn" onclick="manualStart(${mi})" style="padding:6px 16px; font-size:13px; background:#1a6fc4; border-color:#2D8FFF; box-shadow:0 3px 0 rgba(0,0,0,.4); animation:none;">⚔️ 重新指定對戰</button>`;
-            } else {
-                ma.innerHTML=`<div class="ready-status rs-done">🏆 ${wG} 獲勝</div>`;
-            }
+            ma.innerHTML=`<div class="ready-status rs-done">🏆 ${wG} 獲勝</div>`;
         }
         else {
-            if(myRole === 'teacher') {
-                ma.innerHTML = `<button class="ready-btn" onclick="manualStart(${mi})" style="padding:6px 16px; font-size:13px; background:#1a6fc4; border-color:#2D8FFF; box-shadow:0 3px 0 rgba(0,0,0,.4); animation:none;">⚔️ 指定對戰</button>`;
-            } else {
-                ma.innerHTML=`<div class="ready-status rs-waiting" style="font-size:11px">⏳ 等待老師配對</div>`;
-            }
+            const hint = state.matchMode === 'free' ? '開放約戰中' : '等待老師配對';
+            ma.innerHTML=`<div class="ready-status rs-waiting" style="font-size:11px">⏳ ${hint}</div>`;
         }
     });
 }
+
 function isMyMatchPlaying(){
     if(myRole!=='player')return false;
     return state.matches.some(m=>(m.black===myGroup||m.white===myGroup)&&
         (m.status==='playing'||m.status==='countdown'||m.status==='finished'));
 }
+
 function renderGameView(){
     if(!(myRole==='player'&&isMyMatchPlaying()))return;
     const mi=state.matches.findIndex(m=>m.black===myGroup||m.white===myGroup);
@@ -974,13 +1105,12 @@ function renderGameView(){
     }else wo.classList.remove('show');
 }
 
-
 function renderBottom(){
     const ind=document.getElementById('turn-indicator');if(!ind)return;
     const banner=document.getElementById('turn-banner');
 
     if(myRole!=='player'){
-        ind.className='turn-badge tb-wait';ind.textContent=state.started?'觀賽中':'等待老師抽籤';
+        ind.className='turn-badge tb-wait';ind.textContent=state.started?'觀賽中':'等待老師配對';
         if(banner)banner.style.display='none';
         return;
     }
@@ -1000,6 +1130,7 @@ function renderBottom(){
     else if(m.status==='finished'){ind.className='turn-badge tb-wait';ind.textContent='比賽結束';}
     else{ind.className='turn-badge tb-wait';ind.textContent='等待配對';}
 }
+
 function dismissSoloWinner(){document.getElementById('solo-winner').classList.remove('show');}
 function dismissWinner(mi){
     document.getElementById('winner-ov-'+mi)?.classList.add('hidden');
