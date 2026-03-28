@@ -191,6 +191,11 @@ body,html{margin:0;padding:0;width:100%;height:100%;background:var(--bg);font-fa
       <div class="match-action" id="ma-1"></div>
     </div>
   </div>
+  <!-- 老師抽籤按鈕（在配對卡片下方）-->
+  <div id="draw-btn-wrap" style="display:none;width:100%;max-width:480px;margin-top:4px;">
+    <button id="btn-draw" onclick="onDrawBtnClick()" style="width:100%;padding:16px;font-family:'Fredoka One',sans-serif;font-size:20px;color:#fff;background:linear-gradient(160deg,#1a6fc4,#0d4a8a);border:3px solid #2D8FFF;border-radius:16px;cursor:pointer;box-shadow:0 5px 0 rgba(0,0,0,.4);transition:transform .1s,box-shadow .1s;">🎲 抽籤開始</button>
+    <div id="draw-btn-hint" style="text-align:center;font-family:'Nunito',sans-serif;font-weight:700;font-size:12px;color:rgba(255,255,255,.4);margin-top:6px;"></div>
+  </div>
 </div>
 
 <!-- ══ 遊戲畫面（參賽組 playing 時顯示自己的棋盤） ══ -->
@@ -638,6 +643,10 @@ function checkWin(cells,idx,p){
 // ══════════════════════════════════════
 // 廣播
 // ══════════════════════════════════════
+function onDrawBtnClick(){
+    drawLots();
+}
+
 function broadcast(){
     const data=JSON.parse(JSON.stringify(state));
     window.parent.postMessage({type:'W3_STATE',data,group:myGroup},'*');
@@ -817,8 +826,23 @@ function renderBoard(mi){
 }
 
 function renderTeacherCtrl(){
-    // 抽籤按鈕已移到 index.html 的 tc-w3-draw-bar
-    // 這裡不再需要控制按鈕顯示
+    const wrap = document.getElementById('draw-btn-wrap');
+    if(!wrap) return;
+    if(myRole !== 'teacher' || state.started){
+        wrap.style.display = 'none';
+        return;
+    }
+    wrap.style.display = 'block';
+    const btn = document.getElementById('btn-draw');
+    const hint = document.getElementById('draw-btn-hint');
+    const n = state.activePlayers.length;
+    if(btn){
+        btn.disabled = n < 2;
+        btn.style.opacity = n < 2 ? '.4' : '1';
+        btn.style.cursor = n < 2 ? 'not-allowed' : 'pointer';
+        btn.textContent = n >= 2 ? `🎲 抽籤開始（${n} 組）` : `🎲 抽籤開始`;
+    }
+    if(hint) hint.textContent = n < 2 ? `⏳ 等待學生加入（目前 ${n} 組）` : '';
 }
 
 function renderTeacherView(){
@@ -1009,8 +1033,7 @@ window.addEventListener('message',(e)=>{
             if(e.data.data)applyState(e.data.data);
             break;
         case 'W3_DRAW_LOTS':
-            // index.html 的抽籤按鈕直接觸發（不需 role 判斷）
-            drawLots();
+            drawLots(); // 支援從 index.html 觸發（向下兼容）
             break;
         case 'PLATFORM_PAUSE':
             document.getElementById('pause-overlay').classList.add('show');
