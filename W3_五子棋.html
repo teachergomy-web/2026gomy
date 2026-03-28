@@ -401,32 +401,30 @@ window.addEventListener('resize',resizeSoloBoard);
 // 抽籤（只在第一次或特殊情況由老師觸發）
 // ══════════════════════════════════════
 function drawLots(){
+    showToast('👉 請使用下方的下拉選單手動配對！');
+}
+
+function manualStart(mi) {
     initAudio();
-    const pool=[...state.activePlayers];
-    if(pool.length<2){
-        showToast('⚠️ 至少需要2組加入房間才能對戰');
-        console.log('activePlayers:', state.activePlayers, 'scores:', state.scores);
-        return;
+    const b = document.getElementById('sel-b-'+mi)?.value;
+    const w = document.getElementById('sel-w-'+mi)?.value;
+    if (!b || !w) { showToast('⚠️ 請選擇對戰組別'); return; }
+    if (b === w) { showToast('⚠️ 先手與後手不能是同一組'); return; }
+    
+    // 檢查是否被另一場佔用
+    const otherMi = mi === 0 ? 1 : 0;
+    const om = state.matches[otherMi];
+    if (om.status !== 'idle' && om.status !== 'finished') {
+        if (om.black === b || om.white === b || om.black === w || om.white === w) {
+            showToast('⚠️ 有組別正在另一場對戰中！'); return;
+        }
     }
-    pool.forEach(g=>{if(!state.scores[g])state.scores[g]={wins:0,matches:0};});
 
-    const shuffled=[...pool].sort(()=>Math.random()-.5);
-    state.started=true;
-
-    if(pool.length>=4){
-        // 4組以上：兩場同時開始
-        state.matches[0]=newMatch();
-        state.matches[1]=newMatch();
-        broadcast(); // 先廣播清空狀態
-        startRolling(0, shuffled[0], shuffled[1]);
-        startRolling(1, shuffled[2], shuffled[3]);
-    } else {
-        // 2-3組：只開第0場，第1場保持 idle
-        state.matches[0]=newMatch();
-        state.matches[1]=newMatch();
-        broadcast(); // 先廣播清空狀態
-        startRolling(0, shuffled[0], shuffled[1]);
-    }
+    state.started = true;
+    state.matches[mi] = newMatch(); // 清空舊的對戰狀態
+    broadcast();
+    
+    startRolling(mi, b, w);
 }
 
 function startRolling(mi, blackFinal, whiteFinal){
@@ -614,14 +612,7 @@ function handleCellClick(mi,idx){
         playSound('win');
         showToast(`🏆 ${wG} 獲勝！`);
         broadcast();
-        // 自動配下一場（4秒後，讓勝負畫面先顯示）
-        if(myRole!=='teacher') setTimeout(()=>{
-            autoNextMatch(mi);
-            const otherMi = mi===0?1:0;
-            if(state.matches[otherMi].status==='idle'){
-                setTimeout(()=>autoNextMatch(otherMi),800);
-            }
-        },4000);
+        // 移除自動配對，改由老師手動配對
     }else{
         playSound('stone');
     }
@@ -828,21 +819,8 @@ function renderBoard(mi){
 
 function renderTeacherCtrl(){
     const tc = document.getElementById('teacher-ctrl');
-    if(!tc) return;
-    if(myRole === 'teacher' && !state.started){
-        tc.style.display = 'block';
-        const btn = document.getElementById('btn-draw');
-        const n = state.activePlayers.length;
-        if(btn){
-            btn.disabled = n < 2;
-            btn.style.opacity = n < 2 ? '.4' : '1';
-            btn.textContent = n >= 2 ? `🎲 抽籤開始（${n} 組）` : `⏳ 等待學生加入`;
-        }
-    } else {
-        tc.style.display = 'none';
-    }
+    if(tc) tc.style.display = 'none'; // 隱藏原本的大抽籤按鈕
 }
-
 function renderTeacherView(){
     if(myRole!=='teacher')return;
     if(!state.started)return;
@@ -906,7 +884,14 @@ function renderLobbyCards(){
         const lbl=document.getElementById('mlabel-'+mi);
         if(lbl)lbl.textContent=s==='idle'?`第${mi===0?'一':'二'}場（等待配對）`:s==='rolling'?`⚡ 配對中...`:s==='ready'?`第${mi===0?'一':'二'}場 — 準備`:s==='countdown'?`⚡ 倒數 ${m.countdown} 秒`:s==='playing'?`第${mi===0?'一':'二'}場 — 進行中`:s==='finished'?`第${mi===0?'一':'二'}場 — 結束`:`第${mi===0?'一':'二'}場`;
         const cnB=document.getElementById('cn-black-'+mi);const cnW=document.getElementById('cn-white-'+mi);
-        if(cnB)cnB.textContent=m.black||'—';if(cnW)cnW.textContent=m.white||'—';
+        if (myRole === 'teacher' && (s === 'idle' || s === 'finished')) {
+            const optsB = `<option value="">選擇</option>` + state.activePlayers.map(p => `<option value="${p}" ${p===m.black?'selected':''}>${p}</option>`).join('');
+            const optsW = `<option value="">選擇</option>` + state.activePlayers.map(p => `<option value="${p}" ${p===m.white?'selected':''}>${p}</option>`).join('');
+            if(cnB) cnB.innerHTML = `<select id="sel-b-${mi}" style="color:#000; padding:2px; font-family:'Nunito',sans-serif; width:70px; font-weight:900; border-radius:4px; border:none; text-align:center;">${optsB}</select>`;
+            if(cnW) cnW.innerHTML = `<select id="sel-w-${mi}" style="color:#000; padding:2px; font-family:'Nunito',sans-serif; width:70px; font-weight:900; border-radius:4px; border:none; text-align:center;">${optsW}</select>`;
+        } else {
+            if(cnB) cnB.textContent=m.black||'—';if(cnW) cnW.textContent=m.white||'—';
+        }
         const crB=document.getElementById('cr-black-'+mi);const crW=document.getElementById('cr-white-'+mi);
         const pcB=document.getElementById('pc-black-'+mi);const pcW=document.getElementById('pc-white-'+mi);
         if(crB)crB.style.display=m.blackReady?'':'none';if(crW)crW.style.display=m.whiteReady?'':'none';
@@ -921,7 +906,21 @@ function renderLobbyCards(){
             else ma.innerHTML=`<div class="ready-status rs-waiting">等待雙方準備 ${cnt}/2</div>`;
         }else if(s==='countdown'){ma.innerHTML=`<div class="countdown-badge">${m.countdown}</div>`;}
         else if(s==='playing'){ma.innerHTML=`<div class="ready-status rs-go">🔴 對戰中</div>`;}
-        else if(s==='finished'){const wG=m.winner==='black'?m.black:m.white;ma.innerHTML=`<div class="ready-status rs-done">🏆 ${wG} 獲勝</div>`;}
+        else if(s==='finished'){
+            const wG=m.winner==='black'?m.black:m.white;
+            if(myRole === 'teacher') {
+                ma.innerHTML=`<div style="margin-bottom:8px" class="ready-status rs-done">🏆 ${wG} 獲勝</div><button class="ready-btn" onclick="manualStart(${mi})" style="padding:6px 16px; font-size:13px; background:#1a6fc4; border-color:#2D8FFF; box-shadow:0 3px 0 rgba(0,0,0,.4); animation:none;">⚔️ 重新指定對戰</button>`;
+            } else {
+                ma.innerHTML=`<div class="ready-status rs-done">🏆 ${wG} 獲勝</div>`;
+            }
+        }
+        else {
+            if(myRole === 'teacher') {
+                ma.innerHTML = `<button class="ready-btn" onclick="manualStart(${mi})" style="padding:6px 16px; font-size:13px; background:#1a6fc4; border-color:#2D8FFF; box-shadow:0 3px 0 rgba(0,0,0,.4); animation:none;">⚔️ 指定對戰</button>`;
+            } else {
+                ma.innerHTML=`<div class="ready-status rs-waiting" style="font-size:11px">⏳ 等待老師配對</div>`;
+            }
+        }</div>`;}
         else ma.innerHTML=`<div class="ready-status rs-waiting" style="font-size:11px">⏳ 棋局進行中，等待下一局配對</div>`;
     });
 }
