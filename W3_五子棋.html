@@ -200,36 +200,48 @@ body,html{margin:0;padding:0;width:100%;height:100%;background:var(--bg);font-fa
 </div>
 
 <!-- ══ 老師雙棋盤轉播（左右兩欄）══ -->
-<div id="teacher-view" style="position:absolute;top:100px;left:0;right:0;bottom:60px;display:none;flex-direction:row;gap:0;overflow:hidden;z-index:10;background:var(--bg);">
+<div id="teacher-view" style="position:absolute;top:100px;left:0;right:0;bottom:60px;display:none;flex-direction:row;overflow:hidden;z-index:10;background:var(--bg);">
 
   <!-- 場0 左欄 -->
-  <div class="tv-col" id="tv-col-0">
-    <div class="tv-header">
-      <div class="tv-player"><div class="stone-sm black"></div><span class="chip-name" id="tv-black-0">—</span></div>
-      <span class="vs-label" style="font-size:12px">VS</span>
-      <div class="tv-player"><div class="stone-sm white"></div><span class="chip-name" id="tv-white-0">—</span></div>
-      <div id="tv-status-0" class="tv-status"></div>
+  <div id="tv-col-0" style="flex:1;display:flex;flex-direction:column;padding:8px;gap:6px;min-width:0;">
+    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+      <div style="flex:1;display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.08);border-radius:10px;padding:4px 8px;min-width:0;">
+        <div class="stone-sm black"></div>
+        <span style="font-family:'Nunito',sans-serif;font-weight:900;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="tv-black-0">—</span>
+      </div>
+      <span style="font-family:'Fredoka One',sans-serif;font-size:12px;color:rgba(255,255,255,.25);flex-shrink:0;">VS</span>
+      <div style="flex:1;display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.08);border-radius:10px;padding:4px 8px;min-width:0;">
+        <div class="stone-sm white"></div>
+        <span style="font-family:'Nunito',sans-serif;font-weight:900;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="tv-white-0">—</span>
+      </div>
+      <span style="font-family:'Nunito',sans-serif;font-weight:900;font-size:11px;color:rgba(255,255,255,.45);flex-shrink:0;" id="tv-status-0"></span>
     </div>
-    <div class="tv-board-wrap">
-      <div id="tv-board-outer-0" class="tv-board-outer">
+    <div style="flex:1;display:flex;align-items:center;justify-content:center;min-height:0;min-width:0;">
+      <div id="tv-board-outer-0" style="background:#dcb35c;padding:5px;border-radius:8px;border:3px solid #8b4513;box-shadow:0 4px 16px rgba(0,0,0,.7);width:min(calc(50vw - 24px),calc(100vh - 200px));height:min(calc(50vw - 24px),calc(100vh - 200px));">
         <div id="tv-board-0" style="display:grid;width:100%;height:100%;"></div>
       </div>
     </div>
   </div>
 
   <!-- 分隔線 -->
-  <div id="tv-divider" style="width:1px;background:rgba(255,255,255,.1);flex-shrink:0"></div>
+  <div id="tv-divider" style="width:1px;background:rgba(255,255,255,.1);flex-shrink:0;margin:8px 0;"></div>
 
   <!-- 場1 右欄 -->
-  <div class="tv-col" id="tv-col-1">
-    <div class="tv-header">
-      <div class="tv-player"><div class="stone-sm black"></div><span class="chip-name" id="tv-black-1">—</span></div>
-      <span class="vs-label" style="font-size:12px">VS</span>
-      <div class="tv-player"><div class="stone-sm white"></div><span class="chip-name" id="tv-white-1">—</span></div>
-      <div id="tv-status-1" class="tv-status"></div>
+  <div id="tv-col-1" style="flex:1;display:flex;flex-direction:column;padding:8px;gap:6px;min-width:0;">
+    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+      <div style="flex:1;display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.08);border-radius:10px;padding:4px 8px;min-width:0;">
+        <div class="stone-sm black"></div>
+        <span style="font-family:'Nunito',sans-serif;font-weight:900;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="tv-black-1">—</span>
+      </div>
+      <span style="font-family:'Fredoka One',sans-serif;font-size:12px;color:rgba(255,255,255,.25);flex-shrink:0;">VS</span>
+      <div style="flex:1;display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.08);border-radius:10px;padding:4px 8px;min-width:0;">
+        <div class="stone-sm white"></div>
+        <span style="font-family:'Nunito',sans-serif;font-weight:900;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="tv-white-1">—</span>
+      </div>
+      <span style="font-family:'Nunito',sans-serif;font-weight:900;font-size:11px;color:rgba(255,255,255,.45);flex-shrink:0;" id="tv-status-1"></span>
     </div>
-    <div class="tv-board-wrap">
-      <div id="tv-board-outer-1" class="tv-board-outer">
+    <div style="flex:1;display:flex;align-items:center;justify-content:center;min-height:0;min-width:0;">
+      <div id="tv-board-outer-1" style="background:#dcb35c;padding:5px;border-radius:8px;border:3px solid #8b4513;box-shadow:0 4px 16px rgba(0,0,0,.7);width:min(calc(50vw - 24px),calc(100vh - 200px));height:min(calc(50vw - 24px),calc(100vh - 200px));">
         <div id="tv-board-1" style="display:grid;width:100%;height:100%;"></div>
       </div>
     </div>
@@ -741,42 +753,42 @@ function renderTeacherCtrl(){
 
 function renderTeacherView(){
     if(myRole!=='teacher')return;
-    if(!state.started)return; // showView 已控制顯示
+    if(!state.started)return;
 
     buildTeacherBoards();
 
-    // 判斷場1是否有效（非 idle 或 activePlayers < 4）
-    const m1Active = state.matches[1].status!=='idle' || state.activePlayers.length>=4;
+    // 只有2組或場1是 idle → 隱藏場1欄
+    const m1show = state.activePlayers.length>=4 || state.matches[1].status!=='idle';
     const col1 = document.getElementById('tv-col-1');
-    const divider = document.getElementById('tv-divider');
-    if(col1) col1.style.display = m1Active ? 'flex' : 'none';
-    if(divider) divider.style.display = m1Active ? '' : 'none';
+    const div  = document.getElementById('tv-divider');
+    if(col1) col1.style.display = m1show ? 'flex' : 'none';
+    if(div)  div.style.display  = m1show ? '' : 'none';
+
+    // 只有1欄時棋盤用全寬
+    const o0 = document.getElementById('tv-board-outer-0');
+    if(o0){
+        if(m1show){
+            o0.style.width ='min(calc(50vw - 24px),calc(100vh - 200px))';
+            o0.style.height='min(calc(50vw - 24px),calc(100vh - 200px))';
+        }else{
+            o0.style.width ='min(calc(100vw - 32px),calc(100vh - 200px))';
+            o0.style.height='min(calc(100vw - 32px),calc(100vh - 200px))';
+        }
+    }
 
     [0,1].forEach(mi=>{
-        if(mi===1 && !m1Active)return;
+        if(mi===1&&!m1show)return;
         const m=state.matches[mi];const s=m.status;
-        // Names
         const tb=document.getElementById('tv-black-'+mi);
         const tw=document.getElementById('tv-white-'+mi);
         if(tb)tb.textContent=m.black||'—';
         if(tw)tw.textContent=m.white||'—';
-        // Status
         const tst=document.getElementById('tv-status-'+mi);
         if(tst) tst.textContent=
             s==='idle'?'等待':s==='rolling'?'配對中':s==='ready'?'準備中':
             s==='countdown'?`${m.countdown}秒`:s==='playing'?
             (m.turn==='black'?'⚫回合':'⚪回合'):s==='finished'?
             (m.winner?'🏆'+(m.winner==='black'?m.black:m.white):'結束'):'';
-        // Board outer size: square fitting the column
-        const col=document.getElementById('tv-col-'+mi);
-        const outer=document.getElementById('tv-board-outer-'+mi);
-        if(col&&outer){
-            const colW=col.clientWidth-20;
-            const colH=col.clientHeight-44; // minus header
-            const sz=Math.min(colW,colH);
-            if(sz>40){outer.style.width=sz+'px';outer.style.height=sz+'px';}
-        }
-        // Board cells
         if(s==='idle'||s==='rolling')return;
         const cells=document.querySelectorAll('#tv-board-'+mi+' .cell');
         if(!cells.length)return;
