@@ -282,6 +282,7 @@
         let gameStarted = false;
         
         let totalScore = 0;
+        window.GROUP_ID = ''; // 由平台注入
         let startTime = 0;
         let timerInterval = null;
         let timeElapsed = 0;
@@ -654,6 +655,8 @@
             totalScore += levelScore;
             
             document.getElementById('score-txt').innerText = totalScore;
+            // 即時回報分數給平台
+            window.parent.postMessage({ type: 'W2_SCORE', score: totalScore, group: window.GROUP_ID }, '*');
             document.getElementById('clear-time').innerText = timeElapsed.toFixed(1);
             document.getElementById('clear-score').innerText = levelScore;
 
@@ -669,6 +672,8 @@
                 } else {
                     document.getElementById('final-score').innerText = totalScore;
                     document.getElementById('game-over').classList.remove('hidden');
+                    // 通知平台遊戲結束
+                    window.parent.postMessage({ type: 'W2_GAMEOVER', score: totalScore, group: window.GROUP_ID }, '*');
                 }
             }, 800);
         }
@@ -900,6 +905,59 @@
 
         // 初始化選單網格
         renderLevelGrid();
+
+        // ── PLATFORM BRIDGE (postMessage) ──
+        window.addEventListener('message', (e) => {
+            if (!e.data || !e.data.type) return;
+            switch(e.data.type) {
+                case 'PLATFORM_START':
+                    if (e.data.group) window.GROUP_ID = e.data.group;
+                    // 直接以指定模式開始（autostart 帶 mode 參數）
+                    break;
+                case 'PLATFORM_PAUSE':
+                    if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+                    // 顯示暫停遮罩
+                    if (!document.getElementById('pause-overlay')) {
+                        const ov = document.createElement('div');
+                        ov.id = 'pause-overlay';
+                        ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999;display:flex;align-items:center;justify-content:center;font-family:Fredoka One,sans-serif;font-size:3rem;color:#FFD600;text-shadow:3px 3px 0 #000';
+                        ov.textContent = '⏸ 暫停中';
+                        document.body.appendChild(ov);
+                    }
+                    break;
+                case 'PLATFORM_RESUME':
+                    const ov = document.getElementById('pause-overlay');
+                    if (ov) ov.remove();
+                    if (gameStarted && !isLevelComplete) startTimer();
+                    break;
+                case 'PLATFORM_RESET':
+                    backToMenu();
+                    break;
+            }
+        });
+
+        // ── 自動開始（讀取 URL 參數）──
+        (function(){
+            const params = new URLSearchParams(window.location.search);
+            const autoMode = params.get('autostart') || params.get('mode') || 'SINGLE';
+            const group = params.get('group');
+            if (group) window.GROUP_ID = group;
+            // 隱藏主選單，直接開始
+            document.getElementById('main-menu').classList.add('hidden');
+            currentMode = (autoMode === 'DOUBLE') ? 'DOUBLE' : 'SINGLE';
+            maxLevels = (currentMode === 'SINGLE') ? 30 : 10;
+            cols = (currentMode === 'SINGLE') ? 6 : 8;
+            rows = (currentMode === 'SINGLE') ? 5 : 7;
+            document.getElementById('ui-layer').style.borderBottomColor = currentMode === 'SINGLE' ? 'var(--cyan)' : 'var(--pink)';
+            document.getElementById('game-ui').style.display = 'block';
+            totalScore = 0;
+            gameStarted = true;
+            loadLevel(0);
+        })();
+
+        // 通知平台已就緒
+        window.parent.postMessage({ type: 'W2_READY' }, '*');
+
     </script>
 </body>
 </html>
