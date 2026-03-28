@@ -6,102 +6,107 @@
 <title>⚔️ 五子棋對戰</title>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700;900&display=swap" rel="stylesheet">
 <style>
-:root{
-  --bg:#1A0A4A;--panel:#2D1A6E;--yellow:#FFD600;--yellow2:#c89800;
-  --green:#2ECC40;--red:#FF3B3B;--blue:#2D8FFF;--white:#f0f6fc;
-}
+:root{--bg:#1A0A4A;--panel:#2D1A6E;--yellow:#FFD600;--yellow2:#c89800;--green:#2ECC40;--red:#FF3B3B;--blue:#2D8FFF;--white:#f0f6fc;}
 *{box-sizing:border-box;touch-action:manipulation;user-select:none;-webkit-tap-highlight-color:transparent;}
 body,html{margin:0;padding:0;width:100%;height:100%;background:var(--bg);font-family:'Fredoka One','Nunito',sans-serif;color:var(--white);overflow:hidden;}
-
-/* Stars */
-#stars{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+#stars{position:fixed;inset:0;z-index:0;pointer-events:none;}
 .star{position:absolute;border-radius:50%;background:#fff;animation:twinkle var(--d,2s) infinite alternate;}
 @keyframes twinkle{from{opacity:.1;transform:scale(.7)}to{opacity:.8;transform:scale(1.2)}}
 
 /* HUD */
-#hud{position:absolute;top:0;left:0;width:100%;background:rgba(26,10,74,.97);border-bottom:3px solid var(--yellow);padding:10px 14px;display:flex;align-items:center;gap:10px;z-index:20;box-sizing:border-box;flex-shrink:0;}
+#hud{position:absolute;top:0;left:0;width:100%;background:rgba(26,10,74,.97);border-bottom:3px solid var(--yellow);padding:8px 14px;display:flex;align-items:center;gap:10px;z-index:20;box-sizing:border-box;}
 .hud-label{font-family:'Nunito',sans-serif;font-weight:900;font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.06em;}
-.hud-val{font-family:'Fredoka One',sans-serif;font-size:17px;color:var(--yellow);line-height:1.1;}
-.role-badge{padding:4px 12px;border-radius:20px;font-family:'Nunito',sans-serif;font-weight:900;font-size:11px;border:2px solid;flex-shrink:0;}
+.hud-val{font-family:'Fredoka One',sans-serif;font-size:16px;color:var(--yellow);line-height:1.1;}
+.role-badge{padding:3px 10px;border-radius:20px;font-family:'Nunito',sans-serif;font-weight:900;font-size:11px;border:2px solid;flex-shrink:0;}
 .role-teacher{background:rgba(45,143,255,.2);border-color:var(--blue);color:var(--blue);}
-.role-black{background:rgba(255,255,255,.15);border-color:#aaa;color:#fff;}
-.role-white{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.4);color:rgba(255,255,255,.8);}
 .role-spectator{background:rgba(46,204,64,.1);border-color:var(--green);color:var(--green);}
-
-/* Main layout */
-#main{position:absolute;top:64px;left:0;right:0;bottom:60px;display:flex;flex-direction:column;overflow:hidden;}
+.role-player{background:rgba(255,214,0,.15);border-color:var(--yellow);color:var(--yellow);}
 
 /* Scoreboard */
-#scoreboard-wrap{padding:10px 12px 0;flex-shrink:0;}
-.score-row{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;}
-.score-chip{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.1);border-radius:10px;padding:5px 10px;transition:all .2s;}
-.score-chip.fighting{border-color:var(--yellow);background:rgba(255,214,0,.12);}
-.score-chip-name{font-family:'Nunito',sans-serif;font-weight:900;font-size:11px;}
-.score-chip-wins{font-family:'Fredoka One',sans-serif;font-size:16px;color:var(--yellow);}
+#score-bar{position:absolute;top:56px;left:0;right:0;background:rgba(26,10,74,.9);border-bottom:1px solid rgba(255,214,0,.15);padding:6px 12px;display:flex;gap:6px;flex-wrap:wrap;justify-content:center;z-index:15;}
+.sc{display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.1);border-radius:10px;padding:4px 10px;transition:all .2s;}
+.sc.fighting{border-color:var(--yellow);background:rgba(255,214,0,.1);}
+.sc-name{font-family:'Nunito',sans-serif;font-weight:900;font-size:11px;}
+.sc-wins{font-family:'Fredoka One',sans-serif;font-size:16px;color:var(--yellow);}
+.sc-info{font-size:9px;color:rgba(255,255,255,.3);font-family:'Nunito',sans-serif;font-weight:700;}
 
-/* Centre area */
-#centre{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 12px;gap:10px;overflow:hidden;min-height:0;}
+/* Main area: two boards side by side */
+#main{position:absolute;top:100px;left:0;right:0;bottom:0;display:flex;gap:0;overflow:hidden;}
+.match-col{flex:1;display:flex;flex-direction:column;align-items:center;padding:6px;gap:4px;position:relative;border-right:1px solid rgba(255,255,255,.06);}
+.match-col:last-child{border-right:none;}
 
-/* VS panel */
-.vs-wrap{display:flex;align-items:center;gap:8px;width:100%;max-width:420px;}
-.player-panel{flex:1;display:flex;flex-direction:column;align-items:center;background:rgba(255,255,255,.06);border:3px solid rgba(255,255,255,.1);border-radius:16px;padding:10px 8px;transition:all .3s;gap:4px;}
-.player-panel.ready{border-color:var(--green);box-shadow:0 0 14px rgba(46,204,64,.3);}
-.player-panel.active-turn{border-color:var(--yellow);box-shadow:0 0 18px rgba(255,214,0,.35);}
-.stone{width:40px;height:40px;border-radius:50%;flex-shrink:0;}
-.stone.black{background:radial-gradient(circle at 35% 35%,#555,#000);border:2px solid rgba(255,255,255,.25);box-shadow:0 3px 10px rgba(0,0,0,.6);}
-.stone.white{background:radial-gradient(circle at 35% 35%,#fff,#ccc);border:2px solid rgba(0,0,0,.15);box-shadow:0 3px 10px rgba(0,0,0,.4);}
-.player-name{font-family:'Nunito',sans-serif;font-weight:900;font-size:13px;text-align:center;}
-.player-tag{font-size:9px;color:rgba(255,255,255,.4);font-family:'Nunito',sans-serif;font-weight:700;}
-.vs-text{font-family:'Fredoka One',sans-serif;font-size:18px;color:rgba(255,255,255,.2);flex-shrink:0;}
+/* Match header */
+.match-header{width:100%;display:flex;align-items:center;gap:6px;max-width:380px;}
+.ph{flex:1;display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.1);border-radius:12px;padding:5px 8px;transition:all .3s;min-width:0;}
+.ph.active{border-color:var(--yellow);box-shadow:0 0 14px rgba(255,214,0,.3);}
+.ph.winner-side{border-color:var(--green);background:rgba(46,204,64,.15);}
+.stone-s{width:22px;height:22px;border-radius:50%;flex-shrink:0;}
+.stone-s.black{background:radial-gradient(circle at 35% 35%,#555,#000);border:1px solid rgba(255,255,255,.2);box-shadow:0 2px 6px rgba(0,0,0,.5);}
+.stone-s.white{background:radial-gradient(circle at 35% 35%,#fff,#ccc);border:1px solid rgba(0,0,0,.1);box-shadow:0 2px 6px rgba(0,0,0,.3);}
+.ph-name{font-family:'Nunito',sans-serif;font-weight:900;font-size:clamp(10px,2.5vw,13px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ph-tag{font-size:8px;color:rgba(255,255,255,.35);font-family:'Nunito',sans-serif;font-weight:700;}
+.vs-s{font-family:'Fredoka One',sans-serif;font-size:13px;color:rgba(255,255,255,.2);flex-shrink:0;}
 
 /* Board */
-#board-outer{width:min(100%,calc(100vh - 280px));aspect-ratio:1;background:#dcb35c;padding:5px;border-radius:10px;border:4px solid #8b4513;box-shadow:0 6px 28px rgba(0,0,0,.85);flex-shrink:0;}
-#board{width:100%;height:100%;display:grid;}
+.board-wrap{flex:1;display:flex;align-items:center;justify-content:center;width:100%;min-height:0;}
+.board-outer{background:#dcb35c;padding:4px;border-radius:8px;border:3px solid #8b4513;box-shadow:0 4px 20px rgba(0,0,0,.8);aspect-ratio:1;}
+.board-grid{display:grid;width:100%;height:100%;}
 .cell{position:relative;display:flex;align-items:center;justify-content:center;}
 .cell.can-move{cursor:pointer;}
 .cell.can-move:active{background:rgba(0,0,0,.18);}
 .cell::before{content:'';position:absolute;top:50%;left:0;width:100%;height:1px;background:rgba(0,0,0,.4);pointer-events:none;}
 .cell::after{content:'';position:absolute;left:50%;top:0;width:1px;height:100%;background:rgba(0,0,0,.4);pointer-events:none;}
 .piece{position:absolute;width:88%;height:88%;border-radius:50%;z-index:2;animation:pop .18s cubic-bezier(.34,1.56,.64,1);}
-.piece.black{background:radial-gradient(circle at 35% 35%,#555,#000);box-shadow:2px 3px 8px rgba(0,0,0,.7);}
-.piece.white{background:radial-gradient(circle at 35% 35%,#fff,#ccc);box-shadow:2px 3px 6px rgba(0,0,0,.4);}
+.piece.black{background:radial-gradient(circle at 35% 35%,#555,#000);box-shadow:2px 2px 6px rgba(0,0,0,.7);}
+.piece.white{background:radial-gradient(circle at 35% 35%,#fff,#ccc);box-shadow:1px 2px 5px rgba(0,0,0,.4);}
 .piece.last{outline:2px solid var(--red);outline-offset:1px;}
 @keyframes pop{from{transform:scale(.15);opacity:0}to{transform:scale(1);opacity:1}}
 
-/* Roll animation */
-.roll-box{flex:1;aspect-ratio:1;max-width:140px;display:flex;align-items:center;justify-content:center;border-radius:18px;border:4px solid;font-family:'Fredoka One',sans-serif;font-size:clamp(20px,6vw,32px);animation:rBounce .55s ease-in-out infinite alternate;font-weight:900;}
-.roll-box.b{background:linear-gradient(160deg,#333,#000);border-color:#666;color:#fff;}
-.roll-box.w{background:linear-gradient(160deg,#fff,#ccc);border-color:#aaa;color:#000;}
-@keyframes rBounce{from{transform:scale(.93)}to{transform:scale(1.07)}}
-
-/* Idle */
-.idle-icon{font-size:52px;margin-bottom:10px;}
-
-/* Buttons */
-.mp-btn{display:block;width:100%;padding:13px 18px;font-family:'Fredoka One',sans-serif;font-size:clamp(14px,3vw,19px);color:#fff;cursor:pointer;border:3px solid #fff;border-radius:14px;box-shadow:0 5px 0 rgba(0,0,0,.4);transition:transform .1s,box-shadow .1s;margin-bottom:10px;}
-.mp-btn:last-child{margin-bottom:0;}
-.mp-btn:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(0,0,0,.4);}
-.mp-btn:disabled{opacity:.35;cursor:not-allowed;transform:none;}
-.btn-green{background:linear-gradient(160deg,#27ae60,#1a7a42);border-color:#4dff80;}
-.btn-blue{background:linear-gradient(160deg,#1a6fc4,#0d4a8a);border-color:var(--blue);}
-.btn-red{background:linear-gradient(160deg,#c0392b,#8e1a13);border-color:#ff6644;}
-.btn-grey{background:linear-gradient(160deg,#555,#333);border-color:#888;font-size:13px;padding:10px;}
-
-/* Bottom bar */
-#bottom{position:absolute;bottom:0;left:0;width:100%;background:rgba(26,10,74,.97);border-top:2px solid rgba(255,214,0,.2);padding:8px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:20;box-sizing:border-box;}
-.turn-badge{font-family:'Nunito',sans-serif;font-weight:900;font-size:12px;padding:6px 16px;border-radius:20px;border:2px solid;}
-.turn-badge.your-turn{background:rgba(46,204,64,.2);border-color:var(--green);color:var(--green);animation:pulse 1.2s ease-in-out infinite;}
-.turn-badge.wait{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.12);color:rgba(255,255,255,.4);}
+/* Status bar under each board */
+.match-status{font-family:'Nunito',sans-serif;font-weight:900;font-size:11px;padding:4px 12px;border-radius:14px;border:2px solid;white-space:nowrap;flex-shrink:0;}
+.ms-waiting{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.1);color:rgba(255,255,255,.35);}
+.ms-countdown{background:rgba(255,214,0,.15);border-color:var(--yellow);color:var(--yellow);animation:pulse 1s infinite;}
+.ms-your-turn{background:rgba(46,204,64,.2);border-color:var(--green);color:var(--green);animation:pulse 1.2s infinite;}
+.ms-wait-turn{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.1);color:rgba(255,255,255,.4);}
+.ms-finished{background:rgba(255,214,0,.1);border-color:rgba(255,214,0,.3);color:var(--yellow);}
 @keyframes pulse{0%,100%{opacity:.6}50%{opacity:1}}
 
-/* Pause */
+/* Idle overlay per column */
+.idle-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:rgba(26,10,74,.5);z-index:5;}
+.idle-overlay.hidden{display:none!important;}
+
+/* Rolling overlay */
+.roll-overlay{position:absolute;inset:0;background:rgba(26,10,74,.92);z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;}
+.roll-overlay.hidden{display:none!important;}
+.roll-box{width:min(35vw,140px);aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:16px;border:4px solid;font-family:'Fredoka One',sans-serif;font-size:clamp(18px,5vw,28px);animation:rBounce .55s ease-in-out infinite alternate;}
+.roll-box.b{background:linear-gradient(160deg,#333,#000);border-color:#777;color:#fff;}
+.roll-box.w{background:linear-gradient(160deg,#fff,#ccc);border-color:#aaa;color:#000;}
+@keyframes rBounce{from{transform:scale(.92)}to{transform:scale(1.08)}}
+
+/* Winner overlay on board */
+.winner-overlay{position:absolute;inset:0;background:rgba(13,7,35,.85);z-index:8;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;cursor:pointer;}
+.winner-overlay.hidden{display:none!important;}
+.wo-icon{font-size:52px;animation:woPop .5s cubic-bezier(.34,1.56,.64,1);}
+.wo-name{font-family:'Fredoka One',sans-serif;font-size:clamp(20px,5vw,32px);color:var(--yellow);text-shadow:0 0 24px rgba(255,214,0,.6);animation:woPop .4s .1s both cubic-bezier(.34,1.56,.64,1);}
+.wo-sub{font-family:'Nunito',sans-serif;font-weight:900;font-size:13px;color:rgba(255,255,255,.6);animation:woPop .4s .2s both cubic-bezier(.34,1.56,.64,1);}
+.wo-hint{font-size:10px;color:rgba(255,255,255,.25);font-family:'Nunito',sans-serif;font-weight:700;margin-top:4px;}
+@keyframes woPop{from{transform:scale(.3);opacity:0}to{transform:scale(1);opacity:1}}
+
+/* Teacher ctrl */
+#teacher-ctrl{position:absolute;bottom:0;left:0;right:0;display:none;align-items:center;justify-content:center;padding:8px;gap:10px;background:rgba(26,10,74,.95);border-top:2px solid rgba(255,214,0,.2);z-index:25;}
+.tc-btn{padding:10px 20px;font-family:'Fredoka One',sans-serif;font-size:clamp(13px,3vw,16px);color:#fff;cursor:pointer;border:3px solid;border-radius:12px;box-shadow:0 4px 0 rgba(0,0,0,.4);transition:transform .1s,box-shadow .1s;}
+.tc-btn:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.4);}
+.tc-btn:disabled{opacity:.35;cursor:not-allowed;transform:none;}
+.tc-btn-blue{background:linear-gradient(160deg,#1a6fc4,#0d4a8a);border-color:var(--blue);}
+.tc-btn-green{background:linear-gradient(160deg,#27ae60,#1a7a42);border-color:#4dff80;}
+
+/* Pause overlay */
 #pause-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:999;flex-direction:column;align-items:center;justify-content:center;gap:12px;}
 #pause-overlay.show{display:flex;}
 
 /* Toast */
-#toast-w3{position:fixed;bottom:72px;left:50%;transform:translateX(-50%) translateY(20px);background:#1A0A4A;border:3px solid var(--yellow);border-radius:12px;padding:10px 22px;font-family:'Nunito',sans-serif;font-weight:900;color:var(--yellow);opacity:0;transition:.25s cubic-bezier(.34,1.56,.64,1);pointer-events:none;z-index:500;white-space:nowrap;}
+#toast-w3{position:fixed;bottom:70px;left:50%;transform:translateX(-50%) translateY(20px);background:#1A0A4A;border:3px solid var(--yellow);border-radius:12px;padding:10px 22px;font-family:'Nunito',sans-serif;font-weight:900;color:var(--yellow);opacity:0;transition:.25s cubic-bezier(.34,1.56,.64,1);pointer-events:none;z-index:500;white-space:nowrap;}
 #toast-w3.show{opacity:1;transform:translateX(-50%) translateY(0);}
-
 .hidden{display:none!important;}
 </style>
 </head>
@@ -112,312 +117,315 @@ body,html{margin:0;padding:0;width:100%;height:100%;background:var(--bg);font-fa
 <div id="hud">
   <div style="flex:1;min-width:0">
     <div class="hud-label">五子棋對戰</div>
-    <div class="hud-val" id="hud-title">等待老師安排對戰</div>
+    <div class="hud-val" id="hud-title">等待老師開始</div>
   </div>
   <div id="role-badge" class="role-badge role-spectator">觀眾</div>
 </div>
 
-<!-- Main -->
+<!-- Scoreboard -->
+<div id="score-bar"></div>
+
+<!-- Main: two match columns -->
 <div id="main">
-  <!-- 積分榜 -->
-  <div id="scoreboard-wrap">
-    <div class="score-row" id="scoreboard"></div>
+  <!-- Match 0 -->
+  <div class="match-col" id="col-0">
+    <div class="match-header" id="header-0">
+      <div class="ph" id="ph-black-0"><div class="stone-s black"></div><div><div class="ph-name" id="pname-black-0">—</div><div class="ph-tag">先手</div></div></div>
+      <div class="vs-s">VS</div>
+      <div class="ph" id="ph-white-0"><div class="stone-s white"></div><div><div class="ph-name" id="pname-white-0">—</div><div class="ph-tag">後手</div></div></div>
+    </div>
+    <div class="board-wrap" id="bwrap-0">
+      <div class="board-outer" id="board-outer-0"><div class="board-grid" id="board-0"></div></div>
+    </div>
+    <div class="match-status ms-waiting" id="status-0">等待對戰</div>
+    <!-- Idle overlay -->
+    <div class="idle-overlay" id="idle-0">
+      <div style="font-size:28px;opacity:.5;margin-bottom:6px">⏳</div>
+      <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:12px;color:rgba(255,255,255,.5)">等待配對中...</div>
+      <div id="idle-scores-0" style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:8px;max-width:200px"></div>
+    </div>
+    <!-- Roll overlay -->
+    <div class="roll-overlay hidden" id="roll-0">
+      <div style="font-family:'Fredoka One',sans-serif;font-size:15px;color:#00E5FF;animation:pulse 1s infinite">⚡ 配對中</div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="roll-box b" id="rb-black-0">???</div>
+        <div style="font-family:'Fredoka One',sans-serif;font-size:20px;color:rgba(255,255,255,.2)">VS</div>
+        <div class="roll-box w" id="rb-white-0">???</div>
+      </div>
+    </div>
+    <!-- Winner overlay -->
+    <div class="winner-overlay hidden" id="winner-ov-0" onclick="dismissWinner(0)">
+      <div class="wo-icon">🏆</div>
+      <div class="wo-name" id="wo-name-0"></div>
+      <div class="wo-sub" id="wo-sub-0">獲勝！</div>
+      <div class="wo-hint">點擊繼續</div>
+    </div>
   </div>
 
-  <!-- 中央區域 -->
-  <div id="centre">
-
-    <!-- 等待 -->
-    <div id="s-idle" style="text-align:center;opacity:.45;">
-      <div class="idle-icon">⚔️</div>
-      <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:12px;color:rgba(255,255,255,.4);letter-spacing:.12em">等待老師安排對戰...</div>
+  <!-- Match 1 -->
+  <div class="match-col" id="col-1">
+    <div class="match-header" id="header-1">
+      <div class="ph" id="ph-black-1"><div class="stone-s black"></div><div><div class="ph-name" id="pname-black-1">—</div><div class="ph-tag">先手</div></div></div>
+      <div class="vs-s">VS</div>
+      <div class="ph" id="ph-white-1"><div class="stone-s white"></div><div><div class="ph-name" id="pname-white-1">—</div><div class="ph-tag">後手</div></div></div>
     </div>
-
-    <!-- 抽籤 -->
-    <div id="s-rolling" class="hidden" style="width:100%;max-width:380px;text-align:center;">
-      <div style="font-family:'Fredoka One',sans-serif;font-size:18px;color:#00E5FF;margin-bottom:20px;animation:pulse 1s infinite;letter-spacing:.08em">⚡ 系統配對中...</div>
-      <div style="display:flex;align-items:center;justify-content:center;gap:16px;width:100%;max-width:340px;">
-        <div class="roll-box b" id="roll-b">???</div>
-        <div style="font-family:'Fredoka One',sans-serif;font-size:28px;color:rgba(255,255,255,.3);flex-shrink:0">VS</div>
-        <div class="roll-box w" id="roll-w">???</div>
+    <div class="board-wrap" id="bwrap-1">
+      <div class="board-outer" id="board-outer-1"><div class="board-grid" id="board-1"></div></div>
+    </div>
+    <div class="match-status ms-waiting" id="status-1">等待對戰</div>
+    <div class="idle-overlay" id="idle-1">
+      <div style="font-size:28px;opacity:.5;margin-bottom:6px">⏳</div>
+      <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:12px;color:rgba(255,255,255,.5)">等待配對中...</div>
+      <div id="idle-scores-1" style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:8px;max-width:200px"></div>
+    </div>
+    <div class="roll-overlay hidden" id="roll-1">
+      <div style="font-family:'Fredoka One',sans-serif;font-size:15px;color:#00E5FF;animation:pulse 1s infinite">⚡ 配對中</div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="roll-box b" id="rb-black-1">???</div>
+        <div style="font-family:'Fredoka One',sans-serif;font-size:20px;color:rgba(255,255,255,.2)">VS</div>
+        <div class="roll-box w" id="rb-white-1">???</div>
       </div>
     </div>
-
-    <!-- 準備 -->
-    <div id="s-ready" class="hidden" style="width:100%;max-width:400px;">
-      <div style="font-family:'Fredoka One',sans-serif;font-size:14px;color:var(--yellow);text-align:center;background:rgba(255,214,0,.1);border:2px solid rgba(255,214,0,.3);border-radius:20px;padding:5px 14px;margin-bottom:12px">選手準備階段</div>
-      <div class="vs-wrap">
-        <div class="player-panel" id="panel-black">
-          <div class="stone black"></div>
-          <div class="player-name" id="name-black">???</div>
-          <div class="player-tag">BLACK 先手</div>
-          <div id="area-black" style="width:100%;margin-top:6px;min-height:30px;display:flex;align-items:center;justify-content:center;"></div>
-        </div>
-        <div class="vs-text">VS</div>
-        <div class="player-panel" id="panel-white">
-          <div class="stone white"></div>
-          <div class="player-name" id="name-white">???</div>
-          <div class="player-tag">WHITE 後手</div>
-          <div id="area-white" style="width:100%;margin-top:6px;min-height:30px;display:flex;align-items:center;justify-content:center;"></div>
-        </div>
-      </div>
-      <div id="area-teacher-start" class="hidden" style="width:100%;margin-top:10px;"></div>
+    <div class="winner-overlay hidden" id="winner-ov-1" onclick="dismissWinner(1)">
+      <div class="wo-icon">🏆</div>
+      <div class="wo-name" id="wo-name-1"></div>
+      <div class="wo-sub" id="wo-sub-1">獲勝！</div>
+      <div class="wo-hint">點擊繼續</div>
     </div>
-
-    <!-- 棋盤 -->
-    <div id="s-board" class="hidden" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:8px;min-height:0;overflow:hidden;">
-      <!-- 對陣標題 -->
-      <div style="display:flex;align-items:center;gap:10px;width:100%;max-width:360px;">
-        <div class="player-panel" id="play-panel-black" style="flex-direction:row;padding:6px 10px;gap:8px;">
-          <div class="stone black" style="width:28px;height:28px;"></div>
-          <div>
-            <div class="player-name" id="play-name-black" style="font-size:12px"></div>
-            <div class="player-tag">先手</div>
-          </div>
-        </div>
-        <div class="vs-text" style="font-size:14px">VS</div>
-        <div class="player-panel" id="play-panel-white" style="flex-direction:row;padding:6px 10px;gap:8px;">
-          <div class="stone white" style="width:28px;height:28px;"></div>
-          <div>
-            <div class="player-name" id="play-name-white" style="font-size:12px"></div>
-            <div class="player-tag">後手</div>
-          </div>
-        </div>
-      </div>
-      <!-- 棋盤本體 -->
-      <div id="board-outer">
-        <div id="board"></div>
-      </div>
-    </div>
-
-    <!-- 老師控制列 -->
-    <div id="teacher-ctrl" class="hidden" style="width:100%;max-width:360px;">
-      <button class="mp-btn btn-blue" id="btn-schedule" onclick="scheduleMatch()">🎲 隨機抽籤排賽</button>
-      <button class="mp-btn btn-green" id="btn-next-match" class="hidden" onclick="nextMatch()" style="display:none;margin-bottom:0">▶ 下一局</button>
-    </div>
-
   </div>
 </div>
 
-<!-- 勝負遮罩（棋盤上方，點擊關閉）-->
-<div id="winner-overlay" class="hidden" onclick="dismissWinner()" style="position:absolute;top:64px;left:0;right:0;bottom:60px;background:rgba(13,17,23,.88);z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;cursor:pointer;">
-  <div id="wo-icon" style="font-size:80px;animation:woPop .5s cubic-bezier(.34,1.56,.64,1)">🏆</div>
-  <div id="wo-group" style="font-family:'Fredoka One',sans-serif;font-size:clamp(28px,8vw,48px);color:var(--yellow);text-shadow:0 0 30px rgba(255,214,0,.6);animation:woPop .5s .1s both cubic-bezier(.34,1.56,.64,1)"></div>
-  <div id="wo-label" style="font-family:'Nunito',sans-serif;font-weight:900;font-size:clamp(16px,4vw,24px);color:rgba(255,255,255,.7);animation:woPop .5s .2s both cubic-bezier(.34,1.56,.64,1)">獲勝！</div>
-  <div style="font-family:'Nunito',sans-serif;font-weight:700;font-size:12px;color:rgba(255,255,255,.3);margin-top:8px;animation:pulse 1.5s infinite">點擊畫面繼續</div>
-  <style>@keyframes woPop{from{transform:scale(.3);opacity:0}to{transform:scale(1);opacity:1}}</style>
+<!-- Teacher controls -->
+<div id="teacher-ctrl">
+  <button class="tc-btn tc-btn-blue" id="btn-draw" onclick="drawLots()">🎲 抽籤開始</button>
 </div>
 
-<!-- Bottom bar -->
-<div id="bottom">
-  <div id="turn-badge" class="turn-badge wait">等待對戰開始</div>
-  <div id="winner-badge" class="hidden" style="font-family:'Fredoka One',sans-serif;font-size:15px;color:var(--yellow)"></div>
-</div>
-
-<!-- Pause -->
+<!-- Pause overlay -->
 <div id="pause-overlay">
   <div style="font-size:56px">⏸</div>
   <div style="font-family:'Fredoka One',sans-serif;font-size:1.8rem;color:var(--yellow)">暫停中</div>
 </div>
-
 <div id="toast-w3"></div>
 
 <script>
-// ═══════════════════════════════════════
-// 常數
-// ═══════════════════════════════════════
 const GRID = 15;
-const DEFAULT_TEAMS = ['第1組','第2組','第3組','第4組','第5組'];
 
-// ═══════════════════════════════════════
+// ══════════════════════════════════════
 // 狀態
-// ═══════════════════════════════════════
-let myGroup = '';
-let myRole  = 'spectator'; // teacher|black|white|spectator
-let rollInterval = null;
-let audioCtx = null;
-
-// 共享狀態（透過 Firebase 同步）
+// ══════════════════════════════════════
+// 每個 match: {status:'idle'|'rolling'|'countdown'|'playing'|'finished', black, white, cells, turn, lastMove, winner, countdown}
+function newMatch(){
+    return {status:'idle',black:'',white:'',cells:Array(GRID*GRID).fill(0),turn:'black',lastMove:-1,winner:null,countdown:0,blackReady:false,whiteReady:false};
+}
 let state = {
-    matchStatus : 'idle',   // idle|rolling|ready|playing|finished
-    black       : '',
-    white       : '',
-    blackReady  : false,
-    whiteReady  : false,
-    cells       : Array(GRID*GRID).fill(0),
-    turn        : 'black',
-    lastMove    : -1,
-    winner      : null,     // 'black'|'white'|null
-    scores      : {},       // {'第1組':{wins:0,matches:0}, ...}
-    activePlayers: [],      // 目前加入的組別（從 PLATFORM_START 取得）
-    lastBlack   : '',       // 上一場黑方
-    lastWhite   : '',       // 上一場白方
+    matches: [newMatch(), newMatch()],
+    scores: {},          // {組名:{wins,matches}}
+    activePlayers: [],   // 實際加入的組別
+    started: false,      // 是否已抽過籤
 };
 
-// ═══════════════════════════════════════
-// 音效
-// ═══════════════════════════════════════
-function initAudio(){
-    try{
-        if(!audioCtx){const AC=window.AudioContext||window.webkitAudioContext;if(AC)audioCtx=new AC();}
-        if(audioCtx?.state==='suspended')audioCtx.resume();
-    }catch(e){}
-}
+let myGroup = '';
+let myRole  = 'spectator'; // teacher|player|spectator
+window.GROUP_ID = '';
+
+let rollIntervals = [null, null];
+let countdownTimers = [null, null];
+let audioCtx = null;
+
+// ══════════════════════════════════════
+// Audio
+// ══════════════════════════════════════
+function initAudio(){try{if(!audioCtx){const AC=window.AudioContext||window.webkitAudioContext;if(AC)audioCtx=new AC();}if(audioCtx?.state==='suspended')audioCtx.resume();}catch(e){}}
 function playSound(type){
     initAudio();if(!audioCtx)return;
-    try{
-        const t=audioCtx.currentTime,osc=audioCtx.createOscillator(),g=audioCtx.createGain();
-        osc.connect(g);g.connect(audioCtx.destination);
-        if(type==='stone'){osc.type='sine';osc.frequency.setValueAtTime(600,t);osc.frequency.exponentialRampToValueAtTime(100,t+.1);g.gain.setValueAtTime(1,t);g.gain.exponentialRampToValueAtTime(.01,t+.1);osc.start(t);osc.stop(t+.1);}
-        else if(type==='roll'){osc.type='triangle';osc.frequency.setValueAtTime(800,t);osc.frequency.exponentialRampToValueAtTime(200,t+.05);g.gain.setValueAtTime(.12,t);g.gain.exponentialRampToValueAtTime(.01,t+.05);osc.start(t);osc.stop(t+.05);}
-        else if(type==='win'){osc.type='square';[440,554,659,880].forEach((f,i)=>osc.frequency.setValueAtTime(f,t+i*.1));g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.2,t+.05);g.gain.setValueAtTime(.2,t+.3);g.gain.exponentialRampToValueAtTime(.01,t+.8);osc.start(t);osc.stop(t+.8);}
-    }catch(e){}
-}
+    try{const t=audioCtx.currentTime,osc=audioCtx.createOscillator(),g=audioCtx.createGain();osc.connect(g);g.connect(audioCtx.destination);
+    if(type==='stone'){osc.type='sine';osc.frequency.setValueAtTime(600,t);osc.frequency.exponentialRampToValueAtTime(100,t+.1);g.gain.setValueAtTime(1,t);g.gain.exponentialRampToValueAtTime(.01,t+.1);osc.start(t);osc.stop(t+.1);}
+    else if(type==='roll'){osc.type='triangle';osc.frequency.setValueAtTime(800,t);osc.frequency.exponentialRampToValueAtTime(200,t+.05);g.gain.setValueAtTime(.1,t);g.gain.exponentialRampToValueAtTime(.01,t+.05);osc.start(t);osc.stop(t+.05);}
+    else if(type==='win'){osc.type='square';[440,554,659,880].forEach((f,i)=>osc.frequency.setValueAtTime(f,t+i*.1));g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.18,t+.05);g.gain.setValueAtTime(.18,t+.3);g.gain.exponentialRampToValueAtTime(.01,t+.8);osc.start(t);osc.stop(t+.8);}
+    else if(type==='beep'){osc.type='sine';osc.frequency.setValueAtTime(880,t);g.gain.setValueAtTime(.3,t);g.gain.exponentialRampToValueAtTime(.01,t+.12);osc.start(t);osc.stop(t+.12);}
+    }catch(e){}}
 
-// ═══════════════════════════════════════
+// ══════════════════════════════════════
 // Toast
-// ═══════════════════════════════════════
-let toastTimer=null;
-function showToast(msg){
-    const el=document.getElementById('toast-w3');
-    el.textContent=msg;el.classList.add('show');
-    clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2200);
-}
+// ══════════════════════════════════════
+let _tt=null;
+function showToast(m){const el=document.getElementById('toast-w3');el.textContent=m;el.classList.add('show');clearTimeout(_tt);_tt=setTimeout(()=>el.classList.remove('show'),2200);}
 
-// ═══════════════════════════════════════
-// 初始化棋盤 DOM
-// ═══════════════════════════════════════
-function buildBoard(){
-    const board=document.getElementById('board');
-    board.style.gridTemplateColumns=`repeat(${GRID},minmax(0,1fr))`;
-    board.innerHTML='';
-    for(let i=0;i<GRID*GRID;i++){
-        const cell=document.createElement('div');
-        cell.className='cell';cell.dataset.idx=i;
-        cell.addEventListener('click',()=>handleCellClick(i));
-        board.appendChild(cell);
-    }
-}
-
-// ═══════════════════════════════════════
-// 操作（老師）
-// ═══════════════════════════════════════
-function scheduleMatch(){
-    if(state.matchStatus==='rolling')return;
-    initAudio();
-
-    // 用實際加入的組別，至少需要2組
-    const pool = state.activePlayers.length >= 2
-        ? [...state.activePlayers]
-        : Object.keys(state.scores);
-    if(pool.length < 2){ showToast('⚠️ 至少需要2組才能對戰'); return; }
-
-    // 確保積分表有這些組別
-    pool.forEach(g=>{ if(!state.scores[g]) state.scores[g]={wins:0,matches:0}; });
-
-    // 排除上一場兩組（避免連續對戰），但如果只有2組就不排除
-    const lastTwo = [state.lastBlack, state.lastWhite].filter(Boolean);
-    let candidates = pool.length > 2
-        ? pool.filter(g => !lastTwo.includes(g))
-        : pool;
-
-    // 如果排除後不夠2組，改只排除場次最多的那一組
-    if(candidates.length < 2){
-        const maxMatches = Math.max(...pool.map(g=>state.scores[g].matches||0));
-        const mostPlayed = pool.filter(g=>(state.scores[g].matches||0)===maxMatches);
-        candidates = pool.length > 2
-            ? pool.filter(g=>!mostPlayed.includes(g)||candidates.length===0)
-            : pool;
-        if(candidates.length < 2) candidates = pool; // 最後保底
-    }
-
-    // 場次最少的兩組優先，同場次隨機
-    const sorted=[...candidates].sort((a,b)=>{
-        const d=(state.scores[a].matches||0)-(state.scores[b].matches||0);
-        return d!==0?d:Math.random()-.5;
+// ══════════════════════════════════════
+// 棋盤 DOM 初始化
+// ══════════════════════════════════════
+function buildBoards(){
+    [0,1].forEach(mi=>{
+        const b=document.getElementById('board-'+mi);
+        b.style.gridTemplateColumns=`repeat(${GRID},minmax(0,1fr))`;
+        b.innerHTML='';
+        for(let i=0;i<GRID*GRID;i++){
+            const c=document.createElement('div');c.className='cell';c.dataset.idx=i;c.dataset.mi=mi;
+            c.addEventListener('click',()=>handleCellClick(mi,i));
+            b.appendChild(c);
+        }
     });
-    const black=sorted[0], white=sorted[1];
+    resizeBoards();
+}
+function resizeBoards(){
+    [0,1].forEach(mi=>{
+        const wrap=document.getElementById('bwrap-'+mi);
+        if(!wrap)return;
+        const col=document.getElementById('col-'+mi);
+        const colH=col.clientHeight;
+        const headerH=col.querySelector('.match-header')?.offsetHeight||40;
+        const statusH=28;
+        const maxSz=Math.min(wrap.clientWidth, colH-headerH-statusH-16);
+        const outer=document.getElementById('board-outer-'+mi);
+        if(outer&&maxSz>60){outer.style.width=maxSz+'px';outer.style.height=maxSz+'px';}
+    });
+}
+window.addEventListener('resize',resizeBoards);
 
-    state.scores[black].matches=(state.scores[black].matches||0)+1;
-    state.scores[white].matches=(state.scores[white].matches||0)+1;
+// ══════════════════════════════════════
+// 抽籤（只在第一次或特殊情況由老師觸發）
+// ══════════════════════════════════════
+function drawLots(){
+    initAudio();
+    const pool=[...state.activePlayers];
+    if(pool.length<4){showToast('⚠️ 至少需要4組才能同時兩場');return;}
+    pool.forEach(g=>{if(!state.scores[g])state.scores[g]={wins:0,matches:0};});
 
-    // 先進入 rolling
-    state.matchStatus='rolling';
-    state.black='???';state.white='???';
-    state.blackReady=false;state.whiteReady=false;
+    // 打亂，前4個分成兩場
+    const shuffled=pool.sort(()=>Math.random()-.5);
+    state.started=true;
+    document.getElementById('btn-draw').disabled=true;
+
+    // 兩場同時開始 rolling
+    [0,1].forEach(mi=>{
+        startRolling(mi, shuffled[mi*2], shuffled[mi*2+1]);
+    });
     broadcast();
+}
+
+function startRolling(mi, blackFinal, whiteFinal){
+    const m=state.matches[mi];
+    m.status='rolling';m.black='???';m.white='???';
+    m.cells=Array(GRID*GRID).fill(0);m.turn='black';m.lastMove=-1;m.winner=null;
+
+    // 更新場次
+    state.scores[blackFinal]=state.scores[blackFinal]||{wins:0,matches:0};
+    state.scores[whiteFinal]=state.scores[whiteFinal]||{wins:0,matches:0};
+    state.scores[blackFinal].matches++;
+    state.scores[whiteFinal].matches++;
 
     setTimeout(()=>{
-        state.matchStatus='ready';
-        state.black=black;state.white=white;
-        state.lastBlack=black;state.lastWhite=white;
-        state.cells=Array(GRID*GRID).fill(0);
-        state.turn='black';state.lastMove=-1;state.winner=null;
+        m.status='ready';m.black=blackFinal;m.white=whiteFinal;
+        m.blackReady=false;m.whiteReady=false;
         broadcast();
-        playSound('win');
-    },2500);
+    },2000);
 }
 
-function startMatch(){
-    if(!state.blackReady||!state.whiteReady)return;
-    state.matchStatus='playing';
-    broadcast();
+function runCountdown(mi){
+    clearInterval(countdownTimers[mi]);
+    countdownTimers[mi]=setInterval(()=>{
+        const m=state.matches[mi];
+        if(m.status!=='countdown'){clearInterval(countdownTimers[mi]);return;}
+        playSound('beep');
+        m.countdown--;
+        if(m.countdown<=0){
+            clearInterval(countdownTimers[mi]);
+            m.status='playing';m.countdown=0;
+        }
+        broadcast();
+    },1000);
 }
 
-function resetMatch(){
-    state.matchStatus='idle';
-    state.black='';state.white='';
-    state.blackReady=false;state.whiteReady=false;
-    state.cells=Array(GRID*GRID).fill(0);
-    state.turn='black';state.lastMove=-1;state.winner=null;
-    broadcast();
+// 賽局結束後自動配對閒置組
+function autoNextMatch(finishedMi){
+    // 找出目前兩場正在使用的組別
+    const inUse=new Set();
+    state.matches.forEach((m,i)=>{
+        if(i!==finishedMi && m.status!=='idle' && m.status!=='finished'){
+            if(m.black)inUse.add(m.black);
+            if(m.white)inUse.add(m.white);
+        }
+    });
+
+    // 閒置組 = activePlayers 中不在 inUse 的
+    const idle=state.activePlayers.filter(g=>!inUse.has(g));
+    if(idle.length<2){
+        // 閒置組不足2，把剛結束的場次標為 idle 等待
+        state.matches[finishedMi].status='idle';
+        broadcast();
+        return;
+    }
+
+    // 選出場次最少的兩組（不重複上一場）
+    const lastB=state.matches[finishedMi].black;
+    const lastW=state.matches[finishedMi].white;
+    const sorted=[...idle].sort((a,b)=>{
+        const d=(state.scores[a]?.matches||0)-(state.scores[b]?.matches||0);
+        return d!==0?d:Math.random()-.5;
+    });
+
+    // 嘗試排除上一場兩組
+    let candidates=sorted.filter(g=>g!==lastB&&g!==lastW);
+    if(candidates.length<2)candidates=sorted;
+    const black=candidates[0],white=candidates[1];
+
+    setTimeout(()=>startRolling(finishedMi,black,white),800);
 }
 
-// ═══════════════════════════════════════
-// 操作（學生）
-// ═══════════════════════════════════════
-function handleReady(color){
+// ══════════════════════════════════════
+// 準備 & 倒數
+// ══════════════════════════════════════
+function handleReady(mi){
     initAudio();
-    if(color==='black')state.blackReady=true;
-    else state.whiteReady=true;
-    broadcast();
+    const m=state.matches[mi];
+    if(m.status!=='ready')return;
+    if(myGroup===m.black) m.blackReady=true;
+    else if(myGroup===m.white) m.whiteReady=true;
+    else return;
+    // 雙方都準備好 → 開始倒數
+    if(m.blackReady&&m.whiteReady){
+        m.status='countdown';m.countdown=3;
+        broadcast();
+        runCountdown(mi);
+    } else {
+        broadcast();
+    }
 }
 
-function handleCellClick(idx){
+// ══════════════════════════════════════
+// 落子
+// ══════════════════════════════════════
+function handleCellClick(mi,idx){
     initAudio();
-    if(state.matchStatus!=='playing'||state.cells[idx]!==0||state.winner)return;
-    const isBlack=state.turn==='black';
-    if(myRole==='teacher')return;   // 老師只觀賽，不落子
+    const m=state.matches[mi];
+    if(m.status!=='playing'||m.cells[idx]!==0||m.winner)return;
+    if(myRole==='teacher')return;
     if(myRole==='spectator')return;
-    if(myRole==='black'&&!isBlack)return;
-    if(myRole==='white'&&isBlack)return;
+    // 判斷是否是這場的對戰者且輪到自己
+    const isBlack=m.turn==='black';
+    if(myGroup!==m.black&&myGroup!==m.white)return; // 不在這場
+    if(myGroup===m.black&&!isBlack)return;
+    if(myGroup===m.white&&isBlack)return;
 
     const piece=isBlack?1:2;
-    state.cells[idx]=piece;
-    state.lastMove=idx;
-    state.turn=isBlack?'white':'black';
+    m.cells[idx]=piece;m.lastMove=idx;m.turn=isBlack?'white':'black';
 
-    if(checkWin(state.cells,idx,piece)){
-        state.winner=isBlack?'black':'white';
-        const winGroup=isBlack?state.black:state.white;
-        if(!state.scores[winGroup])state.scores[winGroup]={wins:0,matches:0};
-        state.scores[winGroup].wins++;
-        state.matchStatus='finished';
+    if(checkWin(m.cells,idx,piece)){
+        m.winner=isBlack?'black':'white';
+        const wG=isBlack?m.black:m.white;
+        state.scores[wG]=state.scores[wG]||{wins:0,matches:0};
+        state.scores[wG].wins++;
+        m.status='finished';
         playSound('win');
-        showToast(`🏆 ${winGroup} 獲勝！`);
-        // 通知平台：W3 勝負結果（傳分數給結算畫面）
+        showToast(`🏆 ${wG} 獲勝！`);
+        // 傳分數給平台
         setTimeout(()=>{
-            // 把 wins/matches 換算成分數給 index.html 的 tcSettleGame 用
-            Object.entries(state.scores).forEach(([grp,d])=>{
-                window.parent.postMessage({
-                    type:'W3_SCORE',
-                    group: grp,
-                    score: d.wins,        // 用勝場數當分數
-                    wins:  d.wins,
-                    matches: d.matches
-                },'*');
+            Object.entries(state.scores).forEach(([g,d])=>{
+                window.parent.postMessage({type:'W3_SCORE',group:g,score:d.wins,wins:d.wins,matches:d.matches},'*');
             });
         },500);
+        // 自動配下一場（1.5秒後，讓勝負畫面先顯示）
+        if(myRole!=='teacher') setTimeout(()=>autoNextMatch(mi),4000);
     }else{
         playSound('stone');
     }
@@ -437,255 +445,193 @@ function checkWin(cells,idx,p){
     return false;
 }
 
-// ═══════════════════════════════════════
-// 廣播 → parent (index.html)
-// ═══════════════════════════════════════
+// ══════════════════════════════════════
+// 廣播
+// ══════════════════════════════════════
 function broadcast(){
-    window.parent.postMessage({type:'W3_STATE',data:JSON.parse(JSON.stringify(state)),group:myGroup},'*');
-    render();
+    const data=JSON.parse(JSON.stringify(state));
+    window.parent.postMessage({type:'W3_STATE',data,group:myGroup},'*');
+    renderAll();
 }
 
-// ═══════════════════════════════════════
-// 套用外部狀態
-// ═══════════════════════════════════════
 function applyState(newState){
-    const prevStatus=state.matchStatus;
-    const prevWinner=state.winner;
+    const prev=state.matches.map(m=>m.status);
     state=Object.assign({},state,newState);
-    // 如果狀態重設（新局）則清除勝負遮罩
-    if(prevWinner&&!state.winner) hideWinnerOverlay();
-    // 角色重新判定
-    if(myRole!=='teacher'){
-        if(myGroup&&state.black&&state.black===myGroup)myRole='black';
-        else if(myGroup&&state.white&&state.white===myGroup)myRole='white';
-        else myRole='spectator';
-    }
-    // 勝利音效（只在狀態剛變成 finished 時播）
-    if(prevStatus!=='finished'&&state.matchStatus==='finished')playSound('win');
-    render();
+    // 角色更新
+    updateMyRole();
+    // 對新變成 finished 的場次啟動倒數 autoNext（只有一個裝置做，避免重複）
+    // 由 handleCellClick 處理，不在 applyState 做
+    renderAll();
 }
 
-// ═══════════════════════════════════════
+function updateMyRole(){
+    if(myRole==='teacher')return;
+    const inAny=state.matches.some(m=>m.black===myGroup||m.white===myGroup);
+    myRole=inAny?'player':'spectator';
+}
+
+// ══════════════════════════════════════
 // 渲染
-// ═══════════════════════════════════════
-function render(){
+// ══════════════════════════════════════
+function renderAll(){
     renderHUD();
     renderScoreboard();
-    renderCentre();
-    renderBoard();
-    renderBottom();
+    [0,1].forEach(renderMatch);
+    renderTeacherCtrl();
 }
 
 function renderHUD(){
     const badge=document.getElementById('role-badge');
-    const titles={teacher:'🎓 老師',black:'⚫ 黑方',white:'⚪ 白方',spectator:'👁 觀眾'};
-    const classes={teacher:'role-teacher',black:'role-black',white:'role-white',spectator:'role-spectator'};
-    badge.textContent=titles[myRole]||'觀眾';
-    badge.className='role-badge '+(classes[myRole]||'role-spectator');
+    if(myRole==='teacher'){badge.textContent='🎓 老師';badge.className='role-badge role-teacher';}
+    else if(myRole==='player'){badge.textContent='⚔️ '+myGroup;badge.className='role-badge role-player';}
+    else{badge.textContent='👁 觀眾';badge.className='role-badge role-spectator';}
 
-    const hudTitle=document.getElementById('hud-title');
-    if(state.matchStatus==='playing'||state.matchStatus==='finished')
-        hudTitle.textContent=`${state.black} ⚔️ ${state.white}`;
-    else hudTitle.textContent='等待老師安排對戰';
+    const fighting=state.matches.filter(m=>m.status==='playing'||m.status==='countdown');
+    document.getElementById('hud-title').textContent=
+        fighting.length===0?'等待對戰開始':
+        fighting.length===1?`${state.matches.find(m=>m.status==='playing'||m.status==='countdown')?.black||''} VS ${state.matches.find(m=>m.status==='playing'||m.status==='countdown')?.white||''}`:
+        '兩場同時進行中';
 }
 
 function renderScoreboard(){
-    const el=document.getElementById('scoreboard');
-    // 只顯示實際參加的組別
-    const activeSet = state.activePlayers.length > 0
-        ? state.activePlayers
-        : Object.keys(state.scores);
-    const sorted = activeSet
-        .filter(id => state.scores[id]) // 過濾沒有分數記錄的
-        .sort((a,b) => (state.scores[b].wins||0) - (state.scores[a].wins||0));
+    const el=document.getElementById('score-bar');
+    const active=state.activePlayers.length>0?state.activePlayers:Object.keys(state.scores);
+    const fighting=new Set(state.matches.flatMap(m=>[m.black,m.white]).filter(Boolean));
+    const sorted=[...active].filter(id=>state.scores[id]).sort((a,b)=>(state.scores[b].wins||0)-(state.scores[a].wins||0));
     el.innerHTML=sorted.map(id=>{
         const d=state.scores[id]||{wins:0,matches:0};
-        const isFighting=(state.black===id||state.white===id);
-        return `<div class="score-chip ${isFighting?'fighting':''}">
-            <span class="score-chip-name">${id}</span>
-            <span class="score-chip-wins">${d.wins||0}</span>
-            <span style="font-size:9px;color:rgba(255,255,255,.3);font-family:'Nunito',sans-serif;font-weight:700">${d.matches||0}場</span>
+        return `<div class="sc ${fighting.has(id)?'fighting':''}">
+            <span class="sc-name">${id}</span>
+            <span class="sc-wins">${d.wins||0}</span>
+            <span class="sc-info">${d.matches||0}場</span>
         </div>`;
     }).join('');
 }
 
-function renderCentre(){
-    const s=state.matchStatus;
-    document.getElementById('s-idle').classList.toggle('hidden',s!=='idle');
-    document.getElementById('s-rolling').classList.toggle('hidden',s!=='rolling');
-    document.getElementById('s-ready').classList.toggle('hidden',s!=='ready');
-    const showBoard=s==='playing'||s==='finished';
-    document.getElementById('s-board').classList.toggle('hidden',!showBoard);
-    // 老師端：playing/finished 時隱藏積分和控制區，全螢幕棋盤
-    document.getElementById('scoreboard-wrap').classList.toggle('hidden', showBoard && myRole==='teacher');
+function renderMatch(mi){
+    const m=state.matches[mi];
+    const s=m.status;
 
-    // 老師控制（遊戲進行中只顯示重置，不顯示抽籤）
-    const tc=document.getElementById('teacher-ctrl');
-    if(myRole==='teacher'){
-        const isPlaying=(s==='playing');
-        const isFinished=(s==='finished');
-        tc.classList.remove('hidden');
-        document.getElementById('btn-schedule').style.display = (isPlaying||isFinished) ? 'none' : '';
-        document.getElementById('btn-schedule').disabled=(s==='rolling');
-        const nextBtn=document.getElementById('btn-next-match');
-        if(nextBtn) nextBtn.style.display = isFinished ? '' : 'none';
-    }else tc.classList.add('hidden');
+    // Idle/roll overlays
+    document.getElementById('idle-'+mi).classList.toggle('hidden',s!=='idle');
+    document.getElementById('roll-'+mi).classList.toggle('hidden',s!=='rolling');
 
-    // 抽籤動畫
+    // Roll animation
     if(s==='rolling'){
-        if(!rollInterval){
-            rollInterval=setInterval(()=>{
-                const teams=Object.keys(state.scores);
-                document.getElementById('roll-b').textContent=teams[Math.floor(Math.random()*teams.length)];
-                document.getElementById('roll-w').textContent=teams[Math.floor(Math.random()*teams.length)];
+        if(!rollIntervals[mi]){
+            rollIntervals[mi]=setInterval(()=>{
+                const pool=state.activePlayers.length>0?state.activePlayers:Object.keys(state.scores);
+                if(pool.length<2)return;
+                document.getElementById('rb-black-'+mi).textContent=pool[Math.floor(Math.random()*pool.length)];
+                document.getElementById('rb-white-'+mi).textContent=pool[Math.floor(Math.random()*pool.length)];
                 playSound('roll');
             },120);
         }
-    }else{clearInterval(rollInterval);rollInterval=null;}
+    }else{clearInterval(rollIntervals[mi]);rollIntervals[mi]=null;}
 
-    // 準備畫面
-    if(s==='ready'){
-        document.getElementById('name-black').textContent=state.black;
-        document.getElementById('name-white').textContent=state.white;
-        document.getElementById('panel-black').classList.toggle('ready',state.blackReady);
-        document.getElementById('panel-white').classList.toggle('ready',state.whiteReady);
+    // Player headers
+    document.getElementById('pname-black-'+mi).textContent=m.black||'—';
+    document.getElementById('pname-white-'+mi).textContent=m.white||'—';
+    document.getElementById('ph-black-'+mi).className='ph'+(m.turn==='black'&&s==='playing'&&!m.winner?' active':'')+(m.winner==='black'?' winner-side':'');
+    document.getElementById('ph-white-'+mi).className='ph'+(m.turn==='white'&&s==='playing'&&!m.winner?' active':'')+(m.winner==='white'?' winner-side':'');
 
-        const mkArea=(el,ready,color)=>{
-            const groupForColor = color==='black' ? state.black : state.white;
-            const isMyGroup = myGroup && myGroup === groupForColor;
-            if(ready){
-                el.innerHTML=`<span style="color:var(--green);font-family:'Nunito',sans-serif;font-weight:900;font-size:12px">✅ 已準備</span>`;
-            }else if(isMyGroup){
-                el.innerHTML=`<button class="mp-btn btn-green" style="padding:7px;font-size:12px;margin:0;animation:pulse 1.2s infinite" onclick="handleReady('${color}')">點此準備！</button>`;
-            }else if(myRole==='teacher'){
-                el.innerHTML=`<span style="color:rgba(255,255,255,.3);font-size:11px;font-family:'Nunito',sans-serif;font-weight:700">等待確認...</span>`;
-            }else{
-                el.innerHTML=`<span style="color:rgba(255,255,255,.3);font-size:11px;font-family:'Nunito',sans-serif;font-weight:700;animation:pulse 1s infinite">👁 觀賽</span>`;
-            }
-        };
-        mkArea(document.getElementById('area-black'),state.blackReady,'black');
-        mkArea(document.getElementById('area-white'),state.whiteReady,'white');
+    // Status badge
+    const sb=document.getElementById('status-'+mi);
+    const myTurn=(myGroup===m.black&&m.turn==='black')||(myGroup===m.white&&m.turn==='white');
+    if(s==='idle'){sb.className='match-status ms-waiting';sb.textContent='等待配對';}
+    else if(s==='rolling'){sb.className='match-status ms-waiting';sb.textContent='配對中...';}
+    else if(s==='ready'){
+        const iAmBlack=myGroup===m.black, iAmWhite=myGroup===m.white;
+        const iAmPlayer=iAmBlack||iAmWhite;
+        const myReady=(iAmBlack&&m.blackReady)||(iAmWhite&&m.whiteReady);
+        if(iAmPlayer&&!myReady){
+            sb.className='match-status ms-your-turn';
+            sb.innerHTML=`<button onclick="handleReady(${mi})" style="background:var(--green);color:#000;border:none;border-radius:10px;padding:5px 16px;font-family:'Fredoka One',sans-serif;font-size:14px;cursor:pointer;animation:pulse 1.2s infinite">✋ 準備！</button>`;
+        } else if(iAmPlayer&&myReady){
+            const other=iAmBlack?'白方':'黑方';
+            sb.className='match-status ms-waiting';
+            sb.textContent=`✅ 已準備，等待${other}...`;
+        } else {
+            const readyCount=(m.blackReady?1:0)+(m.whiteReady?1:0);
+            sb.className='match-status ms-waiting';
+            sb.textContent=`準備中 ${readyCount}/2`;
+        }
+    }
+    else if(s==='countdown'){sb.className='match-status ms-countdown';sb.textContent=`⚡ ${m.countdown} 秒後開始！`;}
+    else if(s==='playing'&&myTurn){sb.className='match-status ms-your-turn';sb.textContent='⚔️ 你的回合！';}
+    else if(s==='playing'){sb.className='match-status ms-wait-turn';const tG=m.turn==='black'?m.black:m.white;sb.textContent=`等待 ${tG} 落子`;}
+    else if(s==='finished'){sb.className='match-status ms-finished';const wG=m.winner==='black'?m.black:m.white;sb.textContent=wG?`🏆 ${wG} 獲勝`:'';}
 
-        const tsa=document.getElementById('area-teacher-start');
-        if(myRole==='teacher'){
-            tsa.classList.remove('hidden');
-            const canStart=state.blackReady&&state.whiteReady;
-            tsa.innerHTML=`<button class="mp-btn ${canStart?'btn-blue':'btn-grey'}" style="margin:0" ${canStart?'':'disabled'} onclick="startMatch()">${canStart?'⚔️ 雙方就位，開始！':'等待雙方按下準備...'}</button>`;
-        }else tsa.classList.add('hidden');
+    // Winner overlay
+    const wo=document.getElementById('winner-ov-'+mi);
+    if(m.winner&&(s==='finished')){
+        const wG=m.winner==='black'?m.black:m.white;
+        document.getElementById('wo-name-'+mi).textContent=wG;
+        document.getElementById('wo-sub-'+mi).textContent=(m.winner==='black'?'⚫':'⚪')+' 獲勝！';
+        wo.classList.remove('hidden');
+    }else{
+        wo.classList.add('hidden');
     }
 
-    // 對戰標題
-    if(showBoard){
-        document.getElementById('play-name-black').textContent=state.black;
-        document.getElementById('play-name-white').textContent=state.white;
-        document.getElementById('play-panel-black').classList.toggle('active-turn',state.turn==='black'&&!state.winner);
-        document.getElementById('play-panel-white').classList.toggle('active-turn',state.turn==='white'&&!state.winner);
-    }
+    // Board
+    renderBoard(mi);
 }
 
-function renderBoard(){
-    const s=state.matchStatus;
-    if(s!=='playing'&&s!=='finished')return;
-    const cells=document.querySelectorAll('#board .cell');
+function renderBoard(mi){
+    const m=state.matches[mi];
+    const s=m.status;
+    // 更新 idle 畫面的積分顯示
+    const idleScores=document.getElementById('idle-scores-'+mi);
+    if(idleScores){
+        const active=state.activePlayers.length>0?state.activePlayers:Object.keys(state.scores);
+        idleScores.innerHTML=active.filter(id=>state.scores[id]).map(id=>{
+            const d=state.scores[id]||{wins:0,matches:0};
+            return `<span style="font-family:'Nunito',sans-serif;font-size:10px;background:rgba(255,255,255,.08);border-radius:6px;padding:2px 6px;color:rgba(255,255,255,.6)">${id} <b style="color:var(--yellow)">${d.wins}</b></span>`;
+        }).join('');
+    }
+    if(s==='idle'||s==='rolling')return;
+    const cells=document.querySelectorAll('#board-'+mi+' .cell');
     cells.forEach((cell,i)=>{
-        const val=state.cells[i];
-        const canMove=!state.winner&&val===0&&s==='playing'&&(
-            (myRole==='black'&&state.turn==='black')||
-            (myRole==='white'&&state.turn==='white')
-        ); // 老師和觀眾不能落子
+        const val=m.cells[i];
+        const myTurn=(myGroup===m.black&&m.turn==='black')||(myGroup===m.white&&m.turn==='white');
+        const canMove=myRole==='player'&&s==='playing'&&!m.winner&&val===0&&myTurn&&(myGroup===m.black||myGroup===m.white);
         cell.className='cell'+(canMove?' can-move':'');
-        cell.innerHTML=val===0?'':`<div class="piece ${val===1?'black':'white'}${state.lastMove===i?' last':''}"></div>`;
+        cell.innerHTML=val===0?'':`<div class="piece ${val===1?'black':'white'}${m.lastMove===i?' last':''}"></div>`;
     });
 }
 
-function renderBottom(){
-    const tb=document.getElementById('turn-badge');
-    const wb=document.getElementById('winner-badge');
-    if(state.winner){
-        const wGroup=state.winner==='black'?state.black:state.white;
-        tb.className='turn-badge wait';tb.textContent='比賽結束';
-        wb.classList.remove('hidden');wb.textContent=`🏆 ${wGroup} 獲勝！`;
-        // 中央大型勝負遮罩
-        showWinnerOverlay(wGroup);
-        return;
-    }
-    wb.classList.add('hidden');
-    hideWinnerOverlay();
-    // finished 無 winner（平局）
-    if(state.matchStatus==='finished'){
-        tb.className='turn-badge wait';tb.textContent='比賽結束';return;
-    }
-    if(state.matchStatus!=='playing'){
-        tb.className='turn-badge wait';
-        tb.textContent=state.matchStatus==='idle'?'等待對戰開始':
-                       state.matchStatus==='rolling'?'配對中...':
-                       state.matchStatus==='ready'?'等待雙方準備':'等待對戰開始';
-        return;
-    }
-    const myTurn=(myRole==='black'&&state.turn==='black')||(myRole==='white'&&state.turn==='white');
-    const turnGroup=state.turn==='black'?state.black:state.white;
-    const dot=state.turn==='black'?'⚫':'⚪';
-    if(myTurn){
-        tb.className='turn-badge your-turn';
-        tb.textContent=`${dot} 你的回合！請點擊棋盤`;
+function renderTeacherCtrl(){
+    const tc=document.getElementById('teacher-ctrl');
+    // 老師只在第一場抽籤前顯示按鈕，之後隱藏（學生自動競賽）
+    if(myRole==='teacher' && !state.started){
+        tc.style.display='flex';
+        document.getElementById('btn-draw').disabled=false;
     }else{
-        tb.className='turn-badge wait';
-        tb.textContent=`等待 ${turnGroup} 落子...`;
+        tc.style.display='none';
     }
 }
 
-let _winnerShown = '';
-function showWinnerOverlay(group){
-    if(_winnerShown===group)return; // 避免重複顯示
-    _winnerShown=group;
-    const ov=document.getElementById('winner-overlay');
-    if(!ov)return;
-    document.getElementById('wo-group').textContent=group;
-    const stone=state.winner==='black'?'⚫':'⚪';
-    document.getElementById('wo-label').textContent=stone+' 獲勝！';
-    ov.classList.remove('hidden');
-    ov.style.display='flex';
-}
-function hideWinnerOverlay(){
-    _winnerShown='';
-    const ov=document.getElementById('winner-overlay');
-    if(ov){ov.classList.add('hidden');ov.style.display='';}
-}
-function dismissWinner(){
-    const ov=document.getElementById('winner-overlay');
-    if(ov){ov.classList.add('hidden');ov.style.display='';}
-}
-function nextMatch(){
-    // 重置棋局，回到 idle 讓老師重新抽籤
-    hideWinnerOverlay();
-    state.matchStatus='idle';
-    state.black='';state.white='';
-    state.blackReady=false;state.whiteReady=false;
-    state.cells=Array(GRID*GRID).fill(0);
-    state.turn='black';state.lastMove=-1;state.winner=null;
-    broadcast();
+function dismissWinner(mi){
+    document.getElementById('winner-ov-'+mi).classList.add('hidden');
 }
 
-// ═══════════════════════════════════════
+// ══════════════════════════════════════
 // Platform Bridge
-// ═══════════════════════════════════════
+// ══════════════════════════════════════
 window.addEventListener('message',(e)=>{
     if(!e.data||!e.data.type)return;
     switch(e.data.type){
         case 'PLATFORM_START':
             if(e.data.group){myGroup=e.data.group;window.GROUP_ID=e.data.group;}
             if(e.data.isTeacher)myRole='teacher';
-            // 從平台取得實際加入的玩家列表
-            if(e.data.players && e.data.players.length > 0){
-                state.activePlayers = e.data.players.map(p=>p.group);
-                // 初始化積分（只初始化有玩家的組別）
+            if(e.data.players&&e.data.players.length>0){
+                state.activePlayers=e.data.players.map(p=>p.group);
                 state.activePlayers.forEach(g=>{if(!state.scores[g])state.scores[g]={wins:0,matches:0};});
             }
             if(e.data.state)applyState(e.data.state);
-            else render();
+            else{updateMyRole();renderAll();}
             break;
         case 'W3_STATE':
-            // 來自 Firebase 的最新狀態
             if(e.data.data)applyState(e.data.data);
             break;
         case 'PLATFORM_PAUSE':
@@ -694,37 +640,32 @@ window.addEventListener('message',(e)=>{
         case 'PLATFORM_RESUME':
             document.getElementById('pause-overlay').classList.remove('show');
             break;
-        case 'PLATFORM_RESET':
-            resetMatch();
-            break;
     }
 });
 
-// ═══════════════════════════════════════
 // Auto-start
-// ═══════════════════════════════════════
 (function(){
     const params=new URLSearchParams(window.location.search);
     const group=params.get('group')||'';
     const isTeacher=params.get('teacher')==='1';
     if(group){myGroup=group;window.GROUP_ID=group;}
-    if(isTeacher)myRole='teacher';
-
-    // 積分等 PLATFORM_START 傳入實際玩家後才初始化
-    // 直接開啟時保持空，等 PLATFORM_START 填入
-
-    buildBoard();
-    render();
+    if(isTeacher){myRole='teacher';}
+    // Fallback teams
+    if(state.activePlayers.length===0){
+        ['第1組','第2組','第3組','第4組','第5組'].forEach(t=>{state.scores[t]={wins:0,matches:0};});
+    }
+    buildBoards();
+    renderAll();
     window.parent.postMessage({type:'W3_READY',group:myGroup},'*');
 })();
 
 // Stars
 (function(){
     const s=document.getElementById('stars');
-    for(let i=0;i<40;i++){
+    for(let i=0;i<35;i++){
         const el=document.createElement('div');el.className='star';
-        const sz=(Math.random()*2+.7)+'px';
-        el.style.cssText=`width:${sz};height:${sz};top:${Math.random()*100}%;left:${Math.random()*100}%;--d:${(Math.random()*3+1.5).toFixed(1)}s;opacity:${Math.random()*.5+.1}`;
+        const sz=(Math.random()*1.8+.6)+'px';
+        el.style.cssText=`width:${sz};height:${sz};top:${Math.random()*100}%;left:${Math.random()*100}%;--d:${(Math.random()*3+1.5).toFixed(1)}s;opacity:${Math.random()*.4+.1}`;
         s.appendChild(el);
     }
 })();
