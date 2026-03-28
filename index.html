@@ -172,6 +172,13 @@ body::before {
 .kr-game-card.selected { border-color: #f5c800; background: rgba(245,200,0,.2); box-shadow: 0 0 12px rgba(245,200,0,0.35); }
 
 .kr-footer { display: flex; align-items: center; gap: 12px; padding: 14px 24px; background: #1a1d30; border-top: 2px solid rgba(245,200,0,.2); width: 100%; flex-shrink:0; }
+.ls-lvl-btn { width:52px;height:52px;border-radius:12px;border:3px solid #fff;font-family:'Nunito',sans-serif;font-weight:900;font-size:1rem;color:#fff;cursor:pointer;transition:transform .1s,box-shadow .1s;box-shadow:0 4px 0 rgba(0,0,0,.4); }
+.ls-lvl-btn:active { transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.4); }
+.ls-lvl-btn.ls-single { background:linear-gradient(160deg,#00c8e0,#0080a0);border-color:#00E5FF; }
+.ls-lvl-btn.ls-mid    { background:linear-gradient(160deg,#f5a623,#c07000);border-color:#ffcc44; }
+.ls-lvl-btn.ls-hard   { background:linear-gradient(160deg,#e74c3c,#a00000);border-color:#ff6644; }
+.ls-lvl-btn.ls-double { background:linear-gradient(160deg,#cc00cc,#880088);border-color:#FF40FF; }
+.ls-lvl-btn.ls-selected { transform:scale(1.15);box-shadow:0 0 16px rgba(255,214,0,.8);border-color:#FFD600; }
 .kr-btn { font-family: 'Nunito',sans-serif; font-weight: 900; font-size: .85rem; padding: 10px 20px; border-radius: 12px; border: none; cursor: pointer; transition: transform 0.1s; }
 .kr-btn:active { transform: scale(0.95); }
 .kr-btn-start { background: linear-gradient(135deg, #f5c800, #e09000); color: #1a1200; padding: 12px 30px; font-size: 1rem; }
@@ -344,7 +351,7 @@ body::before {
 <div id="screen-level-select" class="screen" style="padding:0;background:#0d0f1a;flex-direction:column;overflow:hidden">
   <div class="kr-header">
     <div style="display:flex;flex-direction:column;gap:2px">
-      <div style="color:#f5c800;font-size:.65rem;font-weight:900">⭐ 星際採礦</div>
+      <div id="ls-game-icon" style="color:#f5c800;font-size:.65rem;font-weight:900">⭐ 星際採礦</div>
       <div class="kr-room-name">選擇關卡</div>
     </div>
     <div style="text-align:right">
@@ -353,8 +360,8 @@ body::before {
     </div>
   </div>
 
-  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;padding:32px 20px">
-
+  <!-- W1 選關（大數字） -->
+  <div id="ls-w1" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;padding:32px 20px">
     <div style="text-align:center">
       <div style="color:rgba(255,255,255,.4);font-family:'Nunito',sans-serif;font-weight:900;font-size:.8rem;letter-spacing:.1em;margin-bottom:12px">選擇關卡</div>
       <div style="display:flex;align-items:center;gap:24px">
@@ -366,14 +373,30 @@ body::before {
         <button class="kr-btn kr-btn-ghost" style="font-size:1.4rem;padding:12px 20px;border-radius:50%" onclick="changeLevel(1)">▶</button>
       </div>
     </div>
-
     <div style="display:flex;gap:10px">
       <button class="kr-btn kr-btn-ghost" style="font-size:.8rem;padding:8px 16px" onclick="jumpToPhase(1)">🌿 1–10</button>
       <button class="kr-btn kr-btn-ghost" style="font-size:.8rem;padding:8px 16px" onclick="jumpToPhase(2)">⚡ 11–20</button>
       <button class="kr-btn kr-btn-ghost" style="font-size:.8rem;padding:8px 16px" onclick="jumpToPhase(3)">🔥 21–30</button>
     </div>
-
     <button class="kr-btn kr-btn-start" style="font-size:1.2rem;padding:18px 60px" onclick="tcStartGame()">▶ 全班開始！</button>
+  </div>
+
+  <!-- W2 選關（格子） -->
+  <div id="ls-w2" style="display:none;flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:20px">
+    <!-- 模式切換 -->
+    <div style="display:flex;gap:8px">
+      <button id="ls-w2-single" class="kr-btn kr-btn-ghost" style="font-size:.8rem;padding:8px 16px;border:2px solid #00E5FF;color:#00E5FF" onclick="lsW2SetMode('SINGLE')">🔵 單管(1-30)</button>
+      <button id="ls-w2-double" class="kr-btn kr-btn-ghost" style="font-size:.8rem;padding:8px 16px" onclick="lsW2SetMode('DOUBLE')">💜 雙管(1-10)</button>
+    </div>
+    <!-- 格子 -->
+    <div id="ls-w2-grid" style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:480px"></div>
+    <!-- 翻頁 -->
+    <div style="display:flex;align-items:center;gap:12px">
+      <button class="kr-btn kr-btn-ghost" style="font-size:.85rem;padding:8px 14px" id="ls-w2-prev" onclick="lsW2ChangePage(-1)">◀</button>
+      <span id="ls-w2-page" style="font-family:'Nunito',sans-serif;font-weight:900;font-size:.9rem;color:#f5c800">1/3</span>
+      <button class="kr-btn kr-btn-ghost" style="font-size:.85rem;padding:8px 14px" id="ls-w2-next" onclick="lsW2ChangePage(1)">▶</button>
+    </div>
+    <button class="kr-btn kr-btn-start" style="font-size:1.1rem;padding:16px 50px" onclick="tcStartGame()">▶ 全班開始！</button>
   </div>
 
   <div class="kr-footer">
@@ -653,8 +676,58 @@ function openTeacherConsole() {
     updateLevelDisplay();
     const lsCount = document.getElementById('ls-count');
     if (lsCount) lsCount.textContent = window.state.players.length + ' 組';
+    // 更新左上角遊戲名稱
+    const g = GAMES[window.state.selectedGame] || GAMES[0];
+    const lsIcon = document.getElementById('ls-game-icon');
+    if (lsIcon) lsIcon.textContent = g.icon + ' ' + g.name;
+    // 根據遊戲切換選關 UI
+    const isW2 = window.state.selectedGame === 1;
+    document.getElementById('ls-w1').style.display = isW2 ? 'none' : 'flex';
+    document.getElementById('ls-w2').style.display = isW2 ? 'flex' : 'none';
+    if (isW2) lsW2Render();
     window.pStates['teacher'].screen = 'screen-level-select';
     window.goTo('screen-level-select');
+}
+
+// ── W2 格子選關 ──
+let lsW2Mode = 'SINGLE', lsW2Page = 0, lsW2SelectedLevel = 0;
+function lsW2SetMode(mode) {
+    lsW2Mode = mode;
+    lsW2Page = 0;
+    lsW2SelectedLevel = 0;
+    const sb = document.getElementById('ls-w2-single');
+    const db = document.getElementById('ls-w2-double');
+    if (sb) { sb.style.borderColor = mode==='SINGLE' ? '#00E5FF' : 'rgba(255,255,255,.2)'; sb.style.color = mode==='SINGLE' ? '#00E5FF' : 'rgba(255,255,255,.6)'; }
+    if (db) { db.style.borderColor = mode==='DOUBLE' ? '#FF40FF' : 'rgba(255,255,255,.2)'; db.style.color = mode==='DOUBLE' ? '#FF40FF' : 'rgba(255,255,255,.6)'; }
+    lsW2Render();
+}
+function lsW2ChangePage(d) {
+    const total = lsW2Mode === 'SINGLE' ? 30 : 10;
+    const pages = Math.ceil(total / 14);
+    lsW2Page = Math.max(0, Math.min(pages - 1, lsW2Page + d));
+    lsW2Render();
+}
+function lsW2Render() {
+    const grid = document.getElementById('ls-w2-grid');
+    if (!grid) return;
+    const total = lsW2Mode === 'SINGLE' ? 30 : 10;
+    const perPage = 14, start = lsW2Page * perPage, end = Math.min(start + perPage, total);
+    grid.innerHTML = '';
+    for (let i = start; i < end; i++) {
+        const cls = lsW2Mode === 'DOUBLE' ? 'ls-double' : i < 10 ? 'ls-single' : i < 20 ? 'ls-mid' : 'ls-hard';
+        const btn = document.createElement('button');
+        btn.className = 'ls-lvl-btn ' + cls + (i === lsW2SelectedLevel ? ' ls-selected' : '');
+        btn.textContent = i + 1;
+        btn.onclick = () => { lsW2SelectedLevel = i; TC.level = i + 1; lsW2Render(); };
+        grid.appendChild(btn);
+    }
+    const pages = Math.ceil(total / perPage);
+    const pg = document.getElementById('ls-w2-page');
+    if (pg) pg.textContent = (lsW2Page + 1) + '/' + pages;
+    const prev = document.getElementById('ls-w2-prev');
+    const next = document.getElementById('ls-w2-next');
+    if (prev) prev.style.visibility = lsW2Page === 0 ? 'hidden' : 'visible';
+    if (next) next.style.visibility = lsW2Page >= pages - 1 ? 'hidden' : 'visible';
 }
 
 function updateLevelDisplay() {
@@ -774,7 +847,7 @@ function tcLaunchStudentIfNeeded() {
     if (iframe) {
         // W2 用 mode 參數，W1 用 autostart=level
         const url = isW2
-            ? gameFile + '?autostart=SINGLE&group=' + encodeURIComponent(pData.group||'')
+            ? gameFile + '?autostart=' + (lsW2Mode || 'SINGLE') + '&level=' + level + '&group=' + encodeURIComponent(pData.group||'')
             : gameFile + '?autostart=' + level + '&group=' + encodeURIComponent(pData.group||'');
         iframe.src = url;
         iframe.onload = () => setTimeout(() => {
@@ -997,6 +1070,7 @@ setInterval(() => {
     if (!r || !r.open) {
         pData.joined = false; pData.screen = 'screen-home';
         stopSyncListener();
+        localStorage.removeItem('game_session');
         window.goTo('screen-home');
         window.showToast('🚪 房間已關閉');
         return;
@@ -1332,6 +1406,8 @@ function joinRoom() {
   window.renderLobby();
   window.updateStudentWaitDisplay();
   window.goTo('screen-student-wait');
+  // 儲存 session 讓重整可以恢復
+  localStorage.setItem('game_session', JSON.stringify({ perspective: window.state.perspective, roomCode: window.state.roomCode, group: groupName, symbol: window.state.selectedSymbol }));
   window.showToast(`✅ ${groupName} 已加入房間！`);
 }
 
@@ -1354,7 +1430,7 @@ function leaveRoomStudent() {
         }
         pData.group = ''; pData.symbol = ''; pData.joinStep = 1;
     }
-    window.syncJoinDOM(); window.goTo('screen-home'); window.showToast('🚪 已離開房間');
+    window.syncJoinDOM(); localStorage.removeItem('game_session'); window.goTo('screen-home'); window.showToast('🚪 已離開房間');
 }
 
 function selectGame(i) {
@@ -1498,6 +1574,7 @@ function teacherLogin() {
   
   window.state.roomCode = code;
   window.state.players = []; window.state.takenSymbols = [];
+  localStorage.setItem('game_session', JSON.stringify({ perspective:'teacher', roomCode:code }));
   startSyncListener(); // 老師建房後開始監聽 Firebase
   
   Object.keys(window.pStates).forEach(k => {
@@ -1523,7 +1600,8 @@ function doCloseRoom() {
       const rooms = window.getRooms();
       if (rooms[code]) { rooms[code].open = false; window.saveRooms(rooms); }
       setTimeout(() => window.deleteRoom(code), 2000);
-      localStorage.removeItem('my_last_room_code'); // 正常關閉就清除記錄
+      localStorage.removeItem('my_last_room_code');
+  localStorage.removeItem('game_session');
   }
   stopSyncListener();
   window.state.roomCode = ''; window.state.players = []; window.state.takenSymbols = [];
@@ -1639,9 +1717,61 @@ function goToTeacherLogin() { window.goTo('screen-teacher-login'); }
 // ── 頁面載入 ──
 window._initLoad = true;
 document.addEventListener('DOMContentLoaded', () => {
-    // 預設為訪客視角，讓每個分頁或裝置能自行選擇登入身份
-    window.state.perspective = 'guest';
     window._initLoad = false;
+
+    // ── 重整恢復：從 localStorage 讀取上次的狀態 ──
+    try {
+        const saved = JSON.parse(localStorage.getItem('game_session') || 'null');
+        if (saved && saved.perspective && saved.roomCode) {
+            const rooms = window.getRooms();
+            const room  = rooms[saved.roomCode];
+            if (room && room.open) {
+                // 房間還存在，恢復狀態
+                window.state.perspective  = saved.perspective;
+                window.state.roomCode     = saved.roomCode;
+                window.state.players      = room.players || [];
+                window.state.takenSymbols = window.state.players.map(p => p.symbol);
+                window.state.selectedGame = room.selectedGame || 0;
+                if (saved.perspective === 'teacher') {
+                    const lobbyCode = document.getElementById('lobby-code');
+                    if (lobbyCode) lobbyCode.textContent = saved.roomCode;
+                    window.renderLobby();
+                    if (room.status === 'playing' || room.status === 'settlement') {
+                        window.pStates['teacher'].screen = 'screen-teacher-console';
+                        window.goTo('screen-teacher-console');
+                    } else {
+                        window.pStates['teacher'].screen = 'screen-lobby';
+                        window.goTo('screen-lobby');
+                    }
+                    startSyncListener();
+                } else {
+                    // 學生視角恢復
+                    const pData = window.pStates[saved.perspective];
+                    if (pData && saved.group) {
+                        pData.joined = true;
+                        pData.group  = saved.group;
+                        pData.symbol = saved.symbol || '';
+                        window.state.perspective = saved.perspective;
+                        if (room.status === 'playing') {
+                            tcLaunchStudentIfNeeded();
+                        } else {
+                            pData.screen = 'screen-student-wait';
+                            window.goTo('screen-student-wait');
+                        }
+                        startSyncListener();
+                    } else {
+                        window.state.perspective = 'guest';
+                        window.goTo('screen-home');
+                    }
+                }
+                showToast('🔄 已恢復上次連線');
+                return;
+            }
+        }
+    } catch(e) { console.warn('Session restore failed:', e); }
+
+    // 沒有可恢復的狀態，從首頁開始
+    window.state.perspective = 'guest';
 
     // 防止雙擊縮放（iOS Safari）
     let lastTap = 0;
@@ -1664,7 +1794,7 @@ Object.assign(window, {
     testResetToHome, testSetPerspective, toggleQR, goToTeacherLogin, goToJoin, goTo,
     backToStep1, verifyRoomPassword, backToPassword, onGroupSelect, joinRoom,
     simulateJoin, doCloseRoom, selectGame, leaveRoomStudent, teacherLogin,
-    openTeacherConsole, changeLevel, jumpToPhase, updateLevelDisplay,
+    openTeacherConsole, changeLevel, jumpToPhase, updateLevelDisplay, lsW2SetMode, lsW2ChangePage,
     tcStartGame, tcPauseGame, tcResumeGame, tcSettleGame, tcEndGame, exitToLobby,
     showToast, setViewTeacher, setViewStudent,
     syncJoinDOM, renderLobby, renderSymbolPicker, renderGroupSelect, updateStudentWaitDisplay,
