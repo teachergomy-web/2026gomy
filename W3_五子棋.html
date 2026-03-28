@@ -29,7 +29,7 @@ body,html{margin:0;padding:0;width:100%;height:100%;background:var(--bg);font-fa
 .role-spectator{background:rgba(46,204,64,.1);border-color:var(--green);color:var(--green);}
 
 /* Main layout */
-#main{position:absolute;top:64px;left:0;right:0;bottom:0;display:flex;flex-direction:column;overflow:hidden;}
+#main{position:absolute;top:64px;left:0;right:0;bottom:60px;display:flex;flex-direction:column;overflow:hidden;}
 
 /* Scoreboard */
 #scoreboard-wrap{padding:10px 12px 0;flex-shrink:0;}
@@ -55,7 +55,7 @@ body,html{margin:0;padding:0;width:100%;height:100%;background:var(--bg);font-fa
 .vs-text{font-family:'Fredoka One',sans-serif;font-size:18px;color:rgba(255,255,255,.2);flex-shrink:0;}
 
 /* Board */
-#board-outer{width:min(100%,calc(100vh - 220px));aspect-ratio:1;background:#dcb35c;padding:5px;border-radius:10px;border:4px solid #8b4513;box-shadow:0 6px 28px rgba(0,0,0,.85);flex-shrink:0;}
+#board-outer{width:min(100%,calc(100vh - 280px));aspect-ratio:1;background:#dcb35c;padding:5px;border-radius:10px;border:4px solid #8b4513;box-shadow:0 6px 28px rgba(0,0,0,.85);flex-shrink:0;}
 #board{width:100%;height:100%;display:grid;}
 .cell{position:relative;display:flex;align-items:center;justify-content:center;}
 .cell.can-move{cursor:pointer;}
@@ -405,6 +405,19 @@ function handleCellClick(idx){
         state.matchStatus='finished';
         playSound('win');
         showToast(`🏆 ${winGroup} 獲勝！`);
+        // 通知平台：W3 勝負結果（傳分數給結算畫面）
+        setTimeout(()=>{
+            // 把 wins/matches 換算成分數給 index.html 的 tcSettleGame 用
+            Object.entries(state.scores).forEach(([grp,d])=>{
+                window.parent.postMessage({
+                    type:'W3_SCORE',
+                    group: grp,
+                    score: d.wins,        // 用勝場數當分數
+                    wins:  d.wins,
+                    matches: d.matches
+                },'*');
+            });
+        },500);
     }else{
         playSound('stone');
     }

@@ -1047,22 +1047,29 @@ function tcSettleGame() {
     const list = document.getElementById('settlement-list');
     if (!list) return;
     const players = window.state.players;
+    const isW3 = window.state.selectedGame === 2;
+    const rooms = window.getRooms();
+    const w3scores = (rooms[window.state.roomCode] || {}).w3scores || {};
     const sorted = [...players].sort((a,b) => (TC.scores[b.group]||0) - (TC.scores[a.group]||0));
     const medals  = ['🥇','🥈','🥉','4️⃣','5️⃣'];
     const colors  = ['#FFD600','#C0C0C0','#CD7F32','#aaa','#aaa'];
     list.innerHTML = `
-        <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:1.4rem;color:#f5c800;margin-bottom:8px;text-align:center">⭐ 最終排名</div>
-        ${sorted.map((p,i) => `
-        <div style="display:flex;align-items:center;gap:16px;background:rgba(255,255,255,.08);border:3px solid ${colors[i]||'rgba(255,255,255,.15)'};border-radius:20px;padding:18px 28px;width:100%;max-width:560px">
-            <div style="font-size:2.4rem;width:44px;text-align:center">${medals[i]||''}</div>
-            <div style="font-size:2rem">${p.symbol}</div>
-            <div style="flex:1;font-family:'Nunito',sans-serif;font-weight:900;font-size:1.1rem;color:white">${p.group}</div>
-            <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:2.2rem;color:${colors[i]||'#f5c800'}">${TC.scores[p.group]||0}</div>
-        </div>`).join('')}`;
+        <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:1.4rem;color:#f5c800;margin-bottom:8px;text-align:center">${isW3 ? '⚔️ 五子棋排名' : '⭐ 最終排名'}</div>
+        ${sorted.map((p,i) => {
+            const w3d = w3scores[p.group] || {wins:0,matches:0};
+            const scoreDisplay = isW3
+                ? `<div style="text-align:right"><div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:1.8rem;color:${colors[i]||'#f5c800'}">${w3d.wins}</div><div style="font-size:.7rem;color:rgba(255,255,255,.4);font-family:'Nunito',sans-serif">共${w3d.matches}場</div></div>`
+                : `<div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:2.2rem;color:${colors[i]||'#f5c800'}">${TC.scores[p.group]||0}</div>`;
+            return `<div style="display:flex;align-items:center;gap:16px;background:rgba(255,255,255,.08);border:3px solid ${colors[i]||'rgba(255,255,255,.15)'};border-radius:20px;padding:18px 28px;width:100%;max-width:560px">
+                <div style="font-size:2.4rem;width:44px;text-align:center">${medals[i]||''}</div>
+                <div style="font-size:2rem">${p.symbol}</div>
+                <div style="flex:1;font-family:'Nunito',sans-serif;font-weight:900;font-size:1.1rem;color:white">${p.group}</div>
+                ${scoreDisplay}
+            </div>`;
+        }).join('')}`;
     window.pStates['teacher'].screen = 'screen-settlement';
     window.goTo('screen-settlement');
     // 把排名資料存入 Firebase，讓學生端可以顯示同樣的結算畫面
-    const rooms = window.getRooms();
     if (rooms[window.state.roomCode]) {
         rooms[window.state.roomCode].status = 'settlement';
         rooms[window.state.roomCode].paused = false;
@@ -1127,7 +1134,7 @@ function exitToLobby() {
 window.addEventListener('message', (e) => {
     if (!e.data || !e.data.type) return;
     const { type, score, group } = e.data;
-    const isScore   = type==='W1_SCORE'    || type==='W2_SCORE';
+    const isScore   = type==='W1_SCORE' || type==='W2_SCORE' || type==='W3_SCORE';
     const isGameover= type==='W1_GAMEOVER' || type==='W2_GAMEOVER';
     if ((isScore || isGameover) && group) {
         tcUpdateScore(group, score);
@@ -1135,6 +1142,14 @@ window.addEventListener('message', (e) => {
         if (rooms[window.state.roomCode]) {
             if (!rooms[window.state.roomCode].scores) rooms[window.state.roomCode].scores = {};
             rooms[window.state.roomCode].scores[group] = score;
+            // W3 額外存 wins/matches
+            if (type === 'W3_SCORE') {
+                if (!rooms[window.state.roomCode].w3scores) rooms[window.state.roomCode].w3scores = {};
+                rooms[window.state.roomCode].w3scores[group] = {
+                    wins: e.data.wins || 0,
+                    matches: e.data.matches || 0
+                };
+            }
             window.saveRooms(rooms);
         }
         if (isGameover && window.state.perspective === 'teacher') {
