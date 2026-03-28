@@ -305,16 +305,15 @@ let _myMi = -1; // 我參與的 match index
 let _tvBuilt = false;
 
 function buildTeacherBoards(){
-    if(_tvBuilt)return;
-    _tvBuilt=true;
     [0,1].forEach(mi=>{
         const b=document.getElementById('tv-board-'+mi);
         if(!b)return;
+        if(b.children.length===GRID*GRID)return; // 已建立
         b.style.gridTemplateColumns=`repeat(${GRID},minmax(0,1fr))`;
         b.innerHTML='';
         for(let i=0;i<GRID*GRID;i++){
             const cell=document.createElement('div');
-            cell.className='cell'; // teacher can't click
+            cell.className='cell';
             b.appendChild(cell);
         }
     });
@@ -725,13 +724,12 @@ function renderTeacherCtrl(){
 
 function renderTeacherView(){
     if(myRole!=='teacher')return;
-    // 有任何場次在 playing/countdown/ready 就顯示轉播畫面
-    const anyActive=state.matches.some(m=>m.status==='playing'||m.status==='countdown'||m.status==='ready');
+    // 只要抽過籤就顯示轉播，不管當前場次狀態
     const tv=document.getElementById('teacher-view');
     const lv=document.getElementById('lobby-view');
-    if(tv) tv.style.display=anyActive?'flex':'none';
-    if(lv) lv.style.display=anyActive?'none':'flex';
-    if(!anyActive)return;
+    if(tv) tv.style.display=state.started?'flex':'none';
+    if(lv) lv.style.display=state.started?'none':'flex';
+    if(!state.started)return;
 
     buildTeacherBoards();
     [0,1].forEach(mi=>{

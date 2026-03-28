@@ -878,6 +878,11 @@ function tcStartGame() {
 
     if (window.state.selectedGame === 2) {
         // W3：老師控制台嵌入 W3 iframe（導播/老師視角）
+        // 隱藏不適用於 W3 的按鈕
+        const settleBtn = document.getElementById('tc-btn-settle');
+        const levelBadge = document.getElementById('tc-level-badge');
+        if (settleBtn) settleBtn.style.display = 'none';
+        if (levelBadge) levelBadge.style.display = 'none';
         const sa = document.getElementById('tc-scores-area');
         if (sa) {
             sa.style.padding = '0';
