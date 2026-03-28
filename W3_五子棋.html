@@ -288,18 +288,24 @@ window.addEventListener('resize',resizeBoards);
 function drawLots(){
     initAudio();
     const pool=[...state.activePlayers];
-    if(pool.length<4){showToast('⚠️ 至少需要4組才能同時兩場');return;}
+    if(pool.length<2){showToast('⚠️ 至少需要2組才能對戰');return;}
     pool.forEach(g=>{if(!state.scores[g])state.scores[g]={wins:0,matches:0};});
 
-    // 打亂，前4個分成兩場
-    const shuffled=pool.sort(()=>Math.random()-.5);
+    const shuffled=[...pool].sort(()=>Math.random()-.5);
     state.started=true;
     document.getElementById('btn-draw').disabled=true;
 
-    // 兩場同時開始 rolling
-    [0,1].forEach(mi=>{
-        startRolling(mi, shuffled[mi*2], shuffled[mi*2+1]);
-    });
+    if(pool.length>=4){
+        // 4組以上：兩場同時開始
+        [0,1].forEach(mi=>{
+            startRolling(mi, shuffled[mi*2], shuffled[mi*2+1]);
+        });
+    } else {
+        // 2-3組：只開第0場，第1場保持 idle
+        startRolling(0, shuffled[0], shuffled[1]);
+        // 第1場 idle
+        state.matches[1]=newMatch();
+    }
     broadcast();
 }
 
@@ -315,6 +321,9 @@ function startRolling(mi, blackFinal, whiteFinal){
     state.scores[whiteFinal].matches++;
 
     setTimeout(()=>{
+        // 確保 rolling 動畫停止
+        clearInterval(rollIntervals[mi]);
+        rollIntervals[mi]=null;
         m.status='ready';m.black=blackFinal;m.white=whiteFinal;
         m.blackReady=false;m.whiteReady=false;
         broadcast();

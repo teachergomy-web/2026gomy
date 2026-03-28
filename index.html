@@ -319,7 +319,7 @@ body::before {
       <div class="kr-room-name" id="lobby-room-name">誰是遊戲王</div>
     </div>
     <div style="text-align:center">
-      <div style="color:rgba(245,200,0,0.7);font-size:.6rem;font-weight:900">房間代碼</div>
+      <div style="color:rgba(245,200,0,0.7);font-size:.6rem;font-weight:900">房間密碼</div>
       <div class="kr-code" id="lobby-code">0000</div>
     </div>
     <div style="text-align:right">
@@ -362,7 +362,7 @@ body::before {
       <div class="kr-room-name">選擇關卡</div>
     </div>
     <div style="text-align:center">
-      <div style="color:rgba(245,200,0,.6);font-size:.6rem;font-weight:900">房間代碼</div>
+      <div style="color:rgba(245,200,0,.6);font-size:.6rem;font-weight:900">房間密碼</div>
       <div style="color:#f5c800;font-family:'Fredoka One',sans-serif;font-size:18px;letter-spacing:.1em" id="ls-room-code-badge">0000</div>
     </div>
     <div style="text-align:right">
@@ -405,23 +405,26 @@ body::before {
 
 <div id="screen-teacher-console" class="screen" style="padding:0;background:#0d0f1a;flex-direction:column;overflow:hidden">
 
-  <div class="kr-header" style="border-bottom:3px solid var(--red);flex-shrink:0">
-    <div style="display:flex;flex-direction:column;gap:2px">
-      <div style="color:var(--red);font-size:.65rem;font-weight:900;letter-spacing:.08em">🔴 LIVE</div>
-      <div class="kr-room-name" id="tc-game-name">⭐ 星際採礦</div>
+  <div class="kr-header" style="border-bottom:3px solid var(--red);flex-shrink:0;padding:8px 14px;">
+    <!-- 左：遊戲名稱 -->
+    <div style="display:flex;flex-direction:column;gap:1px;min-width:0;flex-shrink:1">
+      <div style="color:var(--red);font-size:.6rem;font-weight:900;letter-spacing:.08em">🔴 LIVE</div>
+      <div class="kr-room-name" id="tc-game-name" style="font-size:clamp(.85rem,2.5vw,1.1rem)">⭐ 星際採礦</div>
     </div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <span id="tc-level-badge" style="background:rgba(245,200,0,.2);border:2px solid #f5c800;border-radius:8px;padding:4px 12px;font-family:'Nunito',sans-serif;font-weight:900;font-size:.85rem;color:#f5c800">關卡 1</span>
-      <button id="tc-btn-pause"  class="kr-btn kr-btn-ghost"  onclick="tcPauseGame()"   style="font-size:.85rem;padding:10px 16px">⏸ 暫停</button>
-      <button id="tc-btn-resume" class="kr-btn kr-btn-ghost"  onclick="tcResumeGame()"  style="display:none;font-size:.85rem;padding:10px 16px">▶ 繼續</button>
-      <button id="tc-btn-settle" class="kr-btn kr-btn-start" onclick="tcSettleGame()" style="font-size:.85rem;padding:10px 16px">🏆 結算</button>
+    <!-- 中：回合/關卡 + 暫停/結算 -->
+    <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+      <span id="tc-level-badge" style="background:rgba(245,200,0,.2);border:2px solid #f5c800;border-radius:8px;padding:3px 10px;font-family:'Nunito',sans-serif;font-weight:900;font-size:.8rem;color:#f5c800;white-space:nowrap">第 1 回合</span>
+      <button id="tc-btn-pause"  class="kr-btn kr-btn-ghost"  onclick="tcPauseGame()"  style="font-size:.8rem;padding:8px 12px">⏸</button>
+      <button id="tc-btn-resume" class="kr-btn kr-btn-ghost"  onclick="tcResumeGame()" style="display:none;font-size:.8rem;padding:8px 12px">▶</button>
+      <button id="tc-btn-settle" class="kr-btn kr-btn-start"  onclick="tcSettleGame()" style="font-size:.8rem;padding:8px 12px">🏆</button>
     </div>
-    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
-      <button class="kr-btn kr-btn-ghost" onclick="exitToLobby()" style="font-size:.82rem">← 大廳</button>
+    <!-- 右：房間密碼 + 大廳按鈕 -->
+    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
       <div style="display:flex;flex-direction:column;align-items:center;background:rgba(245,200,0,.12);border:2px solid rgba(245,200,0,.4);border-radius:8px;padding:2px 8px;cursor:default">
-        <div style="color:rgba(245,200,0,.6);font-size:8px;font-weight:900;font-family:'Nunito',sans-serif">房間代碼</div>
-        <div style="color:#f5c800;font-family:'Fredoka One',sans-serif;font-size:16px;letter-spacing:.1em" id="tc-room-code-badge">0000</div>
+        <div style="color:rgba(245,200,0,.6);font-size:7px;font-weight:900;font-family:'Nunito',sans-serif;white-space:nowrap">房間密碼</div>
+        <div style="color:#f5c800;font-family:'Fredoka One',sans-serif;font-size:15px;letter-spacing:.1em" id="tc-room-code-badge">0000</div>
       </div>
+      <button class="kr-btn kr-btn-ghost" onclick="exitToLobby()" style="font-size:.8rem;padding:8px 12px">← 大廳</button>
     </div>
   </div>
 
@@ -457,7 +460,7 @@ body::before {
             <div class="kr-room-name" id="sw-room-name">誰是遊戲王</div>
         </div>
         <div style="text-align:center">
-            <div style="color:rgba(245,200,0,0.7);font-size:.6rem;font-weight:900">房間代碼</div>
+            <div style="color:rgba(245,200,0,0.7);font-size:.6rem;font-weight:900">房間密碼</div>
             <div class="kr-code" id="sw-code">0000</div>
         </div>
         <div style="text-align:right">
@@ -550,7 +553,7 @@ let isFirebaseAuthComplete = false;
                 console.log("✅ Firebase 雲端連線成功！");
                 // 頁面一登入就開始監聽所有房間（學生可以看到房間列表）
                 startAllRoomsListener();
-                // 如果已有房間代碼，再開始監聽單一房間
+                // 如果已有房間密碼，再開始監聽單一房間
                 if (window.state && window.state.roomCode) startSyncListener();
                 // Firebase 連線後嘗試恢復 session（延遲讓 allRoomsListener 先拿到資料）
                 setTimeout(tryRestoreSession, 800);
@@ -853,10 +856,11 @@ function tcStartGame() {
 
     // 更新 header
     const badge = document.getElementById('tc-level-badge');
-    if (badge) badge.textContent = '關卡 ' + TC.level;
+    const isW3game = window.state.selectedGame === 2;
+    if (badge) badge.textContent = isW3game ? '第 1 回合' : '關卡 ' + TC.level;
     const gameName = document.getElementById('tc-game-name');
     if (gameName) { const g = GAMES[window.state.selectedGame] || GAMES[0]; gameName.textContent = g.icon + ' ' + g.name; }
-    // 更新房間代碼顯示
+    // 更新房間密碼顯示
     const tcCode = document.getElementById('tc-room-code-badge');
     if (tcCode) tcCode.textContent = window.state.roomCode || '0000';
     document.getElementById('tc-btn-pause').style.display  = '';
@@ -915,7 +919,7 @@ function tcStartGame() {
 
     // 若目前是學生視角，立刻進入遊戲
     tcLaunchStudentIfNeeded();
-    showToast('🎮 遊戲開始！關卡 ' + TC.level);
+    showToast(window.state.selectedGame === 2 ? '🎮 五子棋對戰開始！' : '🎮 遊戲開始！關卡 ' + TC.level);
 }
 
 function studentLeaveGame() {
@@ -1159,6 +1163,15 @@ window.addEventListener('message', (e) => {
     // W3 五子棋：老師 iframe 廣播棋局狀態 → 存入 Firebase → 推送給所有學生
     if (type === 'W3_STATE' && e.data.data) {
         const w3d = e.data.data;
+        // 更新控制台的回合數（計算棋盤上的棋子數）
+        if (window.state.selectedGame === 2) {
+            const badge = document.getElementById('tc-level-badge');
+            if (badge && w3d.cells) {
+                const stones = w3d.cells.filter(v => v !== 0).length;
+                const round = Math.floor(stones / 2) + 1;
+                badge.textContent = `第 ${round} 回合`;
+            }
+        }
         const rooms = window.getRooms();
         if (rooms[window.state.roomCode]) {
             rooms[window.state.roomCode].w3state = w3d;
@@ -1737,7 +1750,7 @@ function teacherLogin() {
   const rooms = window.getRooms();
   const now = Date.now();
 
-  // 只清除「這台裝置上次留下的房間代碼」以及超過 2 小時的過期房間
+  // 只清除「這台裝置上次留下的房間密碼」以及超過 2 小時的過期房間
   // 不動其他老師的房間
   const myLastCode = localStorage.getItem('my_last_room_code');
   Object.keys(rooms).forEach(c => {
@@ -1750,13 +1763,13 @@ function teacherLogin() {
       }
   });
 
-  // 動態產生 4 位數房間代碼
+  // 動態產生 4 位數房間密碼
   let code = Math.floor(1000 + Math.random() * 9000).toString();
   while (rooms[code] && rooms[code].open) {
       code = Math.floor(1000 + Math.random() * 9000).toString();
   }
   
-  // 記住這次的房間代碼，下次登入時自動清除
+  // 記住這次的房間密碼，下次登入時自動清除
   localStorage.setItem('my_last_room_code', code);
 
   // 取得房間編號
