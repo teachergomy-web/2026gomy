@@ -1473,20 +1473,34 @@ function syncJoinDOM() {
     document.getElementById('join-step-password').style.display = step === 1.5 ? 'block' : 'none';
     document.getElementById('join-step-2').style.display = step === 2 ? 'block' : 'none';
     if (step === 2) {
-        // 進入選組步驟前先從 Firebase 同步最新玩家資料
-        const rooms = window.getRooms();
-        if (window.state.roomCode && rooms[window.state.roomCode]) {
-            const room = rooms[window.state.roomCode];
-            if (room.players) {
-                window.state.players = room.players;
-                window.state.takenSymbols = room.players.map(p => p.symbol);
-                window.state.takenGroups  = room.players.map(p => p.group);
-            }
-        }
+        // 進入選組步驟前先從 Firebase 即時同步最新玩家資料（防止選到已佔用的組）
         window.state.selectedGroup = ''; window.state.selectedSymbol = '';
         document.getElementById('group-select').value = '';
-        window.renderGroupSelect();
-        window.renderSymbolPicker();
+
+        const refreshAndRender = () => {
+            window.renderGroupSelect();
+            window.renderSymbolPicker();
+        };
+
+        if (isFirebase && db && fsGetDoc && isFirebaseAuthComplete && window.state.roomCode) {
+            fsGetDoc(fsDoc(db, 'rooms', window.state.roomCode)).then(snap => {
+                if (snap.exists()) {
+                    const latest = snap.data();
+                    window.state.players      = latest.players || [];
+                    window.state.takenSymbols = window.state.players.map(p => p.symbol);
+                    window.state.takenGroups  = window.state.players.map(p => p.group);
+                }
+                refreshAndRender();
+            }).catch(() => refreshAndRender());
+        } else {
+            const rooms = window.getRooms();
+            if (window.state.roomCode && rooms[window.state.roomCode]?.players) {
+                window.state.players      = rooms[window.state.roomCode].players;
+                window.state.takenSymbols = window.state.players.map(p => p.symbol);
+                window.state.takenGroups  = window.state.players.map(p => p.group);
+            }
+            refreshAndRender();
+        }
     }
 }
 
@@ -1584,16 +1598,15 @@ function joinRoom() {
           if (!room.open) throw new Error('房間已關閉');
 
           const players = room.players || [];
-          const existingIdx = players.findIndex(p => p.group === groupName);
 
+          const existingIdx = players.findIndex(p => p.group === groupName);
           if (existingIdx !== -1) {
-              // 同組重連：更新符號
-              players[existingIdx].symbol = symbol;
-          } else {
-              // 新加入：以 Firebase 最新資料確認組別未被佔用
-              if (players.some(p => p.group === groupName)) {
+              // 組別已存在：只有符號完全一致才允許（同一裝置重連）
+              if (players[existingIdx].symbol !== symbol) {
                   throw new Error('組別已被佔用');
               }
+              // 同裝置重連：不更新，直接通過
+          } else {
               if (players.length >= 5) throw new Error('房間已滿');
               players.push({ group: groupName, symbol });
           }
