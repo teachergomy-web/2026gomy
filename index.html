@@ -561,8 +561,15 @@ function startAllRoomsListener() {
     const colRef = fsCollection(db, 'rooms');
     allRoomsUnsubscribe = fsOnSnap(colRef, (snapshot) => {
         const rooms = JSON.parse(localStorage.getItem('playroom_rooms') || '{}');
+        const now = Date.now();
         snapshot.forEach(doc => {
-            rooms[doc.id] = doc.data();
+            const data = doc.data();
+            // 超過 2 小時自動刪除
+            if (data.createdAt && (now - data.createdAt) > 2 * 60 * 60 * 1000) {
+                window.deleteRoom(doc.id);
+            } else {
+                rooms[doc.id] = data;
+            }
         });
         snapshot.docChanges && snapshot.docChanges().forEach(change => {
             if (change.type === 'removed') delete rooms[change.doc.id];
@@ -1304,9 +1311,23 @@ function teacherLogin() {
   
   const tName = (nameEl && nameEl.value.trim() !== '') ? nameEl.value.trim() : '老師';
 
-  window.state.perspective = 'teacher'; // 設定此分頁為老師視角
+  window.state.perspective = 'teacher';
   
   const rooms = window.getRooms();
+  const now = Date.now();
+
+  // 只清除「這台裝置上次留下的房間代碼」以及超過 2 小時的過期房間
+  // 不動其他老師的房間
+  const myLastCode = localStorage.getItem('my_last_room_code');
+  Object.keys(rooms).forEach(c => {
+      const r = rooms[c];
+      const isExpired = r.createdAt && (now - r.createdAt) > 2 * 60 * 60 * 1000;
+      const isMyOldRoom = c === myLastCode;
+      if (isExpired || isMyOldRoom) {
+          window.deleteRoom(c);
+          delete rooms[c];
+      }
+  });
 
   // 動態產生 4 位數房間代碼
   let code = Math.floor(1000 + Math.random() * 9000).toString();
@@ -1314,6 +1335,9 @@ function teacherLogin() {
       code = Math.floor(1000 + Math.random() * 9000).toString();
   }
   
+  // 記住這次的房間代碼，下次登入時自動清除
+  localStorage.setItem('my_last_room_code', code);
+
   // 取得房間編號
   let roomNum = parseInt(localStorage.getItem('playroom_counter') || '0') + 1;
   localStorage.setItem('playroom_counter', roomNum);
@@ -1360,11 +1384,10 @@ function teacherLogin() {
 function doCloseRoom() {
   const code = window.state.roomCode;
   if (code) {
-      // 通知學生房間關閉（先設 open:false 讓學生 poll 偵測到）
       const rooms = window.getRooms();
       if (rooms[code]) { rooms[code].open = false; window.saveRooms(rooms); }
-      // 稍後真正刪除
       setTimeout(() => window.deleteRoom(code), 2000);
+      localStorage.removeItem('my_last_room_code'); // 正常關閉就清除記錄
   }
   stopSyncListener();
   window.state.roomCode = ''; window.state.players = []; window.state.takenSymbols = [];
