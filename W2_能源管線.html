@@ -936,6 +936,7 @@
         (function(){
             const params = new URLSearchParams(window.location.search);
             const autoMode = params.get('autostart') || params.get('mode');
+            const autoLevel = parseInt(params.get('level') || '1') - 1; // 0-indexed
             const group = params.get('group');
             if (group) window.GROUP_ID = group;
             if (autoMode) {
@@ -948,7 +949,7 @@
                 document.getElementById('game-ui').style.display = 'block';
                 totalScore = 0;
                 gameStarted = true;
-                loadLevel(0);
+                loadLevel(Math.max(0, Math.min(autoLevel, maxLevels - 1)));
             }
         })();
         window.parent.postMessage({ type: 'W2_READY' }, '*');

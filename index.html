@@ -799,9 +799,10 @@ function tcStartGame() {
     // 更新 rooms
     const rooms = window.getRooms();
     if (rooms[window.state.roomCode]) {
-        rooms[window.state.roomCode].status   = 'playing';
+        rooms[window.state.roomCode].status    = 'playing';
         rooms[window.state.roomCode].gameLevel = TC.level;
-        rooms[window.state.roomCode].scores = {}; // 重新開始遊戲時清空分數
+        rooms[window.state.roomCode].gameMode  = lsW2Mode || 'SINGLE'; // W2 模式
+        rooms[window.state.roomCode].scores    = {};
         window.saveRooms(rooms);
     }
 
@@ -834,9 +835,12 @@ function tcLaunchStudentIfNeeded() {
 
     const r = window.getRooms()[window.state.roomCode] || {};
     const level = r.gameLevel || TC.level || 1;
-    const selectedGame = r.selectedGame || window.state.selectedGame || 0;
-    const gameFile = TC.gameFile;
-    const isW2 = gameFile.includes('W2');
+    const selectedGame = r.selectedGame !== undefined ? r.selectedGame : (window.state.selectedGame || 0);
+    const gameMode = r.gameMode || 'SINGLE';
+    // 根據 rooms 裡的 selectedGame 決定遊戲檔案（不依賴 TC.gameFile getter）
+    const gameFiles = ['W1_消除方塊.html', 'W2_能源管線.html'];
+    const gameFile = gameFiles[selectedGame] || gameFiles[0];
+    const isW2 = selectedGame === 1;
 
     const iframe = document.getElementById('sg-iframe');
     const titleEl = document.getElementById('sg-title');
@@ -847,7 +851,7 @@ function tcLaunchStudentIfNeeded() {
     if (iframe) {
         // W2 用 mode 參數，W1 用 autostart=level
         const url = isW2
-            ? gameFile + '?autostart=' + (lsW2Mode || 'SINGLE') + '&level=' + level + '&group=' + encodeURIComponent(pData.group||'')
+            ? gameFile + '?autostart=' + gameMode + '&level=' + level + '&group=' + encodeURIComponent(pData.group||'')
             : gameFile + '?autostart=' + level + '&group=' + encodeURIComponent(pData.group||'');
         iframe.src = url;
         iframe.onload = () => setTimeout(() => {
@@ -1064,7 +1068,7 @@ setInterval(() => {
     }
 
     const p = window.state.perspective;
-    if (p === 'teacher') return;
+    if (p === 'teacher' || p === 'guest') return;
     const pData = window.pStates && window.pStates[p];
     if (!pData || !pData.joined) return;
     if (!r || !r.open) {
