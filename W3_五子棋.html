@@ -151,7 +151,11 @@ body,html{margin:0;padding:0;width:100%;height:100%;background:var(--bg);font-fa
 <div id="score-bar"></div>
 
 <!-- ══ 抽籤/準備畫面（老師+觀賽組+等待組） ══ -->
-<div id="lobby-view" style="position:absolute;top:100px;left:0;right:0;bottom:60px;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:12px 16px;overflow-y:auto;z-index:10;background:var(--bg);">
+<div id="lobby-view" style="position:absolute;top:100px;left:0;right:0;bottom:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:12px 16px;overflow-y:auto;z-index:10;background:var(--bg);">
+  <!-- 老師抽籤按鈕（只有 teacher 且未開始時顯示）-->
+  <div id="teacher-draw-area" style="display:none;width:100%;max-width:480px;">
+    <button class="tc-btn tc-btn-blue" id="btn-draw" onclick="drawLots()" style="width:100%;font-size:18px;padding:14px;">🎲 抽籤開始</button>
+  </div>
   <div id="matches-panel">
     <!-- Match 0 card -->
     <div class="match-card idle-card" id="mc-0">
@@ -276,11 +280,6 @@ body,html{margin:0;padding:0;width:100%;height:100%;background:var(--bg);font-fa
   <div id="turn-indicator" class="turn-badge tb-wait">等待對戰開始</div>
 </div>
 
-<!-- Teacher controls -->
-<div id="teacher-ctrl">
-  <button class="tc-btn tc-btn-blue" id="btn-draw" onclick="drawLots()">🎲 抽籤開始</button>
-</div>
-
 <!-- 倒數全螢幕 Overlay -->
 <div id="countdown-overlay">
   <div class="cd-match-title" id="cd-match-title"></div>
@@ -401,7 +400,11 @@ window.addEventListener('resize',resizeSoloBoard);
 function drawLots(){
     initAudio();
     const pool=[...state.activePlayers];
-    if(pool.length<2){showToast('⚠️ 至少需要2組才能對戰');return;}
+    if(pool.length<2){
+        showToast('⚠️ 至少需要2組加入房間才能對戰');
+        console.log('activePlayers:', state.activePlayers, 'scores:', state.scores);
+        return;
+    }
     pool.forEach(g=>{if(!state.scores[g])state.scores[g]={wins:0,matches:0};});
 
     const shuffled=[...pool].sort(()=>Math.random()-.5);
@@ -689,7 +692,9 @@ function renderAll(){
     renderScoreboard();
     // 決定顯示哪個畫面
     if(myRole==='teacher'){
-        if(state.started) showView('teacher-view');
+        // 老師端：rolling/ready 時顯示配對卡片，playing 後才切換到轉播棋盤
+        const anyPlaying=state.matches.some(m=>m.status==='playing'||m.status==='finished'||m.status==='countdown');
+        if(state.started && anyPlaying) showView('teacher-view');
         else showView('lobby-view');
     } else if(myRole==='player' && isMyMatchPlaying()){
         showView('game-view');
@@ -815,13 +820,20 @@ function renderBoard(mi){
 }
 
 function renderTeacherCtrl(){
-    const tc=document.getElementById('teacher-ctrl');
-    // 老師只在第一場抽籤前顯示按鈕，之後隱藏（學生自動競賽）
-    if(myRole==='teacher' && !state.started){
-        tc.style.display='flex';
-        document.getElementById('btn-draw').disabled=false;
-    }else{
-        tc.style.display='none';
+    const da = document.getElementById('teacher-draw-area');
+    if(!da)return;
+    const isTeacher = myRole==='teacher';
+    const notStarted = !state.started;
+    da.style.display = (isTeacher && notStarted) ? 'block' : 'none';
+    if(isTeacher && notStarted){
+        const btn = document.getElementById('btn-draw');
+        const playerCount = state.activePlayers.length;
+        if(btn){
+            btn.disabled = playerCount < 2;
+            btn.textContent = playerCount >= 2
+                ? `🎲 抽籤開始（${playerCount} 組）`
+                : `⏳ 等待學生加入（${playerCount}/2）`;
+        }
     }
 }
 
@@ -1001,13 +1013,13 @@ window.addEventListener('message',(e)=>{
                 state.activePlayers=e.data.players.map(p=>p.group);
                 state.activePlayers.forEach(g=>{if(!state.scores[g])state.scores[g]={wins:0,matches:0};});
             }
-            // 如果有既有 state（比賽已進行），立刻套用並顯示轉播
+            // 套用既有 state 或重新渲染
             if(e.data.state){
                 applyState(e.data.state);
-                return; // applyState 已呼叫 renderAll
+            } else {
+                updateMyRole();
+                renderAll();
             }
-            if(e.data.state)applyState(e.data.state);
-            else{updateMyRole();renderAll();}
             break;
         case 'W3_STATE':
             if(e.data.data)applyState(e.data.data);
@@ -1028,10 +1040,7 @@ window.addEventListener('message',(e)=>{
     const isTeacher=params.get('teacher')==='1';
     if(group){myGroup=group;window.GROUP_ID=group;}
     if(isTeacher){myRole='teacher';}
-    // Fallback teams
-    if(state.activePlayers.length===0){
-        ['第1組','第2組','第3組','第4組','第5組'].forEach(t=>{state.scores[t]={wins:0,matches:0};});
-    }
+    // activePlayers 由 PLATFORM_START 傳入，不在此設定預設值
     buildBoards();
     renderAll();
     window.parent.postMessage({type:'W3_READY',group:myGroup},'*');
