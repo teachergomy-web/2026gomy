@@ -330,7 +330,14 @@ body::before {
     <button class="kr-btn kr-btn-ghost" onclick="toggleQR()">📱 QR Code</button>
     <button class="kr-btn kr-btn-danger" onclick="doCloseRoom()">🚪 關閉</button>
     <div style="flex:1"></div>
-    <button class="kr-btn kr-btn-start" onclick="openTeacherConsole()">▶ 開始遊戲</button>
+    <!-- 常設暫停鍵：遊戲進行中顯示 -->
+    <div id="lobby-game-status" style="display:none;align-items:center;gap:8px">
+      <span style="font-size:.75rem;color:#f5c800;font-family:'Nunito',sans-serif;font-weight:900" id="lobby-status-label">🔴 遊戲中</span>
+      <button id="lobby-btn-pause"  class="kr-btn kr-btn-ghost" onclick="tcPauseGame()"  style="display:none">⏸ 暫停</button>
+      <button id="lobby-btn-resume" class="kr-btn kr-btn-ghost" onclick="tcResumeGame()" style="display:none">▶ 繼續</button>
+      <button class="kr-btn kr-btn-ghost" onclick="window.goTo('screen-teacher-console')" style="font-size:.82rem">📊 回控制台</button>
+    </div>
+    <button id="lobby-start-btn" class="kr-btn kr-btn-start" onclick="openTeacherConsole()">▶ 開始遊戲</button>
   </div>
 </div>
 
@@ -385,8 +392,7 @@ body::before {
       <span id="tc-level-badge" style="background:rgba(245,200,0,.2);border:2px solid #f5c800;border-radius:8px;padding:4px 12px;font-family:'Nunito',sans-serif;font-weight:900;font-size:.85rem;color:#f5c800">關卡 1</span>
       <button id="tc-btn-pause"  class="kr-btn kr-btn-ghost"  onclick="tcPauseGame()"   style="font-size:.85rem;padding:10px 16px">⏸ 暫停</button>
       <button id="tc-btn-resume" class="kr-btn kr-btn-ghost"  onclick="tcResumeGame()"  style="display:none;font-size:.85rem;padding:10px 16px">▶ 繼續</button>
-      <button id="tc-btn-settle" class="kr-btn kr-btn-start"  onclick="tcSettleGame()"  style="font-size:.85rem;padding:10px 16px">🏆 結算</button>
-      <button id="tc-btn-end"    class="kr-btn kr-btn-danger" onclick="tcEndGame()"     style="font-size:.85rem;padding:10px 16px">■ 結束</button>
+      <button id="tc-btn-settle" class="kr-btn kr-btn-start" onclick="tcSettleGame()" style="font-size:.85rem;padding:10px 16px">🏆 結算</button>
     </div>
     <button class="kr-btn kr-btn-ghost" onclick="exitToLobby()" style="font-size:.82rem">← 大廳</button>
   </div>
@@ -400,7 +406,9 @@ body::before {
 <div id="screen-settlement" class="screen" style="padding:0;background:#0d0f1a;flex-direction:column;overflow:hidden">
   <div class="kr-header" style="border-bottom:3px solid #f5c800;flex-shrink:0">
     <div style="color:#f5c800;font-family:'Nunito',sans-serif;font-weight:900;font-size:1.1rem">🏆 最終結算</div>
-    <button class="kr-btn kr-btn-start" onclick="tcEndGame()" style="font-size:.85rem;padding:10px 20px">✓ 返回大廳</button>
+    <div id="settlement-back-btn">
+      <button class="kr-btn kr-btn-start" onclick="tcEndGame()" style="font-size:.85rem;padding:10px 20px">✓ 返回大廳</button>
+    </div>
   </div>
   <div id="settlement-list" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;overflow-y:auto"></div>
 </div>
@@ -727,6 +735,17 @@ function tcStartGame() {
     tcRenderScores();
     window.pStates['teacher'].screen = 'screen-teacher-console';
     window.goTo('screen-teacher-console');
+    // 大廳：顯示遊戲控制區
+    const lgs = document.getElementById('lobby-game-status');
+    const lsb = document.getElementById('lobby-start-btn');
+    const lp  = document.getElementById('lobby-btn-pause');
+    const lr  = document.getElementById('lobby-btn-resume');
+    const lsl = document.getElementById('lobby-status-label');
+    if (lgs) lgs.style.display = 'flex';
+    if (lsb) lsb.style.display = 'none';
+    if (lp)  lp.style.display  = '';
+    if (lr)  lr.style.display  = 'none';
+    if (lsl) lsl.textContent   = '🔴 遊戲中';
 
     // 若目前是學生視角，立刻進入遊戲
     tcLaunchStudentIfNeeded();
@@ -769,8 +788,20 @@ function tcLaunchStudentIfNeeded() {
 
 function tcPauseGame() {
     TC.paused = true;
+    // 控制台按鈕
     document.getElementById('tc-btn-pause').style.display  = 'none';
     document.getElementById('tc-btn-resume').style.display = '';
+    // 大廳：顯示暫停狀態
+    const lgs = document.getElementById('lobby-game-status');
+    const lsb = document.getElementById('lobby-start-btn');
+    const lp  = document.getElementById('lobby-btn-pause');
+    const lr  = document.getElementById('lobby-btn-resume');
+    const lsl = document.getElementById('lobby-status-label');
+    if (lgs) lgs.style.display = 'flex';
+    if (lsb) lsb.style.display = 'none';
+    if (lp)  lp.style.display  = 'none';
+    if (lr)  lr.style.display  = '';
+    if (lsl) lsl.textContent   = '⏸ 暫停中';
     // 寫入 rooms 讓學生端 poll 偵測到
     const rooms = window.getRooms();
     if (rooms[window.state.roomCode]) {
@@ -786,6 +817,17 @@ function tcResumeGame() {
     TC.paused = false;
     document.getElementById('tc-btn-pause').style.display  = '';
     document.getElementById('tc-btn-resume').style.display = 'none';
+    // 大廳：恢復遊戲狀態
+    const lgs = document.getElementById('lobby-game-status');
+    const lsb = document.getElementById('lobby-start-btn');
+    const lp  = document.getElementById('lobby-btn-pause');
+    const lr  = document.getElementById('lobby-btn-resume');
+    const lsl = document.getElementById('lobby-status-label');
+    if (lgs) lgs.style.display = 'flex';
+    if (lsb) lsb.style.display = 'none';
+    if (lp)  lp.style.display  = '';
+    if (lr)  lr.style.display  = 'none';
+    if (lsl) lsl.textContent   = '🔴 遊戲中';
     const rooms = window.getRooms();
     if (rooms[window.state.roomCode]) {
         rooms[window.state.roomCode].paused = false;
@@ -813,24 +855,47 @@ function tcSettleGame() {
         </div>`).join('')}`;
     window.pStates['teacher'].screen = 'screen-settlement';
     window.goTo('screen-settlement');
-    // 清除暫停狀態，通知學生遊戲已結束
+    // 把排名資料存入 Firebase，讓學生端可以顯示同樣的結算畫面
     const rooms = window.getRooms();
     if (rooms[window.state.roomCode]) {
-        rooms[window.state.roomCode].status = 'finished';
+        rooms[window.state.roomCode].status = 'settlement';
         rooms[window.state.roomCode].paused = false;
+        rooms[window.state.roomCode].finalScores = TC.scores;
+        rooms[window.state.roomCode].finalPlayers = window.state.players;
         window.saveRooms(rooms);
     }
     TC.paused = false;
     TC._lastPaused = false;
+    // 大廳：隱藏遊戲控制區
+    const lgs = document.getElementById('lobby-game-status');
+    const lsb = document.getElementById('lobby-start-btn');
+    const lp  = document.getElementById('lobby-btn-pause');
+    const lr  = document.getElementById('lobby-btn-resume');
+    const lsl = document.getElementById('lobby-status-label');
+    if (lgs) lgs.style.display = 'none';
+    if (lsb) lsb.style.display = '';
+    if (lp)  lp.style.display  = 'none';
+    if (lr)  lr.style.display  = 'none';
+    if (lsl) lsl.textContent   = '🔴 遊戲中';
 }
 
 function tcEndGame() {
     TC.running = false; TC.paused = false; TC._lastPaused = false;
     const sgIframe = document.getElementById('sg-iframe');
     if (sgIframe) { sgIframe.src = 'about:blank'; }
-    // 重置按鈕狀態
     document.getElementById('tc-btn-pause').style.display  = '';
     document.getElementById('tc-btn-resume').style.display = 'none';
+    // 大廳：隱藏遊戲控制區，顯示開始按鈕
+    const lgs = document.getElementById('lobby-game-status');
+    const lsb = document.getElementById('lobby-start-btn');
+    const lp  = document.getElementById('lobby-btn-pause');
+    const lr  = document.getElementById('lobby-btn-resume');
+    const lsl = document.getElementById('lobby-status-label');
+    if (lgs) lgs.style.display = 'none';
+    if (lsb) lsb.style.display = '';
+    if (lp)  lp.style.display  = 'none';
+    if (lr)  lr.style.display  = 'none';
+    if (lsl) lsl.textContent   = '🔴 遊戲中';
     const rooms = window.getRooms();
     if (rooms[window.state.roomCode]) {
         rooms[window.state.roomCode].status = 'lobby';
@@ -952,19 +1017,45 @@ setInterval(() => {
             TC._lastPaused = r.paused;
         }
     }
-    // 偵測遊戲結束 → 回等待畫面
+    // 偵測老師按下結算 → 學生顯示結算畫面
+    if (r.status === 'settlement' && pData.screen !== 'screen-settlement') {
+        // 用 Firebase 的排名資料渲染結算
+        if (r.finalScores && r.finalPlayers) {
+            const list = document.getElementById('settlement-list');
+            if (list) {
+                const sorted = [...r.finalPlayers].sort((a,b) => (r.finalScores[b.group]||0) - (r.finalScores[a.group]||0));
+                const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+                const colors = ['#FFD600','#C0C0C0','#CD7F32','#aaa','#aaa'];
+                list.innerHTML = `
+                    <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:1.4rem;color:#f5c800;margin-bottom:8px;text-align:center">⭐ 最終排名</div>
+                    ${sorted.map((p,i) => `
+                    <div style="display:flex;align-items:center;gap:16px;background:rgba(255,255,255,.08);border:3px solid ${colors[i]||'rgba(255,255,255,.15)'};border-radius:20px;padding:18px 28px;width:100%;max-width:560px">
+                        <div style="font-size:2.4rem;width:44px;text-align:center">${medals[i]||''}</div>
+                        <div style="font-size:2rem">${p.symbol}</div>
+                        <div style="flex:1;font-family:'Nunito',sans-serif;font-weight:900;font-size:1.1rem;color:white">${p.group}</div>
+                        <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:2.2rem;color:${colors[i]||'#f5c800'}">${r.finalScores[p.group]||0}</div>
+                    </div>`).join('')}`;
+            }
+            // 學生端隱藏返回大廳按鈕（只有老師能按）
+            const backBtn = document.getElementById('settlement-back-btn');
+            if (backBtn) backBtn.style.display = 'none';
+        }
+        pData.screen = 'screen-settlement';
+        window.goTo('screen-settlement');
+    }
+    // 偵測老師按下返回大廳（結算後）→ 學生也跟著回等待
     if (r.status === 'finished' && pData.screen === 'screen-student-game') {
         pData.screen = 'screen-student-wait';
         window.goTo('screen-student-wait');
         window.showToast('🏁 遊戲結束！');
     }
-    // 老師退回大廳 → 學生也跟著回等待畫面
-    if (r.status === 'lobby' && (pData.screen === 'screen-student-game' || pData.screen === 'screen-teacher-console')) {
+    // 老師退回大廳 → 學生跟著回等待畫面
+    if (r.status === 'lobby' && (pData.screen === 'screen-student-game' || pData.screen === 'screen-settlement')) {
         const sgIframe = document.getElementById('sg-iframe');
         if (sgIframe) sgIframe.src = 'about:blank';
         pData.screen = 'screen-student-wait';
         window.goTo('screen-student-wait');
-        window.showToast('⏹ 老師已暫停遊戲');
+        if (pData.screen === 'screen-student-game') window.showToast('⏹ 老師已暫停遊戲');
     }
 }, 1000);
 
