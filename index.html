@@ -1073,7 +1073,7 @@ function tcStartGame() {
     if (!players.length) { showToast('⚠️ 還沒有學生加入！'); return; }
     TC.running = true; TC.paused = false; TC._lastPaused = false;
 
-    // 修改: 支援分數累加邏輯
+    // 支援分數累加邏輯
     const rooms = window.getRooms();
     if (rooms[window.state.roomCode]) {
         if (!TC.isNextLevel) {
@@ -1157,12 +1157,31 @@ function tcStartGame() {
             badge.textContent = `M${lsW4SelectedMode||1} · LV${lsW4SelectedLevel||TC.level||1}`;
             badge.style.display = '';
         }
-        // 顯示底部「下一關」按鈕容器 (若未達滿關10關)
+        // 顯示底部「下一關」按鈕容器，並支援跨模式顯示
         const nextContainer = document.getElementById('tc-next-level-container');
         if (nextContainer) {
-            nextContainer.style.display = (lsW4SelectedLevel < 10) ? 'block' : 'none';
-            document.getElementById('nl-mode').textContent = lsW4SelectedMode || 1;
-            document.getElementById('nl-level').textContent = (lsW4SelectedLevel || TC.level || 1) + 1;
+            let nextM = lsW4SelectedMode || 1;
+            let nextL = (lsW4SelectedLevel || TC.level || 1) + 1;
+            let hasNext = true;
+            
+            if (nextL > 10) {
+                if (nextM < 3) {
+                    nextM++;
+                    nextL = 1;
+                } else {
+                    hasNext = false;
+                }
+            }
+
+            if (hasNext) {
+                nextContainer.style.display = 'block';
+                const elMode = document.getElementById('nl-mode');
+                const elLevel = document.getElementById('nl-level');
+                if (elMode) elMode.textContent = nextM;
+                if (elLevel) elLevel.textContent = nextL;
+            } else {
+                nextContainer.style.display = 'none';
+            }
         }
         
         tcRenderScores();
@@ -1200,26 +1219,29 @@ function tcStartGame() {
             : '🎮 遊戲開始！關卡 ' + TC.level);
 }
 
-// 修改: 下一關邏輯，直接啟動下一關，不回選關畫面
+// 修改: 下一關邏輯，直接啟動下一關，不回選關畫面，並支援跨模式銜接
+// 並移除 lobby 切換造成的畫面閃爍卡頓
 function tcW4NextLevel() {
+    let hasNext = true;
+    
     if (lsW4SelectedLevel < 10) {
         lsW4SelectedLevel++;
+    } else if (lsW4SelectedMode < 3) {
+        // 當前 LV10，且不是最後一個模式，切換到下一個模式的 LV1
+        lsW4SelectedMode++;
+        lsW4SelectedLevel = 1;
+    } else {
+        hasNext = false;
+    }
+
+    if (hasNext) {
         TC.level = lsW4SelectedLevel;
         TC.isNextLevel = true; // 告知 tcStartGame 這是下一關，保留分數
         
-        // 瞬間將狀態切為 lobby，讓學生端能卸載 iframe，再立即啟動遊戲
-        const rooms = window.getRooms();
-        if (rooms[window.state.roomCode]) {
-            rooms[window.state.roomCode].status = 'lobby';
-            window.saveRooms(rooms);
-        }
-        
-        // 延遲 200ms 等待學生端抓到 lobby 狀態並切換畫面後，直接進入下一關
-        setTimeout(() => {
-            tcStartGame();
-        }, 200);
+        // 直接啟動，不再透過切換 lobby 狀態來強迫載入，以避免 UI 卡頓與重新整理閃爍
+        tcStartGame();
     } else {
-        showToast('已是最後一關！');
+        showToast('已是最後一模式的最後一關！');
     }
 }
 
@@ -1249,6 +1271,13 @@ function tcLaunchStudentIfNeeded() {
     const gameFile = gameFiles[selectedGame] || gameFiles[0];
     const isW2 = selectedGame === 1;
     const isW4 = selectedGame === 3;
+
+    // 記錄目前載入的關卡狀態，防止輪詢重複觸發 iframe 重新載入
+    pData.gameLevel = level;
+    if (isW4) {
+        pData.w4mode = r.w4mode || 1;
+        pData.w4level = r.w4level || 1;
+    }
 
     // group 優先從 pData 取，沒有就從 Firebase rooms.players 找
     let myGroup = pData.group || '';
@@ -1283,7 +1312,12 @@ function tcLaunchStudentIfNeeded() {
             url = gameFile + '?autostart=' + level + '&group=' + encodeURIComponent(myGroup);
         }
         iframe.src = url;
+        
         iframe.onload = () => setTimeout(() => {
+            // ★ 修正快轉 Bug：W4 已經透過 URL 參數直接啟動遊戲引擎，
+            // 若再發送 PLATFORM_START 會造成重複開啟第二個遊戲迴圈，引發畫面快轉與卡頓
+            if (isW4) return; 
+            
             try {
                 const rooms2 = window.getRooms();
                 const r2 = rooms2[window.state.roomCode] || {};
@@ -1598,10 +1632,19 @@ setInterval(() => {
         window.showToast('🚪 房間已關閉');
         return;
     }
-    // 偵測老師按了開始遊戲
-    if (r.status === 'playing' && pData.screen !== 'screen-student-game') {
-        tcLaunchStudentIfNeeded();
+
+    // 偵測老師按了開始遊戲 或 關卡發生改變 (支援不回大廳直接切換 iframe 網址)
+    if (r.status === 'playing') {
+        const selGame = r.selectedGame !== undefined ? r.selectedGame : (window.state.selectedGame || 0);
+        const isNewGame = pData.screen !== 'screen-student-game';
+        const isW4Changed = selGame === 3 && (pData.w4mode !== r.w4mode || pData.w4level !== r.w4level);
+        const isOtherChanged = selGame !== 3 && pData.gameLevel !== r.gameLevel;
+        
+        if (isNewGame || isW4Changed || isOtherChanged) {
+            tcLaunchStudentIfNeeded();
+        }
     }
+
     // 偵測暫停/繼續
     if (r.status === 'playing' && pData.screen === 'screen-student-game') {
         const sgIfr = document.getElementById('sg-iframe');
