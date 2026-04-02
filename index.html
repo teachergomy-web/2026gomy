@@ -883,6 +883,8 @@ function lsW4CheckReady() {
         TC.level = lsW4SelectedLevel;
     }
 }
+
+function updateLevelDisplay() {
     const phases = ['','🌿 初級','⚡ 中級','🔥 高級'];
     const phase  = TC.level > 20 ? 3 : TC.level > 10 ? 2 : 1;
     const numEl   = document.getElementById('ls-level-num');
