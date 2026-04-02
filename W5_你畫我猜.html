@@ -6,80 +6,84 @@
 <title>你畫我猜 — W5</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
-:root {
-  --bg:#0e0e14; --surface:#16161f; --surface2:#1e1e2e; --border:#2e2e42;
-  --accent:#f7c948; --accent2:#ff5c5c; --accent3:#4ecdc4; --accent4:#a78bfa;
-  --text:#e8e8f0; --muted:#6b6b8a; --green:#34d399; --red:#f87171;
+:root{
+  --bg:#0e0e14;--surface:#16161f;--surface2:#1e1e2e;--border:#2e2e42;
+  --accent:#f7c948;--accent2:#ff5c5c;--accent3:#4ecdc4;--accent4:#a78bfa;
+  --text:#e8e8f0;--muted:#6b6b8a;--green:#34d399;--red:#f87171;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;}
-
-.screen{position:fixed;top:0;left:0;width:100%;height:100%;display:none;flex-direction:column;align-items:center;overflow-y:auto;}
+.screen{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;overflow-y:auto;}
 .screen.on{display:flex;}
-
 .pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-family:'Space Mono',monospace;background:var(--surface2);border:1px solid var(--border);padding:4px 12px;border-radius:20px;color:var(--muted);}
 .pill.live{border-color:var(--accent2);color:var(--accent2);}
 .pill.ok{border-color:var(--green);color:var(--green);}
 .pill.wait{border-color:var(--accent);color:var(--accent);}
-
-.btn{font-family:'Space Mono',monospace;font-size:13px;border:none;border-radius:8px;padding:12px 22px;cursor:pointer;transition:all .15s;font-weight:700;letter-spacing:.5px;}
+.btn{font-family:'Space Mono',monospace;font-size:13px;border:none;border-radius:8px;padding:12px 20px;cursor:pointer;transition:all .15s;font-weight:700;}
 .btn:active{transform:scale(.97);}
 .btn-yellow{background:var(--accent);color:#000;}
 .btn-red{background:var(--accent2);color:#fff;}
 .btn-purple{background:var(--accent4);color:#fff;}
 .btn-teal{background:var(--accent3);color:#000;}
-.btn-green{background:var(--green);color:#000;}
 .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text);}
 .btn:disabled{opacity:.4;cursor:not-allowed;}
 
-/* WAIT OVERLAY */
+/* ── WAIT OVERLAY ── */
 .wait-overlay{position:absolute;inset:0;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:20;text-align:center;padding:24px;}
-.wait-overlay .big-icon{font-size:56px;line-height:1;}
+.wait-overlay .big-icon{font-size:56px;}
 .wait-overlay h2{font-size:22px;font-weight:900;color:var(--accent);}
-.wait-overlay p{color:var(--muted);font-size:14px;line-height:1.7;}
-.wait-overlay .locked-ans{font-size:18px;font-weight:700;color:var(--green);background:rgba(52,211,153,.1);border:1px dashed var(--green);padding:10px 24px;border-radius:8px;margin-top:8px;}
+.wait-overlay p{color:var(--muted);font-size:14px;line-height:1.8;white-space:pre-wrap;}
 
 /* ── TEACHER ── */
-#teacher-screen{padding:16px;gap:12px;}
+#teacher-screen{padding:14px 16px;gap:12px;background:var(--bg);}
 .t-header{width:100%;max-width:1100px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
-.t-header h1{font-size:18px;font-weight:900;color:var(--accent);font-family:'Space Mono',monospace;}
+.t-header h1{font-size:17px;font-weight:900;color:var(--accent);font-family:'Space Mono',monospace;}
 #t-main-btn{min-width:180px;}
 
-/* Score row */
+/* Score strip */
 .t-scores{width:100%;max-width:1100px;display:flex;gap:8px;flex-wrap:wrap;}
-.score-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 16px;display:flex;align-items:center;gap:10px;}
+.score-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:8px 16px;display:flex;align-items:center;gap:10px;}
 .sc-name{font-size:12px;color:var(--muted);}
-.sc-pts{font-size:22px;font-weight:900;font-family:'Space Mono',monospace;color:var(--accent);}
+.sc-pts{font-size:20px;font-weight:900;font-family:'Space Mono',monospace;color:var(--accent);}
 
-/* Canvas grid — top 画作, bottom 答案 */
-#t-canvas-grid{width:100%;max-width:1100px;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;}
+/* Drawing grid — always visible during DRAWING/GUESSING/REVEAL */
+#t-canvas-grid{
+  width:100%;max-width:1100px;
+  display:none;
+  grid-template-columns:repeat(auto-fill,minmax(240px,1fr));
+  gap:12px;
+}
+/* next round btn */
+#t-next-btn{display:none;align-self:center;}
+
+/* Each card */
 .t-dc{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;}
-.t-dc .dc-head{padding:8px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);flex-shrink:0;}
-.t-dc .dc-group{font-weight:700;font-size:13px;}
-.t-dc .dc-status{font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;}
-.t-dc .dc-canvas-area{background:#fff;width:100%;aspect-ratio:4/3;overflow:hidden;flex-shrink:0;}
-.t-dc .dc-canvas-area img{width:100%;height:100%;object-fit:contain;display:block;}
-.t-dc .dc-info{padding:10px 12px;display:flex;flex-direction:column;gap:6px;}
-.t-dc .dc-topic{font-size:12px;color:var(--muted);}
-.t-dc .dc-topic strong{color:var(--accent);}
-.t-dc .dc-guess-row{font-size:12px;padding:6px 8px;border-radius:6px;background:var(--surface2);}
-.t-dc .dc-guess-row.correct{background:rgba(52,211,153,.15);color:var(--green);}
-.t-dc .dc-guess-row.wrong{background:rgba(248,113,113,.15);color:var(--red);}
-.t-dc .dc-guess-row.pending{color:var(--muted);}
+.dc-head{padding:8px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);flex-shrink:0;}
+.dc-group{font-weight:700;font-size:13px;}
+.dc-status{font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;}
+.dc-img{background:#fff;width:100%;aspect-ratio:4/3;flex-shrink:0;overflow:hidden;}
+.dc-img img{width:100%;height:100%;object-fit:contain;display:block;}
+.dc-foot{padding:10px 12px;display:flex;flex-direction:column;gap:6px;font-size:12px;}
+.dc-topic-line{color:var(--muted);}
+.dc-topic-line strong{color:var(--accent);}
+.dc-answer-box{padding:7px 10px;border-radius:7px;background:var(--surface2);font-size:12px;}
+.dc-answer-box.correct{background:rgba(52,211,153,.15);color:var(--green);}
+.dc-answer-box.wrong{background:rgba(248,113,113,.15);color:var(--red);}
+.dc-answer-box.pending{color:var(--muted);}
+.dc-answer-box.submitted{color:var(--accent3);}
 
 /* Rules card */
-#t-rules-card{width:100%;max-width:700px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px 28px;}
-.rules-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-@media(max-width:500px){.rules-grid{grid-template-columns:1fr;}}
-.rule-item{background:var(--surface2);border-radius:10px;padding:12px 14px;}
+#t-rules-card{width:100%;max-width:700px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px 26px;display:none;}
+.rules-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+@media(max-width:480px){.rules-grid{grid-template-columns:1fr;}}
+.rule-item{background:var(--surface2);border-radius:10px;padding:11px 13px;}
 
 /* ── STUDENT ── */
 #student-screen{position:relative;}
-
 #s-rules{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:28px 20px;text-align:center;}
-#s-rules .rule-title{font-size:26px;font-weight:900;color:var(--accent);}
-#s-rules .rule-group{font-size:15px;color:var(--accent3);font-family:'Space Mono',monospace;}
-#s-rules ul{list-style:none;display:flex;flex-direction:column;gap:10px;max-width:380px;text-align:left;}
+.rule-title{font-size:26px;font-weight:900;color:var(--accent);}
+.rule-group{font-size:15px;color:var(--accent3);font-family:'Space Mono',monospace;}
+#s-rules ul{list-style:none;display:flex;flex-direction:column;gap:9px;max-width:360px;text-align:left;}
 #s-rules li{font-size:14px;color:var(--text);padding-left:20px;position:relative;line-height:1.6;}
 #s-rules li::before{content:'→';position:absolute;left:0;color:var(--accent);}
 
@@ -95,13 +99,13 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 #s-size-slider{width:70px;accent-color:var(--accent);cursor:pointer;}
 
 #s-guess{width:100%;height:100%;display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:12px;}
-#s-guess-title{font-size:20px;font-weight:900;color:var(--text);}
+#s-guess-title{font-size:20px;font-weight:900;}
 #s-guess-img{max-width:380px;width:90%;border-radius:10px;border:3px solid var(--accent);background:#fff;}
 #s-guess-from{font-size:12px;color:var(--muted);font-family:'Space Mono',monospace;}
 #s-guess-area{width:90%;max-width:400px;display:flex;flex-direction:column;gap:8px;}
 #s-guess-input{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:18px;font-family:'Noto Sans TC',sans-serif;padding:14px 16px;border-radius:8px;outline:none;text-align:center;}
 #s-guess-input:focus{border-color:var(--accent);}
-#s-guess-submitted{display:none;font-size:13px;color:var(--muted);text-align:center;}
+#s-guess-submitted{display:none;font-size:13px;color:var(--muted);text-align:center;padding:4px 0;}
 
 #s-result{width:100%;height:100%;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;}
 .res-emoji{font-size:70px;animation:pop .4s cubic-bezier(.175,.885,.32,1.275);}
@@ -109,24 +113,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 .res-sub{font-size:14px;color:var(--muted);line-height:1.7;}
 .res-pts{font-size:18px;font-family:'Space Mono',monospace;}
 @keyframes pop{from{transform:scale(.3);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes pulse{from{opacity:1}to{opacity:.4}}
 
 #round-badge{position:fixed;top:8px;right:10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:10px;font-family:'Space Mono',monospace;color:var(--muted);z-index:100;display:none;}
 ::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
-
-/* REVEAL MODAL */
-#reveal-modal{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:500;padding:16px;}
-#reveal-modal.on{display:flex;}
-#reveal-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:720px;max-height:90vh;overflow-y:auto;padding:24px;}
-#reveal-box h2{font-size:20px;font-weight:900;color:var(--accent);margin-bottom:16px;text-align:center;}
-#reveal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:20px;}
-.rv-card{background:var(--surface2);border-radius:10px;overflow:hidden;border:2px solid var(--border);}
-.rv-card .rv-head{padding:8px 10px;font-size:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
-.rv-card img{width:100%;height:110px;object-fit:contain;background:#fff;display:block;}
-.rv-card .rv-body{padding:8px 10px;}
-.rv-card .rv-ans{font-size:12px;font-weight:700;margin-bottom:3px;}
-.rv-card .rv-guess{font-size:11px;color:var(--muted);}
-.rv-card.correct{border-color:var(--green);}
-.rv-card.wrong{border-color:var(--red);}
 
 /* TIMER RING */
 .timer-ring{position:relative;width:52px;height:52px;flex-shrink:0;}
@@ -134,37 +124,43 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 .timer-ring circle.bg{fill:none;stroke:var(--border);stroke-width:4;}
 .timer-ring circle.fg{fill:none;stroke:var(--accent);stroke-width:4;stroke-linecap:round;transition:stroke-dashoffset .9s linear,stroke .3s;}
 .ring-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-size:13px;font-weight:700;color:var(--accent);}
-@keyframes pulse{from{opacity:1}to{opacity:.4}}
 .ring-warn .fg{stroke:var(--accent2)!important;}
 .ring-warn .ring-num{color:var(--accent2);animation:pulse .6s infinite alternate;}
 </style>
 </head>
 <body>
-
 <div id="round-badge">ROUND 1</div>
 
-<!-- TEACHER -->
+<!-- ═══ TEACHER SCREEN ═══ -->
 <div id="teacher-screen" class="screen on">
   <div class="t-header">
     <h1>你畫我猜 🎨</h1>
     <span id="t-phase-pill" class="pill">待開始</span>
     <button id="t-main-btn" class="btn btn-yellow" onclick="teacherAction()">隨機出題 · 開始作畫</button>
   </div>
-  <div id="t-rules-card" style="display:none">
-    <div style="font-size:14px;font-weight:900;color:var(--accent);margin-bottom:14px;font-family:'Space Mono',monospace;">📋 遊戲說明</div>
+
+  <!-- Rules (IDLE only) -->
+  <div id="t-rules-card">
+    <div style="font-size:13px;font-weight:900;color:var(--accent);margin-bottom:12px;font-family:'Space Mono',monospace;">📋 遊戲說明</div>
     <div class="rules-grid">
-      <div class="rule-item" style="border-left:3px solid var(--accent)"><div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:5px">🎨 作畫階段</div><div style="font-size:12px;color:var(--muted);line-height:1.6">各組依隨機題目作畫，限時 <strong style="color:var(--text)">60 秒</strong>，可提早交卷。</div></div>
-      <div class="rule-item" style="border-left:3px solid var(--accent3)"><div style="font-size:11px;font-weight:700;color:var(--accent3);margin-bottom:5px">🤔 猜題階段</div><div style="font-size:12px;color:var(--muted);line-height:1.6">畫作自動傳給下一組猜，各組輸入答案後確認送出。</div></div>
-      <div class="rule-item" style="border-left:3px solid var(--accent4)"><div style="font-size:11px;font-weight:700;color:var(--accent4);margin-bottom:5px">🎯 公布答案</div><div style="font-size:12px;color:var(--muted);line-height:1.6">老師統一開獎，猜對雙方得分：猜題 <strong style="color:var(--text)">+2</strong>、出題 <strong style="color:var(--text)">+1</strong>。</div></div>
-      <div class="rule-item" style="border-left:3px solid var(--green)"><div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:5px">🔄 輪流</div><div style="font-size:12px;color:var(--muted);line-height:1.6">可多輪進行，老師按「隨機出題」開始每輪，結束統一結算。</div></div>
+      <div class="rule-item" style="border-left:3px solid var(--accent)"><div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:4px">🎨 作畫階段</div><div style="font-size:12px;color:var(--muted);line-height:1.6">各組依隨機題目作畫，限時 <b style="color:var(--text)">60 秒</b>，可提早交卷。</div></div>
+      <div class="rule-item" style="border-left:3px solid var(--accent3)"><div style="font-size:11px;font-weight:700;color:var(--accent3);margin-bottom:4px">🤔 猜題階段</div><div style="font-size:12px;color:var(--muted);line-height:1.6">畫作傳給下一組猜，可修改答案直到老師開獎。</div></div>
+      <div class="rule-item" style="border-left:3px solid var(--accent4)"><div style="font-size:11px;font-weight:700;color:var(--accent4);margin-bottom:4px">🎯 公布答案</div><div style="font-size:12px;color:var(--muted);line-height:1.6">老師開獎，猜對雙方得分：猜題 <b style="color:var(--text)">+2</b>、出題 <b style="color:var(--text)">+1</b>。</div></div>
+      <div class="rule-item" style="border-left:3px solid var(--green)"><div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:4px">🔄 輪流</div><div style="font-size:12px;color:var(--muted);line-height:1.6">可多輪進行，老師按「隨機出題」開始每輪。</div></div>
     </div>
   </div>
+
+  <!-- Score strip -->
   <div class="t-scores" id="t-scores" style="display:none"></div>
-  <div id="t-canvas-grid" style="display:none"></div>
-  <div style="height:20px;"></div>
+
+  <!-- Canvas grid (DRAWING / GUESSING / REVEAL) -->
+  <div id="t-canvas-grid"></div>
+
+  <!-- Next round button (REVEAL only) -->
+  <button id="t-next-btn" class="btn btn-yellow" onclick="nextRound()" style="font-size:15px;padding:14px 40px;margin-bottom:20px;">下一輪 →</button>
 </div>
 
-<!-- STUDENT -->
+<!-- ═══ STUDENT SCREEN ═══ -->
 <div id="student-screen" class="screen">
   <!-- Rules -->
   <div id="s-rules">
@@ -173,19 +169,26 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
     <ul>
       <li>收到題目後限時 <strong>60 秒</strong>畫出來</li>
       <li>可以提早交卷，等待倒數結束</li>
-      <li>時間到，畫作傳給另一組猜</li>
+      <li>時間到畫作自動傳給另一組猜</li>
       <li>猜對：猜題組 +2 分，出題組 +1 分</li>
       <li>老師統一公布答案後進入下一輪</li>
     </ul>
     <div class="pill wait">等待老師出題...</div>
   </div>
+
   <!-- Draw -->
   <div id="s-draw">
     <div id="s-draw-banner">
-      <div><div style="font-size:10px;color:var(--muted);margin-bottom:2px;">你的題目</div><div id="s-draw-topic" style="font-size:20px;font-weight:900;color:var(--accent);">???</div></div>
+      <div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:2px;">你的題目</div>
+        <div id="s-draw-topic" style="font-size:20px;font-weight:900;color:var(--accent);">???</div>
+      </div>
       <div style="display:flex;align-items:center;gap:10px;">
         <div class="timer-ring" id="s-timer-ring">
-          <svg viewBox="0 0 52 52" width="52" height="52"><circle class="bg" cx="26" cy="26" r="22"/><circle class="fg" id="t-ring-fg" cx="26" cy="26" r="22" stroke-dasharray="138.2" stroke-dashoffset="0"/></svg>
+          <svg viewBox="0 0 52 52" width="52" height="52">
+            <circle class="bg" cx="26" cy="26" r="22"/>
+            <circle class="fg" id="t-ring-fg" cx="26" cy="26" r="22" stroke-dasharray="138.2" stroke-dashoffset="0"/>
+          </svg>
           <div class="ring-num" id="s-timer-num">60</div>
         </div>
         <button class="btn btn-teal" id="s-submit-btn" onclick="studentSubmitDrawing()">提早交卷</button>
@@ -199,23 +202,29 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
       <div class="s-color" style="background:#2ecc71" data-c="#2ecc71" onclick="pickColor(this)"></div>
       <div class="s-color" style="background:#3498db" data-c="#3498db" onclick="pickColor(this)"></div>
       <div class="s-color" style="background:#9b59b6" data-c="#9b59b6" onclick="pickColor(this)"></div>
-      <div class="s-color" style="background:#ffffff;border:2px solid #aaa;" data-c="#ffffff" onclick="pickColor(this)" title="橡皮擦"></div>
+      <div class="s-color" style="background:#fff;border:2px solid #aaa;" data-c="#ffffff" onclick="pickColor(this)" title="橡皮擦"></div>
       <div class="s-tool-sep"></div>
       <input type="range" id="s-size-slider" min="3" max="30" value="8">
       <button class="btn btn-ghost" onclick="clearCanvas()" style="font-size:11px;padding:7px 11px;">清除</button>
     </div>
   </div>
+
   <!-- Guess -->
   <div id="s-guess">
-    <div id="s-guess-title">這是什麼？🤔</div>
+    <div id="s-guess-title" style="font-size:20px;font-weight:900;">這是什麼？🤔</div>
     <div id="s-guess-from" class="pill">來自 ? 的畫作</div>
     <img id="s-guess-img" src="" alt="">
     <div id="s-guess-area">
       <input type="text" id="s-guess-input" placeholder="輸入你的答案..." autocomplete="off">
       <button class="btn btn-yellow" id="s-guess-btn" onclick="studentSubmitGuess()" style="width:100%;font-size:15px;padding:14px;">確定</button>
-      <div id="s-guess-submitted">✅ 已送出：<span id="s-guess-submitted-val"></span>　<span style="color:var(--accent);cursor:pointer;text-decoration:underline;" onclick="editGuess()">重新修改</span></div>
+      <div id="s-guess-submitted">
+        ✅ 已送出：<strong id="s-guess-submitted-val"></strong>
+        &nbsp;
+        <span style="color:var(--accent);cursor:pointer;text-decoration:underline;" onclick="editGuess()">重新修改</span>
+      </div>
     </div>
   </div>
+
   <!-- Result -->
   <div id="s-result">
     <div class="res-emoji" id="res-emoji">🎉</div>
@@ -223,35 +232,27 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
     <div class="res-sub" id="res-sub"></div>
     <div class="res-pts" id="res-pts"></div>
   </div>
+
   <!-- Wait overlay -->
   <div class="wait-overlay" id="s-wait" style="display:none;">
     <div class="big-icon" id="sw-icon">⏳</div>
     <h2 id="sw-title">請稍候</h2>
     <p id="sw-msg"></p>
-    <div class="locked-ans" id="sw-locked" style="display:none;"></div>
-  </div>
-</div>
-
-<!-- REVEAL MODAL -->
-<div id="reveal-modal">
-  <div id="reveal-box">
-    <h2>🎯 公布答案！</h2>
-    <div id="reveal-grid"></div>
-    <div style="display:flex;gap:10px;justify-content:center;">
-      <button class="btn btn-yellow" onclick="nextRound()">下一輪 →</button>
-      <button class="btn btn-ghost" onclick="closeReveal()">關閉</button>
-    </div>
   </div>
 </div>
 
 <script>
+// ─────────────────────────────────────────
+// CONSTANTS & STATE
+// ─────────────────────────────────────────
 const TOPICS=["大象","火車","電腦","珍珠奶茶","長頸鹿","麥當勞","機器人","太空船","警察局","烤肉","彩虹","腳踏車","直升機","鬼屋","冰淇淋","蜘蛛人","聖誕樹","滑水道","潛水艇","比薩斜塔","柯基犬","熱氣球","恐龍","花椰菜","消防車","釣魚","溜冰"];
 const GC=["#f7c948","#ff5c5c","#4ecdc4","#a78bfa"];
 const DRAW_TIME=60;
+const EMPTY='data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==';
 
-let isTeacher=false, myGroup='', currentGroupIdx=-1;
+let isTeacher=false, myGroup='', myIdx=-1;
 
-function defaultState(){
+function mkState(){
   return{phase:'IDLE',round:0,time:DRAW_TIME,groups:[
     {id:0,name:"第 1 組",score:0,topic:'',imgData:'',submitted:false,guess:'',guessSubmitted:false,guessFrom:-1},
     {id:1,name:"第 2 組",score:0,topic:'',imgData:'',submitted:false,guess:'',guessSubmitted:false,guessFrom:-1},
@@ -259,184 +260,186 @@ function defaultState(){
     {id:3,name:"第 4 組",score:0,topic:'',imgData:'',submitted:false,guess:'',guessSubmitted:false,guessFrom:-1},
   ]};
 }
-let state=defaultState(), timer=null;
+let S=mkState(), timer=null;
 
-// ── push to Firebase via parent ──
-function pushState(){
-  try{ window.parent.postMessage({type:'W5_STATE',data:JSON.parse(JSON.stringify(state))},'*'); }catch(e){}
+// ─────────────────────────────────────────
+// SYNC
+// ─────────────────────────────────────────
+function push(){
+  try{ window.parent.postMessage({type:'W5_STATE',data:JSON.parse(JSON.stringify(S))},'*'); }catch(e){}
 }
 
-// ── receive messages ──
-window.addEventListener('message',(e)=>{
-  if(!e.data||!e.data.type) return;
+window.addEventListener('message',ev=>{
+  if(!ev.data?.type) return;
+  const d=ev.data;
 
-  if(e.data.type==='PLATFORM_START'){
-    isTeacher=!!e.data.isTeacher;
-    myGroup=e.data.group||'';
+  // ── Init ──
+  if(d.type==='PLATFORM_START'){
+    isTeacher=!!d.isTeacher; myGroup=d.group||'';
     if(isTeacher){
-      state=e.data.state||defaultState();
-      document.getElementById('teacher-screen').classList.add('on');
-      document.getElementById('student-screen').classList.remove('on');
-      currentGroupIdx=-1;
-      renderTeacher();
-      if(state.phase==='DRAWING'&&state.time>0) startTimer();
+      S=d.state||mkState();
+      show('teacher-screen'); hide('student-screen');
+      myIdx=-1; renderT();
+      if(S.phase==='DRAWING'&&S.time>0) startTimer();
     } else {
-      if(e.data.state) state=e.data.state;
-      document.getElementById('student-screen').classList.add('on');
-      document.getElementById('teacher-screen').classList.remove('on');
-      currentGroupIdx=state.groups.findIndex(g=>g.name===myGroup);
-      if(currentGroupIdx<0) currentGroupIdx=0;
-      renderStudent();
-      if(state.phase==='DRAWING'&&!state.groups[currentGroupIdx]?.submitted) setTimeout(resizeCanvas,60);
+      if(d.state) S=d.state;
+      show('student-screen'); hide('teacher-screen');
+      myIdx=S.groups.findIndex(g=>g.name===myGroup);
+      if(myIdx<0) myIdx=0;
+      renderS();
+      if(S.phase==='DRAWING'&&!S.groups[myIdx]?.submitted) setTimeout(resizeCanvas,60);
     }
     return;
   }
 
-  // Teacher triggers canvas capture on all students
-  if(e.data.type==='W5_FORCE_COLLECT'&&!isTeacher){
-    if(currentGroupIdx>=0){
-      const g=state.groups[currentGroupIdx];
-      if(g&&!g.submitted&&state.phase==='DRAWING'){
-        g.imgData=canvas.toDataURL('image/png');
-        g.submitted=true;
-        pushState();
-      }
-    }
-    return;
-  }
-
-  if(e.data.type==='W5_STATE'&&e.data.data){
-    const inc=e.data.data;
-    // preserve local imgData that hasn't been pushed yet
-    if(state.groups&&inc.groups){
+  // ── Incoming state from Firebase ──
+  if(d.type==='W5_STATE'&&d.data){
+    const inc=d.data;
+    // Preserve local imgData not yet in Firebase
+    if(S.groups&&inc.groups){
       inc.groups.forEach((ig,i)=>{
-        if(state.groups[i]?.imgData&&!ig.imgData) ig.imgData=state.groups[i].imgData;
+        if(S.groups[i]?.imgData&&!ig.imgData) ig.imgData=S.groups[i].imgData;
       });
     }
-    // On student side: also preserve local guess edits (don't overwrite what student typed)
-    if(!isTeacher&&currentGroupIdx>=0&&inc.groups){
-      const myOld=state.groups[currentGroupIdx];
-      const myNew=inc.groups[currentGroupIdx];
-      if(myOld&&myNew&&myOld.guess&&!myNew.guess) myNew.guess=myOld.guess;
+    // Prevent timer tick from overwriting student's own submitted flag
+    if(!isTeacher&&myIdx>=0&&inc.groups){
+      const mine=inc.groups[myIdx];
+      if(mine&&S.groups[myIdx]?.submitted) mine.submitted=true;
+      if(mine&&S.groups[myIdx]?.imgData&&!mine.imgData) mine.imgData=S.groups[myIdx].imgData;
+      // Preserve typed guess
+      if(mine&&!mine.guess&&S.groups[myIdx]?.guess) mine.guess=S.groups[myIdx].guess;
     }
-    state=inc;
-    if(isTeacher){ renderTeacher(); }
+    S=inc;
+    if(isTeacher){ renderT(); }
     else{
-      renderStudent();
-      if(state.phase==='DRAWING'&&currentGroupIdx>=0&&!state.groups[currentGroupIdx]?.submitted) setTimeout(resizeCanvas,60);
+      renderS();
+      if(S.phase==='DRAWING'&&myIdx>=0&&!S.groups[myIdx]?.submitted) setTimeout(resizeCanvas,60);
+    }
+    return;
+  }
+
+  // ── Force collect (time up) ──
+  if(d.type==='W5_FORCE_COLLECT'&&!isTeacher){
+    if(myIdx>=0){
+      const g=S.groups[myIdx];
+      if(g&&!g.submitted&&S.phase==='DRAWING'){
+        g.imgData=canvas.toDataURL('image/png');
+        g.submitted=true;
+        push(); // push imgData immediately
+      }
     }
   }
 });
 
-// ── CANVAS ──
+// ─────────────────────────────────────────
+// CANVAS
+// ─────────────────────────────────────────
 const canvas=document.getElementById('drawCanvas');
 const ctx=canvas.getContext('2d',{willReadFrequently:true});
-let curColor='#111',curSize=8,painting=false,touches={};
+let curColor='#111',curSize=8,painting=false,tchs={};
+
 function resizeCanvas(){
-  const w=document.getElementById('canvas-wrap');
-  if(!w)return;
-  const img=ctx.getImageData(0,0,canvas.width,canvas.height);
+  const w=document.getElementById('canvas-wrap'); if(!w)return;
+  const prev=ctx.getImageData(0,0,canvas.width,canvas.height);
   canvas.width=w.clientWidth; canvas.height=w.clientHeight;
-  ctx.putImageData(img,0,0); ctx.lineCap='round'; ctx.lineJoin='round';
+  ctx.putImageData(prev,0,0); ctx.lineCap='round'; ctx.lineJoin='round';
 }
 window.addEventListener('resize',resizeCanvas);
+
 function gp(e,t){const r=canvas.getBoundingClientRect();return{x:(t.clientX-r.left)*(canvas.width/r.width),y:(t.clientY-r.top)*(canvas.height/r.height)};}
 function dot(p){ctx.beginPath();ctx.arc(p.x,p.y,curSize/2,0,Math.PI*2);ctx.fillStyle=curColor;ctx.fill();}
 function ln(a,b){ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.lineWidth=curSize;ctx.strokeStyle=curColor;ctx.stroke();}
-canvas.addEventListener('touchstart',e=>{e.preventDefault();for(const t of e.changedTouches){const p=gp(e,t);touches[t.identifier]=p;dot(p);}},{passive:false});
-canvas.addEventListener('touchmove', e=>{e.preventDefault();for(const t of e.changedTouches){const pv=touches[t.identifier];if(pv){const p=gp(e,t);ln(pv,p);touches[t.identifier]=p;}}},{passive:false});
-canvas.addEventListener('touchend',  e=>{e.preventDefault();for(const t of e.changedTouches)delete touches[t.identifier];},{passive:false});
-canvas.addEventListener('mousedown', e=>{painting=true;const p=gp(e,e);touches.mouse=p;dot(p);});
-canvas.addEventListener('mousemove', e=>{if(!painting)return;const p=gp(e,e);ln(touches.mouse,p);touches.mouse=p;});
-window.addEventListener('mouseup',   ()=>{painting=false;delete touches.mouse;});
+canvas.addEventListener('touchstart',e=>{e.preventDefault();for(const t of e.changedTouches){const p=gp(e,t);tchs[t.identifier]=p;dot(p);}},{passive:false});
+canvas.addEventListener('touchmove', e=>{e.preventDefault();for(const t of e.changedTouches){const pv=tchs[t.identifier];if(pv){const p=gp(e,t);ln(pv,p);tchs[t.identifier]=p;}}},{passive:false});
+canvas.addEventListener('touchend',  e=>{e.preventDefault();for(const t of e.changedTouches)delete tchs[t.identifier];},{passive:false});
+canvas.addEventListener('mousedown', e=>{painting=true;const p=gp(e,e);tchs.mouse=p;dot(p);});
+canvas.addEventListener('mousemove', e=>{if(!painting)return;const p=gp(e,e);ln(tchs.mouse,p);tchs.mouse=p;});
+window.addEventListener('mouseup',   ()=>{painting=false;delete tchs.mouse;});
 function clearCanvas(){ctx.clearRect(0,0,canvas.width,canvas.height);}
 function pickColor(el){curColor=el.dataset.c;document.querySelectorAll('.s-color').forEach(b=>b.classList.remove('sel'));el.classList.add('sel');}
 document.getElementById('s-size-slider').addEventListener('input',e=>{curSize=+e.target.value;});
 
-// ── TEACHER LOGIC ──
+// ─────────────────────────────────────────
+// TEACHER LOGIC
+// ─────────────────────────────────────────
 function teacherAction(){
-  if(state.phase==='IDLE'||state.phase==='REVEAL') startRound();
-  else if(state.phase==='DRAWING') forceCollect();
-  else if(state.phase==='GUESSING') revealAnswers();
+  if(S.phase==='IDLE'||S.phase==='REVEAL') startRound();
+  else if(S.phase==='DRAWING') forceCollect();
+  else if(S.phase==='GUESSING') revealAnswers();
 }
+
 function startRound(){
   clearInterval(timer);
-  state.round++; state.phase='DRAWING'; state.time=DRAW_TIME;
+  S.round++; S.phase='DRAWING'; S.time=DRAW_TIME;
   const sh=[...TOPICS].sort(()=>Math.random()-.5);
-  state.groups.forEach((g,i)=>{
+  S.groups.forEach((g,i)=>{
     g.imgData=''; g.submitted=false; g.guess=''; g.guessSubmitted=false;
     g.topic=sh[i%sh.length];
-    g.guessFrom=(i+state.groups.length-1)%state.groups.length;
+    g.guessFrom=(i+S.groups.length-1)%S.groups.length;
+    g.score=g.score||0;
   });
-  clearCanvas(); pushState(); startTimer(); renderTeacher();
+  clearCanvas(); push(); startTimer(); renderT();
 }
+
 function startTimer(){
   clearInterval(timer);
   timer=setInterval(()=>{
-    state.time--;
-    // Push full state every 5s, timer only every second for UI
-    if(state.time%5===0||state.time<=10) pushState();
+    S.time--;
+    // Push every 5s or last 10s every second (reduce Firebase writes)
+    if(S.time%5===0||S.time<=10) push();
     updateTimerUI();
-    if(state.time<=0){clearInterval(timer);forceCollect();}
+    if(S.time<=0){ clearInterval(timer); forceCollect(); }
   },1000);
 }
+
 function forceCollect(){
   clearInterval(timer);
+  // 1) Signal students to auto-capture NOW
   try{ window.parent.postMessage({type:'W5_FORCE_COLLECT'},'*'); }catch(e){}
+  // 2) Wait 400ms for students to push their imgData, then switch phase
   setTimeout(()=>{
-    state.phase='GUESSING';
-    pushState(); renderTeacher();
-  },300);
+    S.phase='GUESSING';
+    push(); renderT();
+  },400);
 }
-function revealAnswers(){
-  state.phase='REVEAL';
-  state.groups.forEach(g=>{
-    const painter=state.groups[g.guessFrom];
-    const correct=painter&&g.guess.trim()===painter.topic.trim();
-    if(correct){g.score+=2;painter.score+=1;}
-  });
-  try{state.groups.forEach(g=>window.parent.postMessage({type:'W5_SCORE',group:g.name,score:g.score},'*'));}catch(e){}
-  pushState(); renderTeacher(); showRevealModal();
-}
-function showRevealModal(){
-  const grid=document.getElementById('reveal-grid');
-  grid.innerHTML='';
-  state.groups.forEach(g=>{
-    const painter=state.groups[g.guessFrom]; if(!painter)return;
-    const correct=g.guess.trim()===painter.topic.trim();
-    const c=document.createElement('div');
-    c.className='rv-card '+(correct?'correct':'wrong');
-    c.innerHTML=`<div class="rv-head"><span style="color:${GC[g.guessFrom]}">${painter.name}</span><span>${correct?'✅':'❌'}</span></div>
-      <img src="${painter.imgData||''}" alt="">
-      <div class="rv-body"><div class="rv-ans">題目：${painter.topic}</div><div class="rv-guess">${g.name}猜：<strong>${g.guess||'(未作答)'}</strong></div></div>`;
-    grid.appendChild(c);
-  });
-  document.getElementById('reveal-modal').classList.add('on');
-}
-function closeReveal(){document.getElementById('reveal-modal').classList.remove('on');}
-function nextRound(){closeReveal();state.phase='IDLE';pushState();renderTeacher();}
 
-// ── STUDENT LOGIC ──
+function revealAnswers(){
+  S.phase='REVEAL';
+  S.groups.forEach(g=>{
+    const painter=S.groups[g.guessFrom];
+    if(!painter) return;
+    const correct=g.guess.trim()!==''&&g.guess.trim()===painter.topic.trim();
+    if(correct){ g.score+=2; painter.score+=1; }
+  });
+  try{ S.groups.forEach(g=>window.parent.postMessage({type:'W5_SCORE',group:g.name,score:g.score},'*')); }catch(e){}
+  push(); renderT();
+}
+
+function nextRound(){
+  S.phase='IDLE'; push(); renderT();
+}
+
+// ─────────────────────────────────────────
+// STUDENT LOGIC
+// ─────────────────────────────────────────
 function studentSubmitDrawing(){
-  if(currentGroupIdx<0)return;
-  const g=state.groups[currentGroupIdx];
-  if(state.phase!=='DRAWING'||g.submitted)return;
+  if(myIdx<0) return;
+  const g=S.groups[myIdx];
+  if(S.phase!=='DRAWING'||g.submitted) return;
   g.imgData=canvas.toDataURL('image/png');
   g.submitted=true;
-  pushState();
-  renderStudent();
+  push(); renderS();
 }
 
 function studentSubmitGuess(){
-  if(currentGroupIdx<0)return;
-  const g=state.groups[currentGroupIdx];
-  if(state.phase!=='GUESSING')return;
+  if(myIdx<0) return;
+  const g=S.groups[myIdx];
+  if(S.phase!=='GUESSING') return;
   const val=document.getElementById('s-guess-input').value.trim();
-  if(!val){document.getElementById('s-guess-input').focus();return;}
-  g.guess=val;
-  g.guessSubmitted=true;
-  pushState();
-  // Show submitted state in UI
+  if(!val){ document.getElementById('s-guess-input').focus(); return; }
+  g.guess=val; g.guessSubmitted=true;
+  push();
+  // Update UI directly
   document.getElementById('s-guess-btn').style.display='none';
   document.getElementById('s-guess-input').disabled=true;
   document.getElementById('s-guess-submitted').style.display='block';
@@ -444,193 +447,207 @@ function studentSubmitGuess(){
 }
 
 function editGuess(){
-  if(currentGroupIdx<0)return;
-  const g=state.groups[currentGroupIdx];
-  g.guessSubmitted=false;
+  if(myIdx<0) return;
+  S.groups[myIdx].guessSubmitted=false;
   document.getElementById('s-guess-btn').style.display='';
   document.getElementById('s-guess-input').disabled=false;
   document.getElementById('s-guess-input').focus();
   document.getElementById('s-guess-submitted').style.display='none';
-  pushState();
+  push();
 }
 
 document.getElementById('s-guess-input').addEventListener('keypress',e=>{
   if(e.key==='Enter') studentSubmitGuess();
 });
 
-// ── RENDER TEACHER ──
-function renderTeacher(){
-  if(!isTeacher)return;
+// ─────────────────────────────────────────
+// RENDER — TEACHER
+// ─────────────────────────────────────────
+function renderT(){
+  if(!isTeacher) return;
+
+  // Phase pill
   const phases={IDLE:'待開始',DRAWING:'限時作畫中',GUESSING:'猜題中',REVEAL:'開獎完畢'};
   const pillCls={IDLE:'',DRAWING:'live',GUESSING:'wait',REVEAL:'ok'};
   const pEl=document.getElementById('t-phase-pill');
-  pEl.textContent=phases[state.phase]||state.phase; pEl.className='pill '+(pillCls[state.phase]||'');
+  pEl.textContent=phases[S.phase]||S.phase; pEl.className='pill '+(pillCls[S.phase]||'');
 
+  // Main button
   const btn=document.getElementById('t-main-btn');
-  if(state.phase==='IDLE'||state.phase==='REVEAL'){btn.textContent=`隨機出題 · 開始第 ${state.round+1} 輪`;btn.className='btn btn-yellow';}
-  else if(state.phase==='DRAWING'){btn.textContent=`⏱ 強制收卷 (${state.time}s)`;btn.className='btn btn-red';}
-  else if(state.phase==='GUESSING'){btn.textContent='🎯 公布答案';btn.className='btn btn-purple';}
+  if(S.phase==='IDLE')         { btn.textContent=`隨機出題 · 開始第 ${S.round+1} 輪`; btn.className='btn btn-yellow'; }
+  else if(S.phase==='DRAWING') { btn.textContent=`⏱ 強制收卷 (${S.time}s)`; btn.className='btn btn-red'; }
+  else if(S.phase==='GUESSING'){ btn.textContent='🎯 公布答案'; btn.className='btn btn-purple'; }
+  else if(S.phase==='REVEAL')  { btn.textContent='—'; btn.className='btn btn-ghost'; btn.disabled=true; }
 
+  // Round badge
   const rb=document.getElementById('round-badge');
-  if(rb){rb.style.display=state.round>0?'block':'none';rb.textContent=`Round ${state.round}`;}
+  rb.style.display=S.round>0?'block':'none'; rb.textContent=`Round ${S.round}`;
 
-  const rulesCard=document.getElementById('t-rules-card');
+  // Next round button — only in REVEAL
+  document.getElementById('t-next-btn').style.display=S.phase==='REVEAL'?'flex':'none';
+
+  // IDLE: show rules, hide rest
+  const rules=document.getElementById('t-rules-card');
   const scEl=document.getElementById('t-scores');
-  const gridEl=document.getElementById('t-canvas-grid');
-  if(state.phase==='IDLE'){
-    if(rulesCard)rulesCard.style.display='block';
-    if(scEl)scEl.style.display='none';
-    if(gridEl)gridEl.style.display='none';
+  const grid=document.getElementById('t-canvas-grid');
+  btn.disabled=false;
+
+  if(S.phase==='IDLE'){
+    rules.style.display='block'; scEl.style.display='none'; grid.style.display='none';
     return;
   }
-  if(rulesCard)rulesCard.style.display='none';
-  if(scEl)scEl.style.display='flex';
-  if(gridEl)gridEl.style.display='grid';
+  rules.style.display='none'; scEl.style.display='flex'; grid.style.display='grid';
 
-  // Scores row
+  // Score strip
   scEl.innerHTML='';
-  state.groups.forEach(g=>{
+  S.groups.forEach(g=>{
     scEl.innerHTML+=`<div class="score-card"><div class="sc-name" style="color:${GC[g.id]}">${g.name}</div><div class="sc-pts">${g.score}</div></div>`;
   });
 
-  // Canvas cards — each group's drawing with topic + guesser answer below
-  gridEl.innerHTML='';
-  state.groups.forEach(g=>{
-    const guesser=state.groups.find(x=>x.guessFrom===g.id);
-    const topicLine=state.phase==='REVEAL'
-      ?`題目：<strong style="color:var(--accent)">${g.topic}</strong>`
-      :`題目：<strong style="color:var(--muted)">${g.submitted?'已交卷':'作畫中...'}</strong>`;
-    let guessLine='';
-    if(guesser&&(state.phase==='GUESSING'||state.phase==='REVEAL')){
-      if(state.phase==='REVEAL'){
-        const correct=guesser.guess.trim()===g.topic.trim();
-        guessLine=`<div class="dc-guess-row ${correct?'correct':'wrong'}">${guesser.name} 猜：<strong>${guesser.guess||'(未作答)'}</strong> ${correct?'✅':'❌'}</div>`;
+  // Canvas cards
+  grid.innerHTML='';
+  S.groups.forEach(g=>{
+    const guesser=S.groups.find(x=>x.guessFrom===g.id);
+
+    // Topic line
+    let topicHtml='';
+    if(S.phase==='REVEAL'){
+      topicHtml=`<div class="dc-topic-line">題目：<strong>${g.topic}</strong></div>`;
+    } else {
+      topicHtml=`<div class="dc-topic-line">${g.submitted?'已交卷 ✓':'作畫中...'}</div>`;
+    }
+
+    // Answer line (GUESSING + REVEAL)
+    let ansHtml='';
+    if(guesser&&(S.phase==='GUESSING'||S.phase==='REVEAL')){
+      if(S.phase==='REVEAL'){
+        const correct=guesser.guess.trim()!==''&&guesser.guess.trim()===g.topic.trim();
+        ansHtml=`<div class="dc-answer-box ${correct?'correct':'wrong'}">
+          ${guesser.name} 猜：<strong>${guesser.guess||'(未作答)'}</strong> ${correct?'✅':'❌'}
+        </div>`;
       } else {
-        const cls=guesser.guessSubmitted?'ok':'pending';
-        guessLine=`<div class="dc-guess-row ${cls}">${guesser.name}：${guesser.guessSubmitted?`<strong>${guesser.guess}</strong> (已送出)`:'思考中...'}</div>`;
+        if(guesser.guessSubmitted){
+          ansHtml=`<div class="dc-answer-box submitted">${guesser.name}：<strong>${guesser.guess}</strong> (已送出)</div>`;
+        } else {
+          ansHtml=`<div class="dc-answer-box pending">${guesser.name} 思考中...</div>`;
+        }
       }
     }
-    const EMPTY='data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==';
-    gridEl.innerHTML+=`
+
+    grid.innerHTML+=`
       <div class="t-dc">
         <div class="dc-head">
           <span class="dc-group" style="color:${GC[g.id]}">${g.name}</span>
-          <span class="dc-status">${g.submitted?'已交卷 ✓':'畫中...'}</span>
+          <span class="dc-status">${g.submitted?'✓ 已交':'畫中'}</span>
         </div>
-        <div class="dc-canvas-area"><img src="${g.imgData||EMPTY}" alt=""></div>
-        <div class="dc-info">
-          <div class="dc-topic">${topicLine}</div>
-          ${guessLine}
-        </div>
+        <div class="dc-img"><img src="${g.imgData||EMPTY}" alt=""></div>
+        <div class="dc-foot">${topicHtml}${ansHtml}</div>
       </div>`;
   });
 }
 
-// ── RENDER STUDENT ──
-function renderStudent(){
-  if(currentGroupIdx<0)return;
-  const g=state.groups[currentGroupIdx];
-  if(!g)return;
-  const hide=id=>{const el=document.getElementById(id);if(el)el.style.display='none';};
-  ['s-rules','s-draw','s-guess','s-result','s-wait'].forEach(hide);
+// ─────────────────────────────────────────
+// RENDER — STUDENT
+// ─────────────────────────────────────────
+function renderS(){
+  if(myIdx<0) return;
+  const g=S.groups[myIdx]; if(!g) return;
+  ['s-rules','s-draw','s-guess','s-result','s-wait'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.style.display='none';
+  });
 
-  if(state.phase==='IDLE'){
-    const r=document.getElementById('s-rules');if(r)r.style.display='flex';
-    const lb=document.getElementById('s-group-label');if(lb)lb.textContent=g.name;
+  if(S.phase==='IDLE'){
+    document.getElementById('s-rules').style.display='flex';
+    document.getElementById('s-group-label').textContent=g.name;
     return;
   }
-  if(state.phase==='DRAWING'){
+  if(S.phase==='DRAWING'){
     if(!g.submitted){
-      const d=document.getElementById('s-draw');if(d)d.style.display='flex';
-      const t=document.getElementById('s-draw-topic');if(t)t.textContent=g.topic;
+      document.getElementById('s-draw').style.display='flex';
+      document.getElementById('s-draw-topic').textContent=g.topic;
       updateTimerUI(); setTimeout(resizeCanvas,50);
     } else {
-      showWait('✅','已交卷！',`等待其他組完成作畫...\n剩餘 ${state.time} 秒`,null);
+      showWait('✅','已交卷！',`等待其他組完成作畫...\n剩餘 ${S.time} 秒`);
     }
     return;
   }
-  if(state.phase==='GUESSING'){
-    const gs=document.getElementById('s-guess');if(gs)gs.style.display='flex';
-    const painter=state.groups[g.guessFrom];
-    const img=document.getElementById('s-guess-img');if(img&&painter)img.src=painter.imgData||'';
-    const fr=document.getElementById('s-guess-from');if(fr&&painter)fr.textContent=`來自 ${painter.name} 的畫作`;
-    // Restore guess input value if already has one
+  if(S.phase==='GUESSING'){
+    document.getElementById('s-guess').style.display='flex';
+    const painter=S.groups[g.guessFrom];
+    if(painter) document.getElementById('s-guess-img').src=painter.imgData||'';
+    if(painter) document.getElementById('s-guess-from').textContent=`來自 ${painter.name} 的畫作`;
     const inp=document.getElementById('s-guess-input');
-    if(inp&&!inp.value&&g.guess) inp.value=g.guess;
-    // Show submitted state if already submitted
+    if(inp&&g.guess) inp.value=g.guess;
     const btn=document.getElementById('s-guess-btn');
     const sub=document.getElementById('s-guess-submitted');
-    const subVal=document.getElementById('s-guess-submitted-val');
+    const sv=document.getElementById('s-guess-submitted-val');
     if(g.guessSubmitted){
-      if(btn)btn.style.display='none';
-      if(inp)inp.disabled=true;
-      if(sub)sub.style.display='block';
-      if(subVal)subVal.textContent=g.guess;
+      btn.style.display='none'; inp.disabled=true;
+      sub.style.display='block'; if(sv) sv.textContent=g.guess;
     } else {
-      if(btn)btn.style.display='';
-      if(inp){inp.disabled=false;}
-      if(sub)sub.style.display='none';
+      btn.style.display=''; inp.disabled=false; sub.style.display='none';
     }
     return;
   }
-  if(state.phase==='REVEAL'){
-    const painter=state.groups[g.guessFrom];
-    const correct=painter&&g.guess.trim()===painter.topic.trim();
-    const r=document.getElementById('s-result');if(r)r.style.display='flex';
-    const em=document.getElementById('res-emoji');if(em)em.textContent=correct?'🎉':'😅';
-    const tx=document.getElementById('res-text');if(tx)tx.textContent=correct?'答對了！':'答錯了！';
-    const sb=document.getElementById('res-sub');
-    if(sb&&painter)sb.innerHTML=`${painter.name} 畫的是：<strong style="color:var(--accent)">${painter.topic}</strong><br>你猜的是：<strong>${g.guess||'(未作答)'}</strong>`;
-    const pt=document.getElementById('res-pts');
-    if(pt){pt.textContent=correct?'+2 分！':'+0 分';pt.style.color=correct?'var(--green)':'var(--muted)';}
+  if(S.phase==='REVEAL'){
+    const painter=S.groups[g.guessFrom];
+    const correct=painter&&g.guess.trim()!==''&&g.guess.trim()===painter.topic.trim();
+    document.getElementById('s-result').style.display='flex';
+    document.getElementById('res-emoji').textContent=correct?'🎉':'😅';
+    document.getElementById('res-text').textContent=correct?'答對了！':'答錯了！';
+    if(painter) document.getElementById('res-sub').innerHTML=
+      `${painter.name} 畫的是：<strong style="color:var(--accent)">${painter.topic}</strong><br>你猜的是：<strong>${g.guess||'(未作答)'}</strong>`;
+    document.getElementById('res-pts').textContent=correct?'+2 分！':'+0 分';
+    document.getElementById('res-pts').style.color=correct?'var(--green)':'var(--muted)';
   }
 }
 
-function showWait(icon,title,msg,locked){
-  const el=document.getElementById('s-wait');if(!el)return;
-  el.style.display='flex';
-  const ic=document.getElementById('sw-icon');if(ic)ic.textContent=icon;
-  const tt=document.getElementById('sw-title');if(tt)tt.textContent=title;
-  const mg=document.getElementById('sw-msg');if(mg)mg.textContent=msg;
-  const lk=document.getElementById('sw-locked');
-  if(lk){if(locked){lk.style.display='block';lk.textContent=locked;}else lk.style.display='none';}
+function showWait(icon,title,msg){
+  document.getElementById('s-wait').style.display='flex';
+  document.getElementById('sw-icon').textContent=icon;
+  document.getElementById('sw-title').textContent=title;
+  document.getElementById('sw-msg').textContent=msg;
 }
-
 function updateTimerUI(){
-  if(isTeacher){const b=document.getElementById('t-main-btn');if(b&&state.phase==='DRAWING')b.textContent=`⏱ 強制收卷 (${state.time}s)`;}
+  if(isTeacher){ const b=document.getElementById('t-main-btn'); if(b&&S.phase==='DRAWING') b.textContent=`⏱ 強制收卷 (${S.time}s)`; }
   const num=document.getElementById('s-timer-num'),fg=document.getElementById('t-ring-fg'),ring=document.getElementById('s-timer-ring');
   if(num&&fg){
-    num.textContent=state.time;
-    fg.style.strokeDashoffset=138.2*(1-state.time/DRAW_TIME);
-    const warn=state.time<=10;
-    fg.style.stroke=warn?'var(--accent2)':'var(--accent)';
-    if(ring){warn?ring.classList.add('ring-warn'):ring.classList.remove('ring-warn');}
+    num.textContent=S.time;
+    fg.style.strokeDashoffset=138.2*(1-S.time/DRAW_TIME);
+    const warn=S.time<=10; fg.style.stroke=warn?'var(--accent2)':'var(--accent)';
+    if(ring){ warn?ring.classList.add('ring-warn'):ring.classList.remove('ring-warn'); }
   }
-  if(!isTeacher&&currentGroupIdx>=0){
-    const g=state.groups[currentGroupIdx];
-    if(g?.submitted&&state.phase==='DRAWING'){const mg=document.getElementById('sw-msg');if(mg)mg.textContent=`等待其他組完成作畫...\n剩餘 ${state.time} 秒`;}
+  if(!isTeacher&&myIdx>=0){
+    const g=S.groups[myIdx];
+    if(g?.submitted&&S.phase==='DRAWING'){ document.getElementById('sw-msg').textContent=`等待其他組完成作畫...\n剩餘 ${S.time} 秒`; }
   }
 }
 
-// ── INIT ──
-// Default: show student screen (wait for PLATFORM_START)
+// ─────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────
+function show(id){ document.getElementById(id).classList.add('on'); }
+function hide(id){ document.getElementById(id).classList.remove('on'); }
+
+// ─────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────
+// Default: student screen, waiting for PLATFORM_START
 document.getElementById('student-screen').classList.add('on');
 document.getElementById('teacher-screen').classList.remove('on');
 
-// Standalone (URL param) mode for testing
+// Standalone test via ?role=
 (function(){
-  const p=new URLSearchParams(window.location.search);
-  const role=p.get('role');
-  if(!role)return;
+  const p=new URLSearchParams(window.location.search), role=p.get('role');
+  if(!role) return;
   if(role==='teacher'){
-    isTeacher=true; state=defaultState();
-    document.getElementById('teacher-screen').classList.add('on');
-    document.getElementById('student-screen').classList.remove('on');
-    currentGroupIdx=-1; renderTeacher();
+    isTeacher=true; S=mkState();
+    show('teacher-screen'); hide('student-screen');
+    myIdx=-1; renderT();
   } else {
     const idx=parseInt(role.replace('g',''));
-    if(!isNaN(idx)&&idx>=0&&idx<state.groups.length){
-      isTeacher=false; myGroup=state.groups[idx].name; currentGroupIdx=idx; renderStudent();
+    if(!isNaN(idx)&&idx>=0&&idx<S.groups.length){
+      isTeacher=false; myGroup=S.groups[idx].name; myIdx=idx; renderS();
     }
   }
 })();
