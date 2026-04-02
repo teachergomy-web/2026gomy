@@ -69,14 +69,6 @@ body::before {
 .cloud::after { width: 40%; height: 80%; top: -30%; right: 15%; }
 @keyframes driftCloud { from { transform: translateX(-250px); } to { transform: translateX(calc(100vw + 250px)); } }
 
-.bg-particles { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
-.particle { position: absolute; opacity: 0.15; animation: floatParticle linear infinite; user-select: none; }
-@keyframes floatParticle {
-  0% { transform: translateY(110vh) rotate(0deg) scale(0.8); opacity: 0; }
-  10% { opacity: 0.25; } 90% { opacity: 0.25; }
-  100% { transform: translateY(-100px) rotate(360deg) scale(1.2); opacity: 0; }
-}
-
 .ground-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 0; height: 28px; background: #c8882a; border-top: 4px solid var(--outline); pointer-events: none; }
 .ground-bar::before { content: ''; position: absolute; top: -16px; left: 0; right: 0; height: 16px; background: #38b044; border-top: 3px solid var(--outline); }
 
@@ -122,7 +114,7 @@ body::before {
 .mp-subtitle { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: .9rem; color: white; background: var(--blue); border: 3px solid var(--outline); border-radius: 8px; padding: 4px 18px; display: inline-block; box-shadow: 0 3px 0 var(--blue2); }
 
 .home-btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; width: 100%; max-width: 480px; }
-.home-btn-card { padding: 44px 20px 40px; border-radius: 24px; cursor: pointer; border: 4px solid var(--outline); box-shadow: 0 8px 0 var(--outline); text-align: center; transition: transform .12s, box-shadow .12s; }
+.home-btn-card { padding: 36px 20px 32px; border-radius: 24px; cursor: pointer; border: 4px solid var(--outline); box-shadow: 0 8px 0 var(--outline); text-align: center; transition: transform .12s, box-shadow .12s; }
 .home-btn-card:hover { transform: translateY(-4px); box-shadow: 0 12px 0 var(--outline); filter: brightness(1.05); }
 .home-btn-card:active { transform: translateY(6px); box-shadow: 0 2px 0 var(--outline); }
 .home-btn-card.teacher { background: linear-gradient(160deg, #ffe55a, #f5a800); }
@@ -151,7 +143,7 @@ body::before {
    ═══════════════════════════════════════════ */
 .kr-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; background: linear-gradient(180deg, #1a1d30 0%, #0d0f1a 100%); border-bottom: 3px solid #f5c800; width: 100%; flex-shrink: 0; }
 .kr-room-name { font-family: 'Nunito',sans-serif; font-weight: 900; color: white; font-size: 1.1rem; }
-.kr-code { font-family: 'Nunito',sans-serif; font-weight: 900; color: #f5c800; font-size: 2.2rem; letter-spacing: .2em; line-height: 1; }
+.kr-code { font-family: 'Nunito',sans-serif; font-weight: 900; color: #f5c800; font-size: clamp(1.5rem, 5vw, 2.2rem); letter-spacing: .2em; line-height: 1; }
 
 .kr-body { flex: 1; display: grid; grid-template-columns: 1fr 1fr; width: 100%; min-height: 0; overflow: hidden; height: 0; }
 .kr-body.vertical { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: auto; flex: 1; }
@@ -179,6 +171,10 @@ body::before {
 .ls-lvl-btn.ls-hard   { background:linear-gradient(160deg,#e74c3c,#a00000);border-color:#ff6644; }
 .ls-lvl-btn.ls-double { background:linear-gradient(160deg,#cc00cc,#880088);border-color:#FF40FF; }
 .ls-lvl-btn.ls-selected { transform:scale(1.15);box-shadow:0 0 16px rgba(255,214,0,.8);border-color:#FFD600; }
+.kr-game-card.kr-game-unavailable { opacity: .45; cursor: not-allowed; filter: grayscale(.6); }
+.kr-game-card.kr-game-unavailable:hover { background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.12); }
+.kr-game-card.kr-game-unavailable:active { transform: none; }
+
 .kr-btn { font-family: 'Nunito',sans-serif; font-weight: 900; font-size: .85rem; padding: 10px 20px; border-radius: 12px; border: none; cursor: pointer; transition: transform 0.1s; }
 .kr-btn:active { transform: scale(0.95); }
 .kr-btn-start { background: linear-gradient(135deg, #f5c800, #e09000); color: #1a1200; padding: 12px 30px; font-size: 1rem; }
@@ -224,7 +220,7 @@ body::before {
 
 <div class="clouds"   id="clouds"></div>
 <div class="coins"    id="coins"></div>
-<div id="bg-particles"></div>
+
 <div class="ground-bar"></div>
 <div id="toast"></div>
 
@@ -281,7 +277,7 @@ body::before {
     <div class="card" style="text-align:center">
       <div style="font-size:3rem;margin-bottom:10px">🔐</div>
       <h3 style="font-weight:900;margin-bottom:15px" id="pw-room-title">請輸入密碼</h3>
-      <input type="number" id="room-pw-input" class="input-select" placeholder="四位數代碼" style="text-align:center; font-size: 2rem; letter-spacing: 0.3em" maxlength="4">
+      <input type="number" id="room-pw-input" class="input-select" placeholder="四位數代碼" style="text-align:center; font-size: 2rem; letter-spacing: 0.3em" maxlength="4" onkeydown="if(event.key==='Enter') verifyRoomPassword()">
       <button class="btn btn-blue" style="margin-top:20px" onclick="verifyRoomPassword()">進入房間</button>
     </div>
   </div>
@@ -340,16 +336,18 @@ body::before {
   </div>
 
   <div class="kr-footer">
-    <button class="kr-btn kr-btn-ghost" onclick="simulateJoin()">➕ 模擬加入</button>
-    <button class="kr-btn kr-btn-ghost" onclick="toggleQR()">📱 QR Code</button>
-    <button class="kr-btn kr-btn-danger" onclick="doCloseRoom()">🚪 關閉</button>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="kr-btn kr-btn-ghost" onclick="simulateJoin()">➕ 模擬加入</button>
+      <button class="kr-btn kr-btn-ghost" onclick="toggleQR()">📱 QR</button>
+      <button class="kr-btn kr-btn-danger" onclick="doCloseRoom()">🚪 關閉</button>
+    </div>
     <div style="flex:1"></div>
-    <!-- 常設暫停鍵：遊戲進行中顯示 -->
+    <!-- 遊戲控制區（遊戲進行中顯示）-->
     <div id="lobby-game-status" style="display:none;align-items:center;gap:8px">
-      <span style="font-size:.75rem;color:#f5c800;font-family:'Nunito',sans-serif;font-weight:900" id="lobby-status-label">🔴 遊戲中</span>
-      <button id="lobby-btn-pause"  class="kr-btn kr-btn-ghost" onclick="tcPauseGame()"  style="display:none">⏸ 暫停</button>
-      <button id="lobby-btn-resume" class="kr-btn kr-btn-ghost" onclick="tcResumeGame()" style="display:none">▶ 繼續</button>
-      <button class="kr-btn kr-btn-ghost" onclick="window.goTo('screen-teacher-console')" style="font-size:.82rem">📊 回控制台</button>
+      <span style="font-size:.75rem;color:#f5c800;font-family:'Nunito',sans-serif;font-weight:900;background:rgba(245,200,0,.12);border:1px solid rgba(245,200,0,.3);border-radius:8px;padding:4px 10px" id="lobby-status-label">🔴 遊戲中</span>
+      <button id="lobby-btn-pause"  class="kr-btn kr-btn-ghost" onclick="tcPauseGame()"  style="display:none;padding:8px 12px">⏸</button>
+      <button id="lobby-btn-resume" class="kr-btn kr-btn-ghost" onclick="tcResumeGame()" style="display:none;padding:8px 12px">▶</button>
+      <button class="kr-btn kr-btn-ghost" onclick="window.goTo('screen-teacher-console')" style="font-size:.82rem;padding:8px 12px">📊 控制台</button>
     </div>
     <button id="lobby-start-btn" class="kr-btn kr-btn-start" onclick="openTeacherConsole()">▶ 開始遊戲</button>
   </div>
@@ -405,26 +403,26 @@ body::before {
 
 <div id="screen-teacher-console" class="screen" style="padding:0;background:#0d0f1a;flex-direction:column;overflow:hidden">
 
-  <div class="kr-header" style="border-bottom:3px solid var(--red);flex-shrink:0;padding:8px 14px;">
+  <div class="kr-header" style="border-bottom:3px solid var(--red);flex-shrink:0;padding:8px 14px;gap:8px">
     <!-- 左：遊戲名稱 -->
-    <div style="display:flex;flex-direction:column;gap:1px;min-width:0;flex-shrink:1">
+    <div style="display:flex;flex-direction:column;gap:1px;min-width:0;flex:1">
       <div style="color:var(--red);font-size:.6rem;font-weight:900;letter-spacing:.08em">🔴 LIVE</div>
-      <div class="kr-room-name" id="tc-game-name" style="font-size:clamp(.85rem,2.5vw,1.1rem)">⭐ 星際採礦</div>
+      <div class="kr-room-name" id="tc-game-name" style="font-size:clamp(.82rem,2.5vw,1rem);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">⭐ 星際採礦</div>
     </div>
-    <!-- 中：回合/關卡 + 暫停/結算 -->
-    <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
-      <span id="tc-level-badge" style="background:rgba(245,200,0,.2);border:2px solid #f5c800;border-radius:8px;padding:3px 10px;font-family:'Nunito',sans-serif;font-weight:900;font-size:.8rem;color:#f5c800;white-space:nowrap">第 1 回合</span>
-      <button id="tc-btn-pause"  class="kr-btn kr-btn-ghost"  onclick="tcPauseGame()"  style="font-size:.8rem;padding:8px 12px">⏸</button>
-      <button id="tc-btn-resume" class="kr-btn kr-btn-ghost"  onclick="tcResumeGame()" style="display:none;font-size:.8rem;padding:8px 12px">▶</button>
-      <button id="tc-btn-settle" class="kr-btn kr-btn-start"  onclick="tcSettleGame()" style="font-size:.8rem;padding:8px 12px">🏆</button>
+    <!-- 中：回合 badge + 操作按鈕 -->
+    <div style="display:flex;gap:5px;align-items:center;flex-shrink:0">
+      <span id="tc-level-badge" style="background:rgba(245,200,0,.2);border:2px solid #f5c800;border-radius:8px;padding:3px 8px;font-family:'Nunito',sans-serif;font-weight:900;font-size:.75rem;color:#f5c800;white-space:nowrap">第 1 回合</span>
+      <button id="tc-btn-pause"  class="kr-btn kr-btn-ghost"  onclick="tcPauseGame()"  style="font-size:.8rem;padding:7px 10px">⏸</button>
+      <button id="tc-btn-resume" class="kr-btn kr-btn-ghost"  onclick="tcResumeGame()" style="display:none;font-size:.8rem;padding:7px 10px">▶</button>
+      <button id="tc-btn-settle" class="kr-btn kr-btn-start"  onclick="tcSettleGame()" style="font-size:.8rem;padding:7px 10px">🏆 結算</button>
     </div>
-    <!-- 右：房間密碼 + 大廳按鈕 -->
-    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-      <div style="display:flex;flex-direction:column;align-items:center;background:rgba(245,200,0,.12);border:2px solid rgba(245,200,0,.4);border-radius:8px;padding:2px 8px;cursor:default">
-        <div style="color:rgba(245,200,0,.6);font-size:7px;font-weight:900;font-family:'Nunito',sans-serif;white-space:nowrap">房間密碼</div>
-        <div style="color:#f5c800;font-family:'Fredoka One',sans-serif;font-size:15px;letter-spacing:.1em" id="tc-room-code-badge">0000</div>
+    <!-- 右：房間密碼 + 返回大廳 -->
+    <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
+      <div style="background:rgba(245,200,0,.12);border:2px solid rgba(245,200,0,.4);border-radius:8px;padding:3px 8px;text-align:center">
+        <div style="color:rgba(245,200,0,.6);font-size:7px;font-weight:900;font-family:'Nunito',sans-serif;white-space:nowrap">密碼</div>
+        <div style="color:#f5c800;font-family:'Fredoka One',sans-serif;font-size:14px;letter-spacing:.1em;line-height:1.1" id="tc-room-code-badge">0000</div>
       </div>
-      <button class="kr-btn kr-btn-ghost" onclick="exitToLobby()" style="font-size:.8rem;padding:8px 12px">← 大廳</button>
+      <button class="kr-btn kr-btn-ghost" onclick="exitToLobby()" style="font-size:.8rem;padding:7px 10px">← 大廳</button>
     </div>
   </div>
 
@@ -437,6 +435,7 @@ body::before {
 <div id="screen-settlement" class="screen" style="padding:0;background:#0d0f1a;flex-direction:column;overflow:hidden">
   <div class="kr-header" style="border-bottom:3px solid #f5c800;flex-shrink:0">
     <div style="color:#f5c800;font-family:'Nunito',sans-serif;font-weight:900;font-size:1.1rem">🏆 最終結算</div>
+    <div style="flex:1"></div>
     <div id="settlement-back-btn">
       <button class="kr-btn kr-btn-start" onclick="tcEndGame()" style="font-size:.85rem;padding:10px 20px">✓ 返回大廳</button>
     </div>
@@ -503,7 +502,7 @@ body::before {
     <span class="mp-title" style="font-size:1.8rem">老師登入</span>
     <div style="margin:20px 0; display:flex; flex-direction:column; gap:12px;">
       <input type="text" id="tl-name" class="input-select" placeholder="輸入老師名稱" style="text-align:center">
-      <input type="password" id="tl-pw" class="input-select" placeholder="輸入登入密碼" style="text-align:center" inputmode="numeric" pattern="[0-9]*">
+      <input type="password" id="tl-pw" class="input-select" placeholder="輸入登入密碼" style="text-align:center" inputmode="numeric" pattern="[0-9]*" onkeydown="if(event.key==='Enter') teacherLogin()">
     </div>
     <button class="btn btn-red" onclick="teacherLogin()">確認登入</button>
   </div>
@@ -891,7 +890,7 @@ function tcStartGame() {
         const levelBadge = document.getElementById('tc-level-badge');
         const pauseBtn = document.getElementById('tc-btn-pause');
         const resumeBtn = document.getElementById('tc-btn-resume');
-        if (settleBtn) { settleBtn.style.display = ''; settleBtn.textContent = '🏆 結算'; }
+        if (settleBtn) { settleBtn.style.display = ''; }
         if (levelBadge) levelBadge.style.display = 'none';
         if (pauseBtn) pauseBtn.style.display = 'none';
         if (resumeBtn) resumeBtn.style.display = 'none';
@@ -1370,10 +1369,7 @@ window.state = {
   perspective: 'guest', 
   roomCode: '', tempRoomCode: '', 
   selectedGroup: '', selectedSymbol: '',
-  players: [], selectedGame: 0, takenSymbols: [],
-  isGamePaused: false,
-  manualBroadcastGroup: null,
-  currentBroadcastGroup: null
+  players: [], selectedGame: 0, takenSymbols: []
 };
 
 window.pStates = {
@@ -1393,14 +1389,14 @@ window.TEACHER_PW = '3758';
 // 完整嵌入的遊戲 HTML 字串：消除方塊
 // ════════════════════════════════════════════
 const GAMES = [
-  {id:1, name:'星際採礦',   icon:'⭐', desc:'點擊礦石得分'},
-  {id:2, name:'能源管線',   icon:'⚡', desc:'接通電力線路'},
-  {id:3, name:'五子棋對戰', icon:'⚫', desc:'經典組間對決'},
-  {id:4, name:'節奏合鳴',   icon:'🎵', desc:'跟隨音樂律動'},
-  {id:5, name:'你畫我猜',   icon:'🎨', desc:'繪畫聯想猜謎'},
-  {id:6, name:'雙人圓圈',   icon:'⭕', desc:'雙人協作平衡'},
-  {id:7, name:'星際大富翁', icon:'🚀', desc:'擲骰冒險奪寶'},
-  {id:8, name:'記憶大考驗', icon:'🧠', desc:'腦力連線挑戰'}
+  {id:1, name:'星際採礦',   icon:'⭐', desc:'點擊礦石得分',     available: true},
+  {id:2, name:'能源管線',   icon:'⚡', desc:'接通電力線路',     available: true},
+  {id:3, name:'五子棋對戰', icon:'⚫', desc:'經典組間對決',     available: true},
+  {id:4, name:'節奏合鳴',   icon:'🎵', desc:'跟隨音樂律動',     available: false},
+  {id:5, name:'你畫我猜',   icon:'🎨', desc:'繪畫聯想猜謎',     available: false},
+  {id:6, name:'雙人圓圈',   icon:'⭕', desc:'雙人協作平衡',     available: false},
+  {id:7, name:'星際大富翁', icon:'🚀', desc:'擲骰冒險奪寶',     available: false},
+  {id:8, name:'記憶大考驗', icon:'🧠', desc:'腦力連線挑戰',     available: false}
 ];
 
 // ── 排行榜更新與轉播畫面更新 ──
@@ -1417,20 +1413,13 @@ function goTo(id) {
   // 深色畫面時隱藏地面裝飾和藍色背景元素
   const isDark = DARK_SCREENS.has(id);
   const groundBar = document.querySelector('.ground-bar');
-  const bgParticles = document.getElementById('bg-particles');
   const clouds = document.getElementById('clouds');
   const coins = document.getElementById('coins');
   if (groundBar) groundBar.style.display = isDark ? 'none' : '';
-  if (bgParticles) bgParticles.style.display = isDark ? 'none' : '';
   if (clouds) clouds.style.display = isDark ? 'none' : '';
   if (coins) coins.style.display = isDark ? 'none' : '';
-  // 深色畫面時把 body 背景也換掉，並修正 iOS 鍵盤收起後的位移
+  // 深色畫面時把 body 背景也換掉
   document.body.style.background = isDark ? '#0d0f1a' : '';
-  if (isDark) {
-    document.body.style.top = '0';
-    document.body.style.position = 'fixed';
-    document.body.style.width = '100%';
-  }
   if (!window.isSwitchingPerspective && window.state.perspective && window.pStates[window.state.perspective]) {
       window.pStates[window.state.perspective].screen = id;
   }
@@ -1752,6 +1741,8 @@ function leaveRoomStudent() {
 }
 
 function selectGame(i) {
+    const g = GAMES[i];
+    if (!g || !g.available) { showToast(`🚧 ${g ? g.name : '此遊戲'} 即將推出，敬請期待！`); return; }
     window.state.selectedGame = i;
     
     // 將選擇的遊戲同步寫入共用房間資料
@@ -1762,7 +1753,6 @@ function selectGame(i) {
     }
     
     window.renderLobby();
-    const g = GAMES[i];
     window.showToast(`已選擇：${g.icon} ${g.name}`);
 }
 function renderLobby() {
@@ -1791,9 +1781,9 @@ function renderLobby() {
   document.getElementById('sw-count').textContent = `${window.state.players.length}/5`;
 
   document.getElementById('lobby-games').innerHTML = GAMES.map((g, i) => `
-    <div class="kr-game-card ${window.state.selectedGame === i ? 'selected' : ''}" onclick="selectGame(${i})">
+    <div class="kr-game-card ${window.state.selectedGame === i ? 'selected' : ''} ${!g.available ? 'kr-game-unavailable' : ''}" onclick="selectGame(${i})" title="${!g.available ? '即將推出' : g.desc}">
         <span style="font-size:1.3rem;flex-shrink:0">${g.icon}</span>
-        <span style="color:white;font-size:.72rem;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${g.name}</span>
+        <span style="color:${g.available ? 'white' : 'rgba(255,255,255,.35)'};font-size:.72rem;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${g.name}${!g.available ? '<span style="font-size:.55rem;color:rgba(255,200,0,.5);display:block">即將推出</span>' : ''}</span>
     </div>`).join('');
     
   const selGame = GAMES[window.state.selectedGame] || GAMES[0];
@@ -1989,17 +1979,10 @@ function testResetToHome() {
     window.state.players = []; 
     window.state.takenSymbols = [];
     window.state.selectedGame = 0;
-    window.state.isGamePaused = false;
 
     // 清空 localStorage 房間資料
     localStorage.removeItem('playroom_rooms');
     localStorage.removeItem('playroom_counter');
-
-    // 重置 iframe
-    const iframe = document.getElementById('game-frame');
-    if (iframe) iframe.src = 'about:blank';
-    const tPanel = document.getElementById('teacher-panel');
-    if (tPanel) tPanel.style.display = 'none';
 
     window.isSwitchingPerspective = true;
     window.syncJoinDOM();
@@ -2012,9 +1995,6 @@ function testSetPerspective(p) {
     window.state.perspective = p;
     let pData = window.pStates[p];
 
-    const btnExit = document.getElementById('btn-exit-game');
-    if (btnExit) btnExit.style.display = (p === 'teacher') ? 'inline-block' : 'none';
-    
     const r = window.getRooms()[window.state.roomCode] || {};
     const isGameRunning = r.status === 'playing';
 
@@ -2059,7 +2039,6 @@ function testSetPerspective(p) {
     window.isSwitchingPerspective = true;
     window.syncJoinDOM();
     window.goTo(pData.screen);
-    window.updateBroadcastVisibility();
     if (p !== 'teacher') window.updateStudentWaitDisplay();
     window.isSwitchingPerspective = false;
     
