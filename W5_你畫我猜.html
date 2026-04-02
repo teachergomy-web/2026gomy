@@ -358,14 +358,21 @@ window.addEventListener('message', (e) => {
     myGroup   = e.data.group || '';
 
     if (isTeacher) {
-      // 老師：重設狀態，顯示老師畫面
-      state = defaultState();
+      // 老師：若 Firebase 已有 w5state（重開控制台），恢復；否則重設
+      if (e.data.state) {
+        state = e.data.state;
+      } else {
+        state = defaultState();
+      }
       document.getElementById('teacher-screen').classList.add('on');
       document.getElementById('student-screen').classList.remove('on');
       currentGroupIdx = -1;
       renderTeacher();
+      // 如果恢復了進行中的狀態，重啟計時器
+      if (state.phase === 'DRAWING' && state.time > 0) startTimer();
     } else {
-      // 學生：找到自己的 group index
+      // 學生：若 Firebase 已有 w5state，恢復
+      if (e.data.state) state = e.data.state;
       document.getElementById('student-screen').classList.add('on');
       document.getElementById('teacher-screen').classList.remove('on');
       currentGroupIdx = state.groups.findIndex(g => g.name === myGroup);
@@ -377,10 +384,10 @@ window.addEventListener('message', (e) => {
     return;
   }
 
-  // 父頁面從 Firebase 推送最新 w5state 給學生
-  if (e.data.type === 'W5_STATE' && !isTeacher && e.data.data) {
+  // 父頁面從 Firebase 推送最新 w5state
+  if (e.data.type === 'W5_STATE' && e.data.data) {
     const incoming = e.data.data;
-    // 保留學生自己畫的內容（imgData），不讓 Firebase 的空值覆蓋
+    // 保留本地 imgData（學生本機畫的，尚未寫入 Firebase）
     if (state.groups && incoming.groups) {
       incoming.groups.forEach((ig, i) => {
         if (state.groups[i] && state.groups[i].imgData && !ig.imgData)
@@ -388,9 +395,13 @@ window.addEventListener('message', (e) => {
       });
     }
     state = incoming;
-    renderStudent();
-    if (state.phase === 'DRAWING' && currentGroupIdx >= 0 && !state.groups[currentGroupIdx]?.submitted)
-      setTimeout(resizeCanvas, 60);
+    if (isTeacher) {
+      renderTeacher();
+    } else {
+      renderStudent();
+      if (state.phase === 'DRAWING' && currentGroupIdx >= 0 && !state.groups[currentGroupIdx]?.submitted)
+        setTimeout(resizeCanvas, 60);
+    }
     return;
   }
 });
