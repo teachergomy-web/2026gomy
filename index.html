@@ -256,6 +256,11 @@ body::before {
       <div class="hbc-title">加入房間</div>
     </div>
   </div>
+  
+  <!-- 智慧財產權宣告 -->
+  <div style="position: absolute; bottom: 40px; left: 0; right: 0; text-align: center; font-size: 0.75rem; font-weight: 900; color: rgba(26, 18, 0, 0.5); font-family: 'Nunito', 'Noto Sans TC', sans-serif; pointer-events: none; text-shadow: 1px 1px 0 rgba(255,255,255,0.4);">
+    © 2026 高米文理補習班 版權所有
+  </div>
 </div>
 
 <div id="screen-join" class="screen">
@@ -1075,17 +1080,25 @@ function tcStartGame() {
 
     // 支援分數累加邏輯
     const rooms = window.getRooms();
-    if (rooms[window.state.roomCode]) {
+    const r = rooms[window.state.roomCode];
+    if (r) {
         if (!TC.isNextLevel) {
             TC.scores = {};
-            rooms[window.state.roomCode].scores = {};
-            rooms[window.state.roomCode].baseScores = {}; // 第一關，基底分數歸零
+            r.scores = {};
+            r.baseScores = {}; // 第一關，基底分數歸零
         } else {
             // 是下一關，將目前成績備份為 baseScores
-            rooms[window.state.roomCode].baseScores = JSON.parse(JSON.stringify(rooms[window.state.roomCode].scores || {}));
+            r.baseScores = JSON.parse(JSON.stringify(r.scores || {}));
         }
     }
     TC.isNextLevel = false;
+
+    // ★ 確保 W4 模式與關卡為嚴格數字，避免字串串接導致判定失敗
+    if (window.state.selectedGame === 3) {
+        lsW4SelectedMode = parseInt(lsW4SelectedMode || (r && r.w4mode) || 1, 10);
+        lsW4SelectedLevel = parseInt(lsW4SelectedLevel || (r && r.w4level) || TC.level || 1, 10);
+        TC.level = lsW4SelectedLevel;
+    }
 
     // 更新 header
     const badge = document.getElementById('tc-level-badge');
@@ -1100,14 +1113,14 @@ function tcStartGame() {
     document.getElementById('tc-btn-resume').style.display = 'none';
 
     // 更新 rooms
-    if (rooms[window.state.roomCode]) {
-        rooms[window.state.roomCode].status    = 'playing';
-        rooms[window.state.roomCode].gameLevel = TC.level;
-        rooms[window.state.roomCode].gameMode  = 'SINGLE'; 
+    if (r) {
+        r.status    = 'playing';
+        r.gameLevel = TC.level;
+        r.gameMode  = 'SINGLE'; 
         // W4 額外存 mode / level
         if (window.state.selectedGame === 3) {
-            rooms[window.state.roomCode].w4mode  = lsW4SelectedMode || 1;
-            rooms[window.state.roomCode].w4level = lsW4SelectedLevel || TC.level || 1;
+            r.w4mode  = lsW4SelectedMode;
+            r.w4level = lsW4SelectedLevel;
         }
         window.saveRooms(rooms);
     }
@@ -1154,14 +1167,14 @@ function tcStartGame() {
         // W4：老師控制台顯示即時分數排行，並顯示當前 mode/level badge
         const badge = document.getElementById('tc-level-badge');
         if (badge) {
-            badge.textContent = `M${lsW4SelectedMode||1} · LV${lsW4SelectedLevel||TC.level||1}`;
+            badge.textContent = `M${lsW4SelectedMode} · LV${lsW4SelectedLevel}`;
             badge.style.display = '';
         }
         // 顯示底部「下一關」按鈕容器，並支援跨模式顯示
         const nextContainer = document.getElementById('tc-next-level-container');
         if (nextContainer) {
-            let nextM = lsW4SelectedMode || 1;
-            let nextL = (lsW4SelectedLevel || TC.level || 1) + 1;
+            let nextM = lsW4SelectedMode;
+            let nextL = lsW4SelectedLevel + 1;
             let hasNext = true;
             
             if (nextL > 10) {
@@ -1215,27 +1228,34 @@ function tcStartGame() {
     tcLaunchStudentIfNeeded();
     const _toastG = window.state.selectedGame;
     showToast(_toastG === 2 ? '🎮 五子棋對戰開始！'
-            : _toastG === 3 ? `🎵 節奏合鳴！M${lsW4SelectedMode||1} · LV${lsW4SelectedLevel||TC.level||1}`
+            : _toastG === 3 ? `🎵 節奏合鳴！M${lsW4SelectedMode} · LV${lsW4SelectedLevel}`
             : '🎮 遊戲開始！關卡 ' + TC.level);
 }
 
 // 修改: 下一關邏輯，直接啟動下一關，不回選關畫面，並支援跨模式銜接
 // 並移除 lobby 切換造成的畫面閃爍卡頓
 function tcW4NextLevel() {
+    const rooms = window.getRooms();
+    const r = rooms[window.state.roomCode];
+
+    let currentMode = parseInt(lsW4SelectedMode || (r && r.w4mode) || 1, 10);
+    let currentLevel = parseInt(lsW4SelectedLevel || (r && r.w4level) || TC.level || 1, 10);
     let hasNext = true;
     
-    if (lsW4SelectedLevel < 10) {
-        lsW4SelectedLevel++;
-    } else if (lsW4SelectedMode < 3) {
+    if (currentLevel < 10) {
+        currentLevel++;
+    } else if (currentMode < 3) {
         // 當前 LV10，且不是最後一個模式，切換到下一個模式的 LV1
-        lsW4SelectedMode++;
-        lsW4SelectedLevel = 1;
+        currentMode++;
+        currentLevel = 1;
     } else {
         hasNext = false;
     }
 
     if (hasNext) {
-        TC.level = lsW4SelectedLevel;
+        lsW4SelectedMode = currentMode;
+        lsW4SelectedLevel = currentLevel;
+        TC.level = currentLevel;
         TC.isNextLevel = true; // 告知 tcStartGame 這是下一關，保留分數
         
         // 直接啟動，不再透過切換 lobby 狀態來強迫載入，以避免 UI 卡頓與重新整理閃爍
