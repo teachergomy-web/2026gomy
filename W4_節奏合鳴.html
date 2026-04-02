@@ -655,6 +655,25 @@
     <div id="combo-pop">0 COMBO</div>
 </div>
 
+<!-- ════ 暫停遮幕 ════ -->
+<div id="pause-overlay" class="hidden" style="position:absolute;inset:0;background:rgba(6,10,16,0.88);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;backdrop-filter:blur(6px)">
+    <div style="font-family:'Orbitron',monospace;font-weight:900;font-size:clamp(32px,8vw,56px);color:#f1c40f;letter-spacing:4px;text-shadow:0 0 30px rgba(241,196,15,0.6);margin-bottom:12px">PAUSED</div>
+    <div style="font-family:'Press Start 2P',monospace;font-size:9px;color:rgba(255,255,255,0.35);letter-spacing:3px">等待老師繼續...</div>
+    <div style="display:flex;gap:10px;margin-top:28px">
+        <div style="width:10px;height:10px;border-radius:50%;background:#f1c40f;animation:dotBounce 1.2s ease-in-out infinite"></div>
+        <div style="width:10px;height:10px;border-radius:50%;background:#f1c40f;animation:dotBounce 1.2s ease-in-out infinite 0.3s"></div>
+        <div style="width:10px;height:10px;border-radius:50%;background:#f1c40f;animation:dotBounce 1.2s ease-in-out infinite 0.6s"></div>
+    </div>
+</div>
+
+<!-- ════ 倒數遮幕 ════ -->
+<div id="countdown-overlay" class="hidden" style="position:absolute;inset:0;background:rgba(6,10,16,0.75);z-index:201;display:flex;flex-direction:column;align-items:center;justify-content:center;backdrop-filter:blur(3px)">
+    <div id="countdown-num" style="font-family:'Orbitron',monospace;font-weight:900;font-size:clamp(80px,20vw,140px);color:#00f5ff;text-shadow:0 0 40px rgba(0,245,255,0.8);line-height:1;animation:countPulse .6s ease-in-out">3</div>
+</div>
+<style>
+@keyframes countPulse { 0%{transform:scale(1.4);opacity:0.5} 100%{transform:scale(1);opacity:1} }
+</style>
+
 <!-- ════ 結算畫面 ════ -->
 <div id="result-screen" class="overlay hidden">
     <div class="result-box">
@@ -1098,10 +1117,9 @@
     }
 
     // ══════════════════════════════════
-    // 🎵 AUDIO ENGINE (Web Audio API)
+    // 🎵 RICH AUDIO ENGINE
     // ══════════════════════════════════
     let audioCtx = null;
-    let bgmNodes = {};   // 持有背景音樂的節點引用
     let musicMuted = false;
 
     function getAudioCtx() {
@@ -1110,220 +1128,406 @@
         return audioCtx;
     }
 
-    // ── 基礎音效合成器 ──
-    function playTone(freq, type, duration, vol, delay = 0, filterFreq = null) {
-        const ac = getAudioCtx();
+    // 主混音器（全局音量控制）
+    let masterGain = null;
+    function getMaster() {
+        if (!masterGain) {
+            const ac = getAudioCtx();
+            masterGain = ac.createGain();
+            masterGain.gain.value = 0.7;
+            masterGain.connect(ac.destination);
+        }
+        return masterGain;
+    }
+
+    // ── 基礎音符合成 ──
+    function playNote(freq, type, duration, vol, delay = 0, filterFreq = null, attack = 0.005) {
+        if (musicMuted) return;
+        const ac  = getAudioCtx();
         const osc = ac.createOscillator();
         const gain = ac.createGain();
-        const now = ac.currentTime + delay;
-
+        const now  = ac.currentTime + delay;
         osc.type = type;
         osc.frequency.setValueAtTime(freq, now);
-
         gain.gain.setValueAtTime(0, now);
-        gain.gain.linearRampToValueAtTime(vol, now + 0.005);
+        gain.gain.linearRampToValueAtTime(vol, now + attack);
         gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-
         if (filterFreq) {
-            const filter = ac.createBiquadFilter();
-            filter.type = 'lowpass';
-            filter.frequency.value = filterFreq;
-            osc.connect(filter);
-            filter.connect(gain);
-        } else {
-            osc.connect(gain);
-        }
-
-        gain.connect(ac.destination);
-        osc.start(now);
-        osc.stop(now + duration + 0.01);
+            const f = ac.createBiquadFilter();
+            f.type = 'lowpass'; f.frequency.value = filterFreq;
+            osc.connect(f); f.connect(gain);
+        } else { osc.connect(gain); }
+        gain.connect(getMaster());
+        osc.start(now); osc.stop(now + duration + 0.02);
     }
 
-    // ── 擊中音效 (依模式/判定) ──
-    function playSfxHit(label, trackIdx) {
-        const ac = getAudioCtx();
-
-        // 四個軌道對應不同音高
-        const trackNotes = [261.63, 329.63, 392.00, 523.25]; // C4 E4 G4 C5
-        const baseFreq   = trackNotes[trackIdx % 4];
-
-        if (label === 'PERFECT!' || label === 'PERFECT') {
-            // 明亮鋼琴感
-            playTone(baseFreq,        'sine',     0.25, 0.35);
-            playTone(baseFreq * 2,    'sine',     0.15, 0.18, 0.02);
-            playTone(baseFreq * 3,    'sine',     0.10, 0.10, 0.04);
-            // 高頻閃光
-            playTone(baseFreq * 4,    'sine',     0.08, 0.07, 0.00);
-        } else if (label === 'GREAT') {
-            playTone(baseFreq,        'triangle', 0.20, 0.28);
-            playTone(baseFreq * 1.5,  'sine',     0.12, 0.14, 0.02);
-        } else if (label === 'HIT!') {
-            playTone(baseFreq,        'square',   0.12, 0.18, 0,    800);
-            playTone(baseFreq * 1.25, 'sine',     0.10, 0.14, 0.01);
-        } else if (label === 'HOLD!') {
-            playTone(baseFreq * 0.5,  'sawtooth', 0.30, 0.20, 0,    600);
-        } else {
-            // GOOD / 其他
-            playTone(baseFreq,        'triangle', 0.15, 0.18);
-        }
-    }
-
-    // ── MISS 音效 ──
-    function playSfxMiss() {
-        const ac = getAudioCtx();
-        playTone(120, 'sawtooth', 0.15, 0.12, 0, 400);
-        playTone(90,  'sawtooth', 0.12, 0.08, 0.05, 300);
-    }
-
-    // ── COMBO 里程碑音效 ──
-    function playSfxComboMilestone(combo) {
-        // 每 5 連擊給一個上揚音階
-        const ac = getAudioCtx();
-        const scale = [523.25, 587.33, 659.25, 783.99, 1046.5];
-        const steps  = Math.min(Math.floor(combo / 5), 4);
-        for (let i = 0; i <= steps; i++) {
-            playTone(scale[i], 'sine', 0.18, 0.12, i * 0.06);
-        }
-    }
-
-    // ══════════════════════════════════
-    // 🥁 背景節奏音樂 (程序生成)
-    // ══════════════════════════════════
-    let bgmIntervalId = null;
-    let bgmBeat = 0;
-
-    // BPM 依關卡調整
-    function getBPM() { return 90 + gameState.level * 6; }
-
-    // 每個模式的節奏型
-    const PATTERNS = {
-        // mode 1 — 輕快電子
-        1: {
-            kick:   [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0],
-            snare:  [0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0],
-            hihat:  [1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1],
-            bass:   [1,0,0,1, 0,0,1,0, 1,0,0,0, 0,1,0,0],
-        },
-        // mode 2 — 鋼琴爵士
-        2: {
-            kick:   [1,0,0,0, 0,0,1,0, 1,0,0,0, 0,0,0,0],
-            snare:  [0,0,0,1, 0,0,0,1, 0,0,0,1, 0,0,1,0],
-            hihat:  [1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,1],
-            bass:   [1,0,0,0, 1,0,0,0, 0,1,0,0, 1,0,0,0],
-        },
-        // mode 3 — 快節奏 EDM
-        3: {
-            kick:   [1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,0],
-            snare:  [0,1,0,1, 0,1,0,1, 0,1,0,1, 0,1,0,1],
-            hihat:  [1,1,0,1, 1,1,0,1, 1,1,0,1, 1,1,1,1],
-            bass:   [1,0,1,0, 0,1,0,1, 1,0,0,1, 0,1,1,0],
-        }
-    };
-
-    // 合成鼓聲
+    // ── 打擊樂 ──
     function playKick() {
-        const ac = getAudioCtx();
-        const osc  = ac.createOscillator();
-        const gain = ac.createGain();
-        const now  = ac.currentTime;
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(160, now);
-        osc.frequency.exponentialRampToValueAtTime(40, now + 0.12);
-        gain.gain.setValueAtTime(0.5, now);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.25);
-        osc.connect(gain); gain.connect(ac.destination);
-        osc.start(now); osc.stop(now + 0.3);
+        if (musicMuted) return;
+        const ac = getAudioCtx(); const now = ac.currentTime;
+        const o = ac.createOscillator(); const g = ac.createGain();
+        o.type = 'sine';
+        o.frequency.setValueAtTime(180, now);
+        o.frequency.exponentialRampToValueAtTime(40, now + 0.15);
+        g.gain.setValueAtTime(0.6, now);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
+        o.connect(g); g.connect(getMaster());
+        o.start(now); o.stop(now + 0.35);
     }
 
     function playSnare() {
-        const ac   = getAudioCtx();
-        const buf  = ac.createBuffer(1, ac.sampleRate * 0.15, ac.sampleRate);
-        const data = buf.getChannelData(0);
-        for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1);
-        const src  = ac.createBufferSource();
-        const gain = ac.createGain();
-        const filter = ac.createBiquadFilter();
-        filter.type = 'bandpass'; filter.frequency.value = 3000; filter.Q.value = 0.6;
-        src.buffer = buf;
-        const now = ac.currentTime;
-        gain.gain.setValueAtTime(0.22, now);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
-        src.connect(filter); filter.connect(gain); gain.connect(ac.destination);
-        src.start(now);
+        if (musicMuted) return;
+        const ac = getAudioCtx(); const now = ac.currentTime;
+        const buf = ac.createBuffer(1, ac.sampleRate * 0.18, ac.sampleRate);
+        const d = buf.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+        const src = ac.createBufferSource(); src.buffer = buf;
+        const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 2800; f.Q.value = 0.8;
+        const g = ac.createGain();
+        g.gain.setValueAtTime(0.28, now); g.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+        src.connect(f); f.connect(g); g.connect(getMaster()); src.start(now);
     }
 
     function playHihat(open = false) {
-        const ac   = getAudioCtx();
-        const buf  = ac.createBuffer(1, ac.sampleRate * (open ? 0.2 : 0.05), ac.sampleRate);
-        const data = buf.getChannelData(0);
-        for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1);
-        const src  = ac.createBufferSource();
-        const gain = ac.createGain();
-        const filter = ac.createBiquadFilter();
-        filter.type = 'highpass'; filter.frequency.value = 8000;
-        src.buffer = buf;
-        const now = ac.currentTime;
-        gain.gain.setValueAtTime(open ? 0.10 : 0.07, now);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + (open ? 0.18 : 0.04));
-        src.connect(filter); filter.connect(gain); gain.connect(ac.destination);
-        src.start(now);
+        if (musicMuted) return;
+        const ac = getAudioCtx(); const now = ac.currentTime;
+        const len = open ? 0.22 : 0.045;
+        const buf = ac.createBuffer(1, ac.sampleRate * len, ac.sampleRate);
+        const d = buf.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+        const src = ac.createBufferSource(); src.buffer = buf;
+        const f = ac.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 9000;
+        const g = ac.createGain();
+        g.gain.setValueAtTime(open ? 0.09 : 0.06, now);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + len);
+        src.connect(f); f.connect(g); g.connect(getMaster()); src.start(now);
     }
 
-    function playBass(beat, mode) {
-        // 依 beat 位置選擇 bassline 音符
-        const basslines = {
-            1: [65.41, 73.42, 82.41, 87.31],  // C2 D2 E2 F2
-            2: [55.00, 61.74, 65.41, 73.42],  // A1 B1 C2 D2
-            3: [87.31, 98.00, 110.0, 87.31],  // F2 G2 A2 F2
-        };
-        const notes = basslines[mode] || basslines[1];
-        const freq  = notes[beat % notes.length];
-        const ac    = getAudioCtx();
-        const osc   = ac.createOscillator();
-        const gain  = ac.createGain();
-        const filter= ac.createBiquadFilter();
-        filter.type = 'lowpass'; filter.frequency.value = 300;
-        const now   = ac.currentTime;
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(freq, now);
-        gain.gain.setValueAtTime(0.18, now);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
-        osc.connect(filter); filter.connect(gain); gain.connect(ac.destination);
-        osc.start(now); osc.stop(now + 0.25);
-    }
+    // ── 音符頻率表 ──
+    const NOTE = {
+        C2:65.41,D2:73.42,E2:82.41,F2:87.31,G2:98.00,A2:110.0,B2:123.47,
+        C3:130.81,D3:146.83,E3:164.81,F3:174.61,G3:196.00,A3:220.00,B3:246.94,
+        C4:261.63,D4:293.66,E4:329.63,F4:349.23,G4:392.00,A4:440.00,B4:493.88,
+        C5:523.25,D5:587.33,E5:659.25,F5:698.46,G5:783.99,A5:880.00,
+        Db4:277.18,Eb4:311.13,Gb4:369.99,Ab4:415.30,Bb4:466.16,
+        Db5:554.37,Eb5:622.25,Gb5:739.99,Ab5:830.61,
+    };
 
-    function tickBGM() {
-        if (!gameState.active || musicMuted) return;
-        const mode    = gameState.mode;
-        const pattern = PATTERNS[mode] || PATTERNS[1];
-        const idx     = bgmBeat % 16;
+    // ══════════════════════════════════
+    // 🎼 SEQUENCER — 完整 2 分鐘樂曲
+    // ══════════════════════════════════
+    // 每個 mode 有獨立的樂曲段落，分成 A/B/C/D 四段循環
+    // 每段 8 拍（=32 個16分音符），4 段 = 32 拍 ≈ 16秒（BPM=120）
+    // 2分鐘 = 120拍 ≈ 7.5 個循環
 
-        if (pattern.kick[idx])  playKick();
-        if (pattern.snare[idx]) playSnare();
-        if (pattern.hihat[idx]) playHihat(pattern.hihat[idx] === 2);
-        if (pattern.bass[idx])  playBass(Math.floor(bgmBeat / 4), mode);
+    // 所有旋律均為 16 步序列（16分音符）
+    // null = 休止符，[音高, 時值倍數] 其中時值=16分音符倍數
 
-        bgmBeat++;
-    }
+    const SONGS = {
+        // ── Mode 1: C大調輕快電子流行 ──
+        1: {
+            bpm: 120,
+            melody: [
+                // Phrase A (小星星變奏)
+                [NOTE.C4,NOTE.C4,NOTE.G4,NOTE.G4, NOTE.A4,NOTE.A4,NOTE.G4,null,
+                 NOTE.F4,NOTE.F4,NOTE.E4,NOTE.E4, NOTE.D4,NOTE.D4,NOTE.C4,null],
+                // Phrase B (往上爬)
+                [NOTE.E4,null,NOTE.G4,null,        NOTE.A4,NOTE.B4,NOTE.C5,null,
+                 NOTE.B4,null,NOTE.A4,null,        NOTE.G4,null,NOTE.E4,null],
+                // Phrase C (活潑跳音)
+                [NOTE.C5,NOTE.B4,NOTE.A4,NOTE.G4, NOTE.F4,NOTE.E4,NOTE.D4,NOTE.C4,
+                 NOTE.E4,NOTE.G4,NOTE.E4,NOTE.G4, NOTE.A4,null,NOTE.G4,null],
+                // Phrase D (回到C)
+                [NOTE.G4,NOTE.G4,NOTE.F4,NOTE.E4, NOTE.F4,NOTE.E4,NOTE.D4,null,
+                 NOTE.E4,NOTE.G4,NOTE.C4,null,    NOTE.G4,NOTE.E4,NOTE.C4,null],
+            ],
+            chords: [
+                // A: C - G - Am - F
+                [[NOTE.C3,NOTE.E3,NOTE.G3], null, [NOTE.G2,NOTE.B2,NOTE.D3], null,
+                 [NOTE.A2,NOTE.C3,NOTE.E3], null, [NOTE.F2,NOTE.A2,NOTE.C3], null,
+                 [NOTE.C3,NOTE.E3,NOTE.G3], null, [NOTE.G2,NOTE.B2,NOTE.D3], null,
+                 [NOTE.A2,NOTE.C3,NOTE.E3], null, [NOTE.F2,NOTE.A2,NOTE.C3], null],
+                // B: Am - F - C - G
+                [[NOTE.A2,NOTE.C3,NOTE.E3], null, [NOTE.F2,NOTE.A2,NOTE.C3], null,
+                 [NOTE.C3,NOTE.E3,NOTE.G3], null, [NOTE.G2,NOTE.B2,NOTE.D3], null,
+                 [NOTE.A2,NOTE.C3,NOTE.E3], null, [NOTE.F2,NOTE.A2,NOTE.C3], null,
+                 [NOTE.C3,NOTE.E3,NOTE.G3], null, [NOTE.G2,NOTE.B2,NOTE.D3], null],
+                // C: F - G - Am - C
+                [[NOTE.F2,NOTE.A2,NOTE.C3], null, [NOTE.G2,NOTE.B2,NOTE.D3], null,
+                 [NOTE.A2,NOTE.C3,NOTE.E3], null, [NOTE.C3,NOTE.E3,NOTE.G3], null,
+                 [NOTE.F2,NOTE.A2,NOTE.C3], null, [NOTE.G2,NOTE.B2,NOTE.D3], null,
+                 [NOTE.A2,NOTE.C3,NOTE.E3], null, [NOTE.C3,NOTE.E3,NOTE.G3], null],
+                // D: C - Am - F - G
+                [[NOTE.C3,NOTE.E3,NOTE.G3], null, [NOTE.A2,NOTE.C3,NOTE.E3], null,
+                 [NOTE.F2,NOTE.A2,NOTE.C3], null, [NOTE.G2,NOTE.B2,NOTE.D3], null,
+                 [NOTE.C3,NOTE.E3,NOTE.G3], null, [NOTE.A2,NOTE.C3,NOTE.E3], null,
+                 [NOTE.F2,NOTE.A2,NOTE.C3], null, [NOTE.G2,NOTE.B2,NOTE.D3], null],
+            ],
+            drums: {
+                kick:  [1,0,0,0,1,0,0,0, 1,0,0,0,1,0,0,0],
+                snare: [0,0,1,0,0,0,1,0, 0,0,1,0,0,0,1,0],
+                hihat: [1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1],
+                openHH:[0,0,0,0,0,0,0,1, 0,0,0,0,0,0,0,1],
+            }
+        },
+
+        // ── Mode 2: A小調鋼琴爵士 ──
+        2: {
+            bpm: 108,
+            melody: [
+                [NOTE.A4,null,NOTE.C5,null,        NOTE.E5,null,NOTE.D5,NOTE.C5,
+                 NOTE.B4,null,NOTE.A4,null,        NOTE.G4,NOTE.F4,NOTE.E4,null],
+                [NOTE.E4,NOTE.G4,NOTE.A4,NOTE.B4, NOTE.C5,null,NOTE.B4,NOTE.A4,
+                 NOTE.G4,NOTE.E4,NOTE.G4,null,    NOTE.A4,null,null,null],
+                [NOTE.C5,NOTE.B4,NOTE.A4,NOTE.G4, NOTE.F4,NOTE.E4,NOTE.F4,NOTE.G4,
+                 NOTE.A4,NOTE.G4,NOTE.F4,NOTE.E4, NOTE.D4,NOTE.E4,NOTE.F4,null],
+                [NOTE.A4,null,NOTE.E4,null,        NOTE.F4,NOTE.G4,NOTE.A4,NOTE.B4,
+                 NOTE.C5,NOTE.B4,NOTE.A4,null,    NOTE.E4,null,NOTE.A3,null],
+            ],
+            chords: [
+                [[NOTE.A2,NOTE.C3,NOTE.E3], null, [NOTE.A2,NOTE.C3,NOTE.E3], null,
+                 [NOTE.D3,NOTE.F3,NOTE.A3], null, [NOTE.D3,NOTE.F3,NOTE.A3], null,
+                 [NOTE.E3,NOTE.G3,NOTE.B3], null, [NOTE.E3,NOTE.G3,NOTE.B3], null,
+                 [NOTE.A2,NOTE.C3,NOTE.E3], null, [NOTE.A2,NOTE.C3,NOTE.E3], null],
+                [[NOTE.F2,NOTE.A2,NOTE.C3], null, [NOTE.F2,NOTE.A2,NOTE.C3], null,
+                 [NOTE.G2,NOTE.B2,NOTE.D3], null, [NOTE.G2,NOTE.B2,NOTE.D3], null,
+                 [NOTE.E2,NOTE.G2,NOTE.B2], null, [NOTE.E2,NOTE.G2,NOTE.B2], null,
+                 [NOTE.A2,NOTE.C3,NOTE.E3], null, [NOTE.A2,NOTE.C3,NOTE.E3], null],
+                [[NOTE.D3,NOTE.F3,NOTE.A3], null, [NOTE.D3,NOTE.F3,NOTE.A3], null,
+                 [NOTE.E3,NOTE.G3,NOTE.B3], null, [NOTE.E3,NOTE.G3,NOTE.B3], null,
+                 [NOTE.F2,NOTE.A2,NOTE.C3], null, [NOTE.F2,NOTE.A2,NOTE.C3], null,
+                 [NOTE.E2,NOTE.G2,NOTE.B2], null, [NOTE.E2,NOTE.G2,NOTE.B2], null],
+                [[NOTE.A2,NOTE.C3,NOTE.E3], null, [NOTE.A2,NOTE.C3,NOTE.E3], null,
+                 [NOTE.F2,NOTE.A2,NOTE.C3], null, [NOTE.G2,NOTE.B2,NOTE.D3], null,
+                 [NOTE.E2,NOTE.G2,NOTE.B2], null, [NOTE.E2,NOTE.G2,NOTE.B2], null,
+                 [NOTE.A2,NOTE.E3,NOTE.A3], null, [NOTE.A2,NOTE.E3,NOTE.A3], null],
+            ],
+            drums: {
+                kick:  [1,0,0,0,0,0,1,0, 1,0,0,0,0,0,0,0],
+                snare: [0,0,0,1,0,0,0,1, 0,0,0,1,0,0,1,0],
+                hihat: [1,0,1,0,1,0,1,0, 1,0,1,0,1,0,1,1],
+                openHH:[0,0,0,0,0,0,0,1, 0,0,0,0,0,0,0,0],
+            }
+        },
+
+        // ── Mode 3: G大調 EDM 電子舞曲 ──
+        3: {
+            bpm: 138,
+            melody: [
+                [NOTE.G4,null,NOTE.B4,null,        NOTE.D5,NOTE.D5,NOTE.B4,null,
+                 NOTE.A4,null,NOTE.G4,null,        NOTE.B4,NOTE.A4,NOTE.G4,null],
+                [NOTE.D5,NOTE.D5,NOTE.E5,NOTE.D5, NOTE.B4,null,NOTE.A4,null,
+                 NOTE.G4,NOTE.B4,NOTE.D5,null,    NOTE.E5,NOTE.D5,NOTE.B4,null],
+                [NOTE.G5,null,NOTE.G5,NOTE.Gb5,   NOTE.E5,null,NOTE.D5,null,
+                 NOTE.B4,NOTE.D5,NOTE.G5,NOTE.D5, NOTE.B4,NOTE.A4,NOTE.G4,null],
+                [NOTE.E5,NOTE.D5,NOTE.B4,NOTE.A4, NOTE.G4,NOTE.A4,NOTE.B4,NOTE.A4,
+                 NOTE.G4,NOTE.B4,NOTE.D5,NOTE.B4, NOTE.G4,null,NOTE.G4,null],
+            ],
+            chords: [
+                [[NOTE.G2,NOTE.B2,NOTE.D3], null, [NOTE.G2,NOTE.B2,NOTE.D3], null,
+                 [NOTE.G2,NOTE.B2,NOTE.D3], null, [NOTE.G2,NOTE.B2,NOTE.D3], null,
+                 [NOTE.E2,NOTE.G2,NOTE.B2], null, [NOTE.E2,NOTE.G2,NOTE.B2], null,
+                 [NOTE.C3,NOTE.E3,NOTE.G3], null, [NOTE.D3,NOTE.Gb3,NOTE.A3], null],
+                [[NOTE.G2,NOTE.B2,NOTE.D3], null, [NOTE.G2,NOTE.B2,NOTE.D3], null,
+                 [NOTE.C3,NOTE.E3,NOTE.G3], null, [NOTE.C3,NOTE.E3,NOTE.G3], null,
+                 [NOTE.D3,NOTE.Gb3,NOTE.A3],null, [NOTE.D3,NOTE.Gb3,NOTE.A3],null,
+                 [NOTE.G2,NOTE.B2,NOTE.D3], null, [NOTE.G2,NOTE.B2,NOTE.D3], null],
+                [[NOTE.C3,NOTE.E3,NOTE.G3], null, [NOTE.C3,NOTE.E3,NOTE.G3], null,
+                 [NOTE.D3,NOTE.Gb3,NOTE.A3],null, [NOTE.D3,NOTE.Gb3,NOTE.A3],null,
+                 [NOTE.E2,NOTE.G2,NOTE.B2], null, [NOTE.E2,NOTE.G2,NOTE.B2], null,
+                 [NOTE.G2,NOTE.B2,NOTE.D3], null, [NOTE.D3,NOTE.Gb3,NOTE.A3],null],
+                [[NOTE.G2,NOTE.B2,NOTE.D3], null, [NOTE.E2,NOTE.G2,NOTE.B2], null,
+                 [NOTE.C3,NOTE.E3,NOTE.G3], null, [NOTE.D3,NOTE.Gb3,NOTE.A3],null,
+                 [NOTE.G2,NOTE.B2,NOTE.D3], null, [NOTE.E2,NOTE.G2,NOTE.B2], null,
+                 [NOTE.C3,NOTE.E3,NOTE.G3], null, [NOTE.D3,NOTE.Gb3,NOTE.A3],null],
+            ],
+            drums: {
+                kick:  [1,0,0,0,1,0,0,0, 1,0,0,0,1,0,0,0],
+                snare: [0,0,0,0,1,0,0,0, 0,0,0,0,1,0,0,1],
+                hihat: [1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1],
+                openHH:[0,0,0,0,0,0,0,1, 0,0,0,0,0,0,0,1],
+            }
+        }
+    };
+
+    // ══════════════════════════════════
+    // 🎹 SEQUENCER ENGINE (Web Audio精確排程)
+    // ══════════════════════════════════
+    let seqCtx        = null;
+    let seqStep       = 0;
+    let seqPhrase     = 0;     // 0-3 段落
+    let seqNextTime   = 0;     // 下次排程的 audioCtx 時間
+    let seqAniFrame   = null;
+    let seqRunning    = false;
+    const LOOK_AHEAD  = 0.10;  // 預排 100ms
+    const SCHED_INT   = 25;    // 每 25ms 執行一次排程
+
+    let seqIntervalId = null;
 
     function startBGM() {
         stopBGM();
-        bgmBeat = 0;
-        getAudioCtx();
-        const interval = Math.round(60000 / getBPM() / 4); // 16分音符間隔
-        bgmIntervalId  = setInterval(tickBGM, interval);
+        if (musicMuted) return;
+        seqCtx      = getAudioCtx();
+        seqStep     = 0;
+        seqPhrase   = 0;
+        seqRunning  = true;
+        seqNextTime = seqCtx.currentTime + 0.05;
+        seqIntervalId = setInterval(scheduleAhead, SCHED_INT);
     }
 
     function stopBGM() {
-        if (bgmIntervalId) { clearInterval(bgmIntervalId); bgmIntervalId = null; }
+        seqRunning = false;
+        if (seqIntervalId) { clearInterval(seqIntervalId); seqIntervalId = null; }
     }
 
-    // ── 音量按鈕 ──
+    function scheduleAhead() {
+        if (!seqRunning || musicMuted) return;
+        const ac   = seqCtx;
+        const song = SONGS[gameState.mode] || SONGS[1];
+        const bpm  = song.bpm + (gameState.level - 1) * 2; // 關卡越高BPM略升
+        const step16 = 60 / bpm / 4; // 一個16分音符的秒數
+
+        while (seqNextTime < ac.currentTime + LOOK_AHEAD) {
+            scheduleTick(song, seqStep, seqPhrase, seqNextTime, step16);
+            seqNextTime += step16;
+            seqStep++;
+            if (seqStep >= 16) {
+                seqStep = 0;
+                seqPhrase = (seqPhrase + 1) % 4;
+            }
+        }
+    }
+
+    function scheduleTick(song, step, phrase, time, step16) {
+        const ac = seqCtx;
+        const delay = time - ac.currentTime;
+        if (delay < 0) return;
+
+        // 旋律
+        const melNote = song.melody[phrase][step];
+        if (melNote) {
+            schedPlayNote(melNote, 'square', step16 * 0.85, 0.13, delay, 2200, 0.01);
+            // 加一個稍微低一點的八度增加厚度
+            schedPlayNote(melNote / 2, 'triangle', step16 * 0.9, 0.07, delay, 800);
+        }
+
+        // 和弦（偶數步）
+        const chord = song.chords[phrase][step];
+        if (chord && Array.isArray(chord)) {
+            chord.forEach(freq => {
+                schedPlayNote(freq, 'sine', step16 * 1.8, 0.06, delay, 600, 0.02);
+            });
+        }
+
+        // 鼓組
+        const d = song.drums;
+        if (d.kick[step])   schedPlayKick(delay);
+        if (d.snare[step])  schedPlaySnare(delay);
+        if (d.openHH[step]) schedPlayHH(delay, true);
+        else if (d.hihat[step]) schedPlayHH(delay, false);
+    }
+
+    function schedPlayNote(freq, type, dur, vol, delay, filterF, attack = 0.005) {
+        if (musicMuted) return;
+        const ac = seqCtx; const now = ac.currentTime + delay;
+        const o = ac.createOscillator(); const g = ac.createGain();
+        o.type = type; o.frequency.value = freq;
+        g.gain.setValueAtTime(0, now);
+        g.gain.linearRampToValueAtTime(vol, now + attack);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+        if (filterF) { const f = ac.createBiquadFilter(); f.type='lowpass'; f.frequency.value=filterF; o.connect(f); f.connect(g); }
+        else o.connect(g);
+        g.connect(getMaster());
+        o.start(now); o.stop(now + dur + 0.02);
+    }
+
+    function schedPlayKick(delay) {
+        if (musicMuted) return;
+        const ac = seqCtx; const now = ac.currentTime + delay;
+        const o = ac.createOscillator(); const g = ac.createGain();
+        o.type = 'sine';
+        o.frequency.setValueAtTime(180, now);
+        o.frequency.exponentialRampToValueAtTime(40, now + 0.15);
+        g.gain.setValueAtTime(0.55, now);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
+        o.connect(g); g.connect(getMaster());
+        o.start(now); o.stop(now + 0.35);
+    }
+
+    function schedPlaySnare(delay) {
+        if (musicMuted) return;
+        const ac = seqCtx; const now = ac.currentTime + delay;
+        const buf = ac.createBuffer(1, ac.sampleRate * 0.18, ac.sampleRate);
+        const d = buf.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+        const src = ac.createBufferSource(); src.buffer = buf;
+        const f = ac.createBiquadFilter(); f.type='bandpass'; f.frequency.value=2800; f.Q.value=0.8;
+        const g = ac.createGain();
+        g.gain.setValueAtTime(0.28, now);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+        src.connect(f); f.connect(g); g.connect(getMaster()); src.start(now);
+    }
+
+    function schedPlayHH(delay, open) {
+        if (musicMuted) return;
+        const ac = seqCtx; const now = ac.currentTime + delay;
+        const len = open ? 0.2 : 0.04;
+        const buf = ac.createBuffer(1, ac.sampleRate * len, ac.sampleRate);
+        const d = buf.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+        const src = ac.createBufferSource(); src.buffer = buf;
+        const f = ac.createBiquadFilter(); f.type='highpass'; f.frequency.value=9000;
+        const g = ac.createGain();
+        g.gain.setValueAtTime(open ? 0.08 : 0.05, now);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + len);
+        src.connect(f); f.connect(g); g.connect(getMaster()); src.start(now);
+    }
+
+    // ── 音效（點擊回饋）──
+    function playSfxHit(label, trackIdx) {
+        const trackNotes = [NOTE.C4, NOTE.E4, NOTE.G4, NOTE.C5];
+        const baseFreq = trackNotes[trackIdx % 4];
+        if (label === 'PERFECT!' || label === 'PERFECT') {
+            playNote(baseFreq, 'sine', 0.22, 0.3);
+            playNote(baseFreq * 2, 'sine', 0.14, 0.15, 0.02);
+            playNote(baseFreq * 3, 'sine', 0.09, 0.08, 0.04);
+        } else if (label === 'GREAT') {
+            playNote(baseFreq, 'triangle', 0.18, 0.25);
+            playNote(baseFreq * 1.5, 'sine', 0.11, 0.12, 0.02);
+        } else if (label === 'HIT!') {
+            playNote(baseFreq, 'square', 0.10, 0.15, 0, 900);
+            playNote(baseFreq * 1.25, 'sine', 0.08, 0.10, 0.01);
+        } else if (label === 'HOLD!') {
+            playNote(baseFreq * 0.5, 'sawtooth', 0.28, 0.18, 0, 600);
+        } else {
+            playNote(baseFreq, 'triangle', 0.12, 0.15);
+        }
+    }
+
+    function playSfxComboMilestone(combo) {
+        const scale = [NOTE.C5, NOTE.D5, NOTE.E5, NOTE.G5, NOTE.A5];
+        const steps = Math.min(Math.floor(combo / 5), 4);
+        for (let i = 0; i <= steps; i++) playNote(scale[i], 'sine', 0.18, 0.12, i * 0.07);
+    }
+
+    // 倒數音效 3-2-1-GO
+    function playSfxCountdown(num) {
+        if (num > 0) playNote(NOTE.C4, 'sine', 0.12, 0.3);
+        else { playNote(NOTE.G4, 'sine', 0.08, 0.35); playNote(NOTE.C5, 'sine', 0.15, 0.3, 0.05); }
+    }
+
+    // ── 舊介面相容 ──
+    function playTone(freq, type, dur, vol, delay=0, filterFreq=null) {
+        playNote(freq, type, dur, vol, delay, filterFreq);
+    }
+    function playKick() { schedPlayKick(0); }
+    function playSnare() { schedPlaySnare(0); }
+    function playHihat(o=false) { schedPlayHH(0, o); }
+
+    // ── 靜音按鈕（保留相容性）──
     function toggleMute() {
         musicMuted = !musicMuted;
-        const btn = document.getElementById('mute-btn');
-        btn.innerText = musicMuted ? '🔇' : '🔊';
-        btn.style.opacity = musicMuted ? '0.4' : '1';
+        if (musicMuted) stopBGM(); else if (gameState.active) startBGM();
     }
 
     // ══════════════════════════════════
@@ -1391,6 +1595,54 @@
     window.addEventListener('mouseup',    () => isTouching = [false,false,false,false]);
 
     // ══════════════════════════════════
+    // ⏱ 3-2-1 倒數函式
+    // ══════════════════════════════════
+    function startCountdown(onDone) {
+        const co  = document.getElementById('countdown-overlay');
+        const num = document.getElementById('countdown-num');
+        if (!co || !num) { onDone(); return; }
+        co.classList.remove('hidden');
+        co.style.display = 'flex';
+        let count = 3;
+        num.textContent = count;
+        num.style.color = '#00f5ff';
+        num.style.textShadow = '0 0 40px rgba(0,245,255,0.8)';
+        num.style.animation = 'none';
+        void num.offsetWidth;
+        num.style.animation = 'countPulse .6s ease-in-out';
+        playSfxCountdown(count);
+
+        const tick = setInterval(() => {
+            count--;
+            if (count > 0) {
+                num.textContent = count;
+                num.style.color = count === 2 ? '#f1c40f' : '#ff2d78';
+                num.style.textShadow = count === 2
+                    ? '0 0 40px rgba(241,196,15,0.8)'
+                    : '0 0 40px rgba(255,45,120,0.8)';
+                num.style.animation = 'none';
+                void num.offsetWidth;
+                num.style.animation = 'countPulse .6s ease-in-out';
+                playSfxCountdown(count);
+            } else {
+                clearInterval(tick);
+                num.textContent = 'GO!';
+                num.style.color = '#00ff88';
+                num.style.textShadow = '0 0 40px rgba(0,255,136,0.8)';
+                num.style.animation = 'none';
+                void num.offsetWidth;
+                num.style.animation = 'countPulse .5s ease-in-out';
+                playSfxCountdown(0);
+                setTimeout(() => {
+                    co.classList.add('hidden');
+                    co.style.display = 'none';
+                    onDone();
+                }, 600);
+            }
+        }, 900);
+    }
+
+    // ══════════════════════════════════
     // 🔗 平台橋接層 — 放在最底部確保所有函式已宣告
     // ══════════════════════════════════
     const _urlP     = new URLSearchParams(location.search);
@@ -1427,14 +1679,27 @@
             const level = e.data.w4level || _urlLevel || e.data.level || 1;
             platformLaunch(mode, level);
         }
-        if (e.data.type === 'PLATFORM_PAUSE')  { stopBGM(); gameState.active = false; }
+        if (e.data.type === 'PLATFORM_PAUSE') {
+            stopBGM();
+            gameState.active = false;
+            // 顯示暫停遮幕，隱藏倒數
+            const po = document.getElementById('pause-overlay');
+            const co = document.getElementById('countdown-overlay');
+            if (po) { po.classList.remove('hidden'); po.style.display = 'flex'; }
+            if (co) { co.classList.add('hidden'); co.style.display = 'none'; }
+        }
         if (e.data.type === 'PLATFORM_RESUME') {
-            if (!gameState.active && gameState.timeLeft > 0) {
-                gameState.active = true;
-                gameState.lastFrameTime = performance.now();
-                requestAnimationFrame(gameLoop);
-                startBGM();
-            }
+            // 隱藏暫停遮幕，開始 3-2-1 倒數
+            const po = document.getElementById('pause-overlay');
+            if (po) { po.classList.add('hidden'); po.style.display = 'none'; }
+            startCountdown(() => {
+                if (gameState.timeLeft > 0) {
+                    gameState.active = true;
+                    gameState.lastFrameTime = performance.now();
+                    requestAnimationFrame(gameLoop);
+                    startBGM();
+                }
+            });
         }
     });
 
