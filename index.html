@@ -396,6 +396,25 @@ body::before {
     <button class="kr-btn kr-btn-start" style="font-size:1.1rem;padding:16px 50px;opacity:.4;cursor:not-allowed" id="ls-w2-start-btn" disabled onclick="tcStartGame()">▶ 全班開始！</button>
   </div>
 
+  <!-- W4 選關（模式 × 關卡） -->
+  <div id="ls-w4" style="display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:24px 16px">
+    <!-- 模式選擇 -->
+    <div style="width:100%;max-width:480px">
+      <div style="color:rgba(245,200,0,.7);font-family:'Nunito',sans-serif;font-weight:900;font-size:.75rem;letter-spacing:.1em;margin-bottom:10px;text-align:center">選擇模式</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px" id="ls-w4-mode-grid">
+        <button class="ls-w4-mode-btn" data-mode="1" onclick="lsW4SelectMode(1)" style="background:linear-gradient(135deg,#1a78e0,#0050a0);border:3px solid #00E5FF;border-radius:14px;padding:14px 6px;font-family:'Nunito',sans-serif;font-weight:900;font-size:.8rem;color:white;cursor:pointer;transition:all .15s">◎<br><span style="font-size:.7rem">縮圈點擊</span></button>
+        <button class="ls-w4-mode-btn" data-mode="2" onclick="lsW4SelectMode(2)" style="background:linear-gradient(135deg,#9b59b6,#6c3483);border:3px solid rgba(255,255,255,.3);border-radius:14px;padding:14px 6px;font-family:'Nunito',sans-serif;font-weight:900;font-size:.8rem;color:white;cursor:pointer;transition:all .15s">▬<br><span style="font-size:.7rem">鋼琴黑塊</span></button>
+        <button class="ls-w4-mode-btn" data-mode="3" onclick="lsW4SelectMode(3)" style="background:linear-gradient(135deg,#e74c3c,#a00000);border:3px solid rgba(255,255,255,.3);border-radius:14px;padding:14px 6px;font-family:'Nunito',sans-serif;font-weight:900;font-size:.8rem;color:white;cursor:pointer;transition:all .15s">↓<br><span style="font-size:.7rem">底線軌道</span></button>
+      </div>
+    </div>
+    <!-- 關卡選擇 -->
+    <div style="width:100%;max-width:480px">
+      <div style="color:rgba(245,200,0,.7);font-family:'Nunito',sans-serif;font-weight:900;font-size:.75rem;letter-spacing:.1em;margin-bottom:10px;text-align:center">選擇關卡（1–10）</div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px" id="ls-w4-level-grid"></div>
+    </div>
+    <button class="kr-btn kr-btn-start" style="font-size:1.1rem;padding:16px 50px;opacity:.4;cursor:not-allowed" id="ls-w4-start-btn" disabled onclick="tcStartGame()">▶ 全班開始！</button>
+  </div>
+
   <div class="kr-footer">
     <button class="kr-btn kr-btn-ghost" onclick="exitToLobby()">← 返回大廳</button>
   </div>
@@ -767,9 +786,12 @@ function openTeacherConsole() {
     if (lsCode) lsCode.textContent = window.state.roomCode || '0000';
     // 根據遊戲切換選關 UI
     const isW2 = window.state.selectedGame === 1;
-    document.getElementById('ls-w1').style.display = isW2 ? 'none' : 'flex';
+    const isW4 = window.state.selectedGame === 3;
+    document.getElementById('ls-w1').style.display = (!isW2 && !isW4) ? 'flex' : 'none';
     document.getElementById('ls-w2').style.display = isW2 ? 'flex' : 'none';
+    document.getElementById('ls-w4').style.display = isW4 ? 'flex' : 'none';
     if (isW2) { lsW2SelectedLevel = 0; TC.level = 1; lsW2Render(); }
+    if (isW4) { lsW4Render(); }
     window.pStates['teacher'].screen = 'screen-level-select';
     window.goTo('screen-level-select');
 }
@@ -798,7 +820,69 @@ function lsW2Render() {
     }
 }
 
-function updateLevelDisplay() {
+// ── W4 節奏合鳴選關 ──
+let lsW4SelectedMode  = 0; // 0=未選
+let lsW4SelectedLevel = 0; // 0=未選
+
+function lsW4Render() {
+    lsW4SelectedMode  = 0;
+    lsW4SelectedLevel = 0;
+    // 重設所有模式按鈕外觀
+    document.querySelectorAll('.ls-w4-mode-btn').forEach(b => {
+        b.style.boxShadow  = 'none';
+        b.style.transform  = 'scale(1)';
+        b.style.borderColor = 'rgba(255,255,255,.3)';
+    });
+    // 渲染關卡格
+    const grid = document.getElementById('ls-w4-level-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    for (let i = 1; i <= 10; i++) {
+        const btn = document.createElement('button');
+        btn.className = 'ls-lvl-btn ' + (i <= 3 ? 'ls-single' : i <= 7 ? 'ls-mid' : 'ls-hard');
+        btn.id = 'ls-w4-lvl-' + i;
+        btn.textContent = i;
+        btn.onclick = () => lsW4SelectLevel(i);
+        grid.appendChild(btn);
+    }
+    // 重設開始按鈕
+    const startBtn = document.getElementById('ls-w4-start-btn');
+    if (startBtn) { startBtn.disabled = true; startBtn.style.opacity = '.4'; startBtn.style.cursor = 'not-allowed'; }
+}
+
+function lsW4SelectMode(mode) {
+    lsW4SelectedMode = mode;
+    document.querySelectorAll('.ls-w4-mode-btn').forEach(b => {
+        const isSelected = parseInt(b.dataset.mode) === mode;
+        b.style.boxShadow   = isSelected ? '0 0 16px rgba(245,200,0,.7)' : 'none';
+        b.style.transform   = isSelected ? 'scale(1.08) translateY(-2px)' : 'scale(1)';
+        b.style.borderColor = isSelected ? '#FFD600' : 'rgba(255,255,255,.3)';
+    });
+    lsW4CheckReady();
+}
+
+function lsW4SelectLevel(level) {
+    lsW4SelectedLevel = level;
+    // 更新格子外觀
+    for (let i = 1; i <= 10; i++) {
+        const b = document.getElementById('ls-w4-lvl-' + i);
+        if (b) b.classList.toggle('ls-selected', i === level);
+    }
+    lsW4CheckReady();
+}
+
+function lsW4CheckReady() {
+    const startBtn = document.getElementById('ls-w4-start-btn');
+    const ready = lsW4SelectedMode > 0 && lsW4SelectedLevel > 0;
+    if (startBtn) {
+        startBtn.disabled    = !ready;
+        startBtn.style.opacity = ready ? '1' : '.4';
+        startBtn.style.cursor  = ready ? 'pointer' : 'not-allowed';
+    }
+    if (ready) {
+        TC.level = lsW4SelectedLevel;
+    }
+}
     const phases = ['','🌿 初級','⚡ 中級','🔥 高級'];
     const phase  = TC.level > 20 ? 3 : TC.level > 10 ? 2 : 1;
     const numEl   = document.getElementById('ls-level-num');
@@ -875,6 +959,11 @@ function tcStartGame() {
         rooms[window.state.roomCode].gameLevel = TC.level;
         rooms[window.state.roomCode].gameMode  = 'SINGLE'; // W2 固定單管模式
         rooms[window.state.roomCode].scores    = {};
+        // W4 額外存 mode / level
+        if (window.state.selectedGame === 3) {
+            rooms[window.state.roomCode].w4mode  = lsW4SelectedMode || 1;
+            rooms[window.state.roomCode].w4level = lsW4SelectedLevel || TC.level || 1;
+        }
         window.saveRooms(rooms);
     }
 
@@ -914,6 +1003,20 @@ function tcStartGame() {
                 }, 300);
             }
         }
+    } else if (window.state.selectedGame === 3) {
+        // W4：老師控制台顯示即時分數排行，並顯示當前 mode/level badge
+        const badge = document.getElementById('tc-level-badge');
+        const modeNames = ['', '縮圈', '鋼琴', '軌道'];
+        if (badge) {
+            badge.textContent = `M${lsW4SelectedMode||1} · LV${lsW4SelectedLevel||TC.level||1}`;
+            badge.style.display = '';
+        }
+        tcRenderScores();
+        const sa = document.getElementById('tc-scores-area');
+        if (sa) sa.style.padding = '';
+        // 顯示「下一關」按鈕（老師可以直接改關卡重新開始）
+        const settleBtn = document.getElementById('tc-btn-settle');
+        if (settleBtn) settleBtn.style.display = '';
     } else {
         tcRenderScores();
         const sa = document.getElementById('tc-scores-area');
@@ -935,7 +1038,10 @@ function tcStartGame() {
 
     // 若目前是學生視角，立刻進入遊戲
     tcLaunchStudentIfNeeded();
-    showToast(window.state.selectedGame === 2 ? '🎮 五子棋對戰開始！' : '🎮 遊戲開始！關卡 ' + TC.level);
+    const _toastG = window.state.selectedGame;
+    showToast(_toastG === 2 ? '🎮 五子棋對戰開始！'
+            : _toastG === 3 ? `🎵 節奏合鳴！M${lsW4SelectedMode||1} · LV${lsW4SelectedLevel||TC.level||1}`
+            : '🎮 遊戲開始！關卡 ' + TC.level);
 }
 
 function studentLeaveGame() {
@@ -960,9 +1066,10 @@ function tcLaunchStudentIfNeeded() {
     const level = r.gameLevel || TC.level || 1;
     const selectedGame = r.selectedGame !== undefined ? r.selectedGame : (window.state.selectedGame || 0);
     const gameMode = r.gameMode || 'SINGLE';
-    const gameFiles = ['W1_消除方塊.html', 'W2_能源管線.html', 'W3_五子棋.html'];
+    const gameFiles = ['W1_消除方塊.html', 'W2_能源管線.html', 'W3_五子棋.html', 'W4_節奏合鳴.html'];
     const gameFile = gameFiles[selectedGame] || gameFiles[0];
     const isW2 = selectedGame === 1;
+    const isW4 = selectedGame === 3;
 
     // group 優先從 pData 取，沒有就從 Firebase rooms.players 找
     let myGroup = pData.group || '';
@@ -989,6 +1096,10 @@ function tcLaunchStudentIfNeeded() {
             url = gameFile + '?autostart=' + gameMode + '&level=' + level + '&group=' + encodeURIComponent(myGroup);
         } else if (isW3) {
             url = gameFile + '?group=' + encodeURIComponent(myGroup);
+        } else if (isW4) {
+            const w4mode  = r.w4mode  || 1;
+            const w4level = r.w4level || 1;
+            url = gameFile + '?mode=' + w4mode + '&level=' + w4level + '&group=' + encodeURIComponent(myGroup) + '&student=1';
         } else {
             url = gameFile + '?autostart=' + level + '&group=' + encodeURIComponent(myGroup);
         }
@@ -1165,8 +1276,8 @@ function exitToLobby() {
 window.addEventListener('message', (e) => {
     if (!e.data || !e.data.type) return;
     const { type, score, group } = e.data;
-    const isScore   = type==='W1_SCORE' || type==='W2_SCORE' || type==='W3_SCORE';
-    const isGameover= type==='W1_GAMEOVER' || type==='W2_GAMEOVER';
+    const isScore   = type==='W1_SCORE' || type==='W2_SCORE' || type==='W3_SCORE' || type==='W4_SCORE';
+    const isGameover= type==='W1_GAMEOVER' || type==='W2_GAMEOVER' || type==='W4_GAMEOVER';
     if ((isScore || isGameover) && group) {
         tcUpdateScore(group, score);
         const rooms = window.getRooms();
@@ -1392,7 +1503,7 @@ const GAMES = [
   {id:1, name:'星際採礦',   icon:'⭐', desc:'點擊礦石得分',     available: true},
   {id:2, name:'能源管線',   icon:'⚡', desc:'接通電力線路',     available: true},
   {id:3, name:'五子棋對戰', icon:'⚫', desc:'經典組間對決',     available: true},
-  {id:4, name:'節奏合鳴',   icon:'🎵', desc:'跟隨音樂律動',     available: false},
+  {id:4, name:'節奏合鳴',   icon:'🎵', desc:'跟隨音樂律動',     available: true},
   {id:5, name:'你畫我猜',   icon:'🎨', desc:'繪畫聯想猜謎',     available: false},
   {id:6, name:'雙人圓圈',   icon:'⭕', desc:'雙人協作平衡',     available: false},
   {id:7, name:'星際大富翁', icon:'🚀', desc:'擲骰冒險奪寶',     available: false},
