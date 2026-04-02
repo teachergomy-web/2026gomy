@@ -340,9 +340,26 @@ let curColor='#111',curSize=8,painting=false,tchs={};
 
 function resizeCanvas(){
   const w=document.getElementById('canvas-wrap'); if(!w)return;
-  const prev=ctx.getImageData(0,0,canvas.width,canvas.height);
+  
+  // 保留原本畫布內容，防止 resize 時被清空
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = canvas.width;
+  tempCanvas.height = canvas.height;
+  if(canvas.width > 0 && canvas.height > 0) {
+      tempCanvas.getContext('2d').drawImage(canvas, 0, 0);
+  }
+
   canvas.width=w.clientWidth; canvas.height=w.clientHeight;
-  ctx.putImageData(prev,0,0); ctx.lineCap='round'; ctx.lineJoin='round';
+  
+  // 畫布填滿白色，確保沒畫時也能送出全白圖片
+  ctx.fillStyle='#ffffff';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  
+  if(tempCanvas.width > 0 && tempCanvas.height > 0) {
+      ctx.drawImage(tempCanvas, 0, 0);
+  }
+  
+  ctx.lineCap='round'; ctx.lineJoin='round';
 }
 window.addEventListener('resize',resizeCanvas);
 
@@ -355,7 +372,13 @@ canvas.addEventListener('touchend',  e=>{e.preventDefault();for(const t of e.cha
 canvas.addEventListener('mousedown', e=>{painting=true;const p=gp(e,e);tchs.mouse=p;dot(p);});
 canvas.addEventListener('mousemove', e=>{if(!painting)return;const p=gp(e,e);ln(tchs.mouse,p);tchs.mouse=p;});
 window.addEventListener('mouseup',   ()=>{painting=false;delete tchs.mouse;});
-function clearCanvas(){ctx.clearRect(0,0,canvas.width,canvas.height);}
+
+function clearCanvas(){
+  // 清除畫布時也填滿白色
+  ctx.fillStyle='#ffffff';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+}
+
 function pickColor(el){curColor=el.dataset.c;document.querySelectorAll('.s-color').forEach(b=>b.classList.remove('sel'));el.classList.add('sel');}
 document.getElementById('s-size-slider').addEventListener('input',e=>{curSize=+e.target.value;});
 
@@ -496,7 +519,12 @@ function renderT(){
     rules.style.display='block'; scEl.style.display='none'; grid.style.display='none';
     return;
   }
-  rules.style.display='none'; scEl.style.display='flex'; grid.style.display='grid';
+  
+  rules.style.display='none'; 
+  
+  // 在 REVEAL 階段時隱藏分數列表
+  scEl.style.display = (S.phase === 'REVEAL') ? 'none' : 'flex'; 
+  grid.style.display='grid';
 
   // Score strip
   scEl.innerHTML='';
