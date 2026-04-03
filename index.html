@@ -2559,13 +2559,23 @@ document.addEventListener('DOMContentLoaded', () => {
     window.state.perspective = 'guest';
 
     // ── 重整恢復：等 Firebase 連線後再檢查 ──
-    // 先檢查有沒有 session，有的話等 Firebase 連線後恢復
     window._pendingRestore = JSON.parse(localStorage.getItem('game_session') || 'null');
-    // 有 session 時先顯示 loading，避免閃回首頁
     if (window._pendingRestore && window._pendingRestore.roomCode) {
         const loading = document.getElementById('restore-loading');
         if (loading) loading.style.display = 'flex';
     }
+
+    // ── 測試工具：URL 參數自動加入 ──
+    // 測試工具開啟視窗時會帶入 ?autoJoin=1&roomCode=1234&group=1
+    (function tryAutoJoinFromUrl() {
+        const p = new URLSearchParams(window.location.search);
+        if (p.get('autoJoin') !== '1') return;
+        const code  = p.get('roomCode');
+        const group = p.get('group');
+        if (!code || !group) return;
+        // 等 Firebase 連線後再執行（延遲確保 Firebase 就緒）
+        window._autoJoinParams = { code, group };
+    })();
 
     // 防止雙擊縮放（iOS Safari）
     let lastTap = 0;
@@ -2581,8 +2591,62 @@ document.addEventListener('DOMContentLoaded', () => {
     }, { passive: false });
 });
 
+// ── 測試工具：postMessage AUTO_JOIN 處理 ──
+window.addEventListener('message', (e) => {
+    if (!e.data || e.data.type !== 'AUTO_JOIN') return;
+    const { roomCode, group } = e.data;
+    if (!roomCode || !group) return;
+    window._autoJoinParams = { code: roomCode, group };
+    // 如果 Firebase 已就緒就立即執行，否則等 tryRestoreSession 後觸發
+    if (isFirebaseAuthComplete) triggerAutoJoin();
+});
+
+// ── 自動加入執行函式（URL 參數 or postMessage 觸發）──
+function triggerAutoJoin() {
+    const params = window._autoJoinParams;
+    if (!params) return;
+    window._autoJoinParams = null; // 清掉，避免重複執行
+
+    const { code, group } = params;
+    console.log(`[AutoJoin] 嘗試自動加入 → 房間:${code} 組別:${group}`);
+
+    // 確認房間存在
+    const rooms = window.getRooms();
+    const room  = rooms[code];
+    if (!room || !room.open) {
+        console.warn(`[AutoJoin] 房間 ${code} 不存在或已關閉`);
+        window.showToast(`⚠️ 找不到房間 ${code}`);
+        return;
+    }
+
+    // 設好狀態
+    window.state.roomCode  = code;
+    window.state.tempRoomCode = code;
+    window.state.players   = room.players || [];
+    window.state.takenSymbols = window.state.players.map(p => p.symbol);
+    window.state.takenGroups  = window.state.players.map(p => p.group);
+
+    // 選第一個可用的符號
+    const availableSymbol = window.SYMBOLS.find(s => !window.state.takenSymbols.includes(s));
+    if (!availableSymbol) { console.warn('[AutoJoin] 沒有可用符號'); return; }
+
+    window.state.selectedGroup  = group;
+    window.state.selectedSymbol = availableSymbol;
+    window.state.perspective    = 's' + group;
+
+    startSyncListener();
+    window.joinRoom();
+    console.log(`[AutoJoin] ✅ 已送出加入請求 → 第${group}組 符號:${availableSymbol}`);
+}
+
 // ── Firebase 連線後執行恢復 ──
 function tryRestoreSession() {
+    // 如果有自動加入請求（來自測試工具），優先執行
+    if (window._autoJoinParams) {
+        triggerAutoJoin();
+        return;
+    }
+
     const saved = window._pendingRestore;
     if (!saved || !saved.perspective || !saved.roomCode) return;
     window._pendingRestore = null;
