@@ -89,7 +89,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 #s-draw-banner{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;flex-shrink:0;}
 #s-draw-topic{font-size:20px;font-weight:900;color:var(--accent);}
 #canvas-wrap{width:100%;flex:1;min-height:0;border-radius:10px;overflow:hidden;border:2px solid var(--border);background:#fff;position:relative;}
-#drawCanvas{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair;}
+#drawCanvas{display:block;touch-action:none;cursor:crosshair;}
 #s-toolbar{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:8px 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0;}
 /* ── SUBMITTED OVERLAY（蓋在 #s-draw 上，保留畫布背景） */
 #s-submitted-overlay{display:none;position:absolute;inset:0;background:rgba(14,14,20,.88);flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:20;text-align:center;padding:24px;border-radius:4px;}
@@ -371,7 +371,7 @@ window.addEventListener('message',ev=>{
     if(myIdx>=0){
       const g=S.groups[myIdx];
       if(g&&!g.submitted&&S.phase==='DRAWING'){
-        if(!canvas._W||canvas.width<10) resizeCanvas();
+        if(canvas.width<10||canvas.height<10) resizeCanvas();
         g.imgData=canvas.toDataURL('image/png');
         g.submitted=true;
         const blank=isCanvasBlank();
@@ -537,8 +537,8 @@ function studentSubmitDrawing(){
   const g=S.groups[myIdx];
   if(S.phase!=='DRAWING'||g.submitted) return;
   clearInterval(studentTimer); studentTimer=null;
-  // 確保畫布有實際尺寸（若還未 resize 則立即執行）
-  if(!canvas._W||canvas.width<10) resizeCanvas();
+  // 若畫布尚未初始化（理論上不應發生，但保護一下）
+  if(canvas.width<10||canvas.height<10) resizeCanvas();
   g.imgData=canvas.toDataURL('image/png');
   g.submitted=true;
   push(); renderS();
@@ -698,16 +698,32 @@ function renderS(){
       updateTimerUI();
       if(!_canvasReady){
         _canvasReady=true;
-        requestAnimationFrame(()=>requestAnimationFrame(resizeCanvas));
-      }
-      if(!studentTimer){
-        studentTimer=setInterval(()=>{
-          if(S.phase!=='DRAWING'||myIdx<0){ clearInterval(studentTimer); studentTimer=null; return; }
-          const g2=S.groups[myIdx];
-          if(!g2||g2.submitted){ clearInterval(studentTimer); studentTimer=null; return; }
-          S.time=Math.max(0,S.time-1);
-          updateTimerUI();
-        },1000);
+        // 用 setTimeout(0) 讓瀏覽器完成一次 layout 後立即 resize
+        // 不用雙層 rAF，避免學生在 resize 前就開始畫圖（座標錯誤）
+        setTimeout(()=>{
+          resizeCanvas();
+          // resize 完成後才啟動計時器，確保畫布已就緒
+          if(!studentTimer){
+            studentTimer=setInterval(()=>{
+              if(S.phase!=='DRAWING'||myIdx<0){ clearInterval(studentTimer); studentTimer=null; return; }
+              const g2=S.groups[myIdx];
+              if(!g2||g2.submitted){ clearInterval(studentTimer); studentTimer=null; return; }
+              S.time=Math.max(0,S.time-1);
+              updateTimerUI();
+            },1000);
+          }
+        },50);
+      } else {
+        // 畫布已就緒，只啟動計時器
+        if(!studentTimer){
+          studentTimer=setInterval(()=>{
+            if(S.phase!=='DRAWING'||myIdx<0){ clearInterval(studentTimer); studentTimer=null; return; }
+            const g2=S.groups[myIdx];
+            if(!g2||g2.submitted){ clearInterval(studentTimer); studentTimer=null; return; }
+            S.time=Math.max(0,S.time-1);
+            updateTimerUI();
+          },1000);
+        }
       }
     } else {
       // 已交卷：顯示 overlay 蓋在畫布上，畫布本身不動
