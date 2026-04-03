@@ -247,10 +247,13 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 // ─────────────────────────────────────────
 const TOPICS=["大象","火車","電腦","珍珠奶茶","長頸鹿","麥當勞","機器人","太空船","警察局","烤肉","彩虹","腳踏車","直升機","鬼屋","冰淇淋","蜘蛛人","聖誕樹","滑水道","潛水艇","比薩斜塔","柯基犬","熱氣球","恐龍","花椰菜","消防車","釣魚","溜冰"];
 const GC=["#f7c948","#ff5c5c","#4ecdc4","#a78bfa"];
-const DRAW_TIME=30;
+const DRAW_TIME=60;  // ← 改為 60 秒
 const EMPTY='data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==';
 
 let isTeacher=false, myGroup='', myIdx=-1;
+// 學生端本地計時器（不依賴 Firebase，避免每秒 renderS/resizeCanvas）
+let studentTimer=null;
+let _canvasReady=false; // 畫布是否已初始化過（避免重複 resize 清空內容）
 
 function mkState(){
   return{phase:'IDLE',round:0,time:DRAW_TIME,groups:[
@@ -276,6 +279,8 @@ window.addEventListener('message',ev=>{
   // ── Init ──
   if(d.type==='PLATFORM_START'){
     isTeacher=!!d.isTeacher; myGroup=d.group||'';
+    clearInterval(studentTimer); studentTimer=null;
+    _canvasReady=false;
     if(isTeacher){
       S=d.state||mkState();
       show('teacher-screen'); hide('student-screen');
@@ -287,7 +292,6 @@ window.addEventListener('message',ev=>{
       myIdx=S.groups.findIndex(g=>g.name===myGroup);
       if(myIdx<0) myIdx=0;
       renderS();
-      if(S.phase==='DRAWING'&&!S.groups[myIdx]?.submitted) requestAnimationFrame(()=>requestAnimationFrame(resizeCanvas));
     }
     return;
   }
@@ -301,34 +305,44 @@ window.addEventListener('message',ev=>{
         if(S.groups[i]?.imgData&&!ig.imgData) ig.imgData=S.groups[i].imgData;
       });
     }
-    // Prevent timer tick from overwriting student's own submitted flag
+    // 學生端：保護本地狀態，避免 Firebase 覆蓋
     if(!isTeacher&&myIdx>=0&&inc.groups){
       const mine=inc.groups[myIdx];
       if(mine&&S.groups[myIdx]?.submitted) mine.submitted=true;
       if(mine&&S.groups[myIdx]?.imgData&&!mine.imgData) mine.imgData=S.groups[myIdx].imgData;
-      // Preserve typed guess
       if(mine&&!mine.guess&&S.groups[myIdx]?.guess) mine.guess=S.groups[myIdx].guess;
     }
+
+    const prevPhase=S.phase;
     S=inc;
-    if(isTeacher){ renderT(); }
-    else{
-      renderS();
-      if(S.phase==='DRAWING'&&myIdx>=0&&!S.groups[myIdx]?.submitted) requestAnimationFrame(()=>requestAnimationFrame(resizeCanvas));
+
+    if(isTeacher){ renderT(); return; }
+
+    // 學生端：phase 沒有改變且在 DRAWING → 只更新計時 UI，絕對不重繪畫布
+    if(S.phase===prevPhase&&S.phase==='DRAWING'){
+      updateTimerUI();
+      if(myIdx>=0&&S.groups[myIdx]?.submitted){
+        showWait('✅','已交卷！',`等待其他組完成作畫...\n剩餘 ${S.time} 秒`);
+      }
+      return;
     }
+
+    // phase 改變了（例如 DRAWING→GUESSING），才重新 renderS
+    renderS();
     return;
   }
 
   // ── Force collect (time up) ──
   if(d.type==='W5_FORCE_COLLECT'&&!isTeacher){
+    clearInterval(studentTimer); studentTimer=null;
     if(myIdx>=0){
       const g=S.groups[myIdx];
       if(g&&!g.submitted&&S.phase==='DRAWING'){
         g.imgData=canvas.toDataURL('image/png');
         g.submitted=true;
-        // 判斷是否為空白畫布（與全白畫布比較）
         const blank=isCanvasBlank();
         if(blank){ g.score=Math.max(0,g.score-2); g.forcedBlank=true; }
-        push(); // push imgData immediately
+        push();
       }
     }
   }
@@ -380,7 +394,15 @@ function resizeCanvas(){
   }
   ctx.lineCap='round'; ctx.lineJoin='round';
 }
-window.addEventListener('resize',resizeCanvas);
+// resize 只在畫布已就緒且 s-draw 可見時才執行，且節流避免頻繁觸發
+let _resizeThrottle=null;
+window.addEventListener('resize',()=>{
+  if(!_canvasReady) return;
+  const drawEl=document.getElementById('s-draw');
+  if(!drawEl||drawEl.style.display==='none') return;
+  clearTimeout(_resizeThrottle);
+  _resizeThrottle=setTimeout(resizeCanvas,200);
+});
 
 function gp(e,t){const r=canvas.getBoundingClientRect();return{x:(t.clientX-r.left),y:(t.clientY-r.top)};}
 function dot(p){ctx.beginPath();ctx.arc(p.x,p.y,curSize/2,0,Math.PI*2);ctx.fillStyle=curColor;ctx.fill();}
@@ -422,6 +444,8 @@ function teacherAction(){
 
 function startRound(){
   clearInterval(timer);
+  clearInterval(studentTimer); studentTimer=null;
+  _canvasReady=false;
   S.round++; S.phase='DRAWING'; S.time=DRAW_TIME;
   const sh=[...TOPICS].sort(()=>Math.random()-.5);
   S.groups.forEach((g,i)=>{
@@ -483,6 +507,7 @@ function studentSubmitDrawing(){
   if(myIdx<0) return;
   const g=S.groups[myIdx];
   if(S.phase!=='DRAWING'||g.submitted) return;
+  clearInterval(studentTimer); studentTimer=null;
   g.imgData=canvas.toDataURL('image/png');
   g.submitted=true;
   push(); renderS();
@@ -625,12 +650,27 @@ function renderS(){
   }
   if(S.phase==='DRAWING'){
     if(!g.submitted){
-      document.getElementById('s-draw').style.display='flex';
+      const drawEl=document.getElementById('s-draw');
+      drawEl.style.display='flex';
       document.getElementById('s-draw-topic').textContent=g.topic;
       updateTimerUI();
-      // 等瀏覽器完成 layout 後再 resize（避免 display:none 時尺寸為 0）
-      requestAnimationFrame(()=>requestAnimationFrame(resizeCanvas));
+      // 只有畫布第一次顯示時才 resize（避免每次 renderS 清空內容）
+      if(!_canvasReady){
+        _canvasReady=true;
+        requestAnimationFrame(()=>requestAnimationFrame(resizeCanvas));
+      }
+      // 學生端本地計時器：每秒更新倒數 UI（不依賴 Firebase）
+      if(!studentTimer){
+        studentTimer=setInterval(()=>{
+          if(S.phase!=='DRAWING'||!myIdx<0){ clearInterval(studentTimer); studentTimer=null; return; }
+          const g2=S.groups[myIdx];
+          if(!g2||g2.submitted){ clearInterval(studentTimer); studentTimer=null; return; }
+          S.time=Math.max(0,S.time-1);
+          updateTimerUI();
+        },1000);
+      }
     } else {
+      clearInterval(studentTimer); studentTimer=null;
       showWait('✅','已交卷！',`等待其他組完成作畫...\n剩餘 ${S.time} 秒`);
     }
     return;
