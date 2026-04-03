@@ -123,13 +123,27 @@ body::before {
 .hbc-title { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 1.4rem; color: var(--ink); }
 
 /* ═══════════════════════════════════════════
-   JOIN FLOW
+   JOIN FLOW — 手機優先排版
    ═══════════════════════════════════════════ */
-.join-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; width: 100%; }
-.field-label { display: block; font-family: 'Nunito', sans-serif; font-weight: 900; font-size: .9rem; color: var(--ink); margin-bottom: 12px; }
+.join-layout { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+.field-label { display: block; font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 1rem; color: var(--ink); margin-bottom: 10px; }
 .input-select { width: 100%; background: white; border: 4px solid var(--outline); border-radius: 14px; padding: 14px 16px; font-family: 'Nunito','Noto Sans TC',sans-serif; font-weight: 900; font-size: 1rem; color: var(--ink); appearance: none; cursor: pointer; box-shadow: 0 4px 0 var(--outline); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24'%3E%3Cpath fill='%231a1200' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; }
-.symbol-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
-.symbol-opt { aspect-ratio: 1; border-radius: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; border: 3px solid var(--outline); background: white; box-shadow: 0 4px 0 var(--outline); transition: all .12s; }
+
+/* 組別選擇：大按鈕卡片（手機好點擊） */
+.group-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.group-opt { aspect-ratio: 1; border-radius: 14px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border: 3px solid var(--outline); background: white; box-shadow: 0 4px 0 var(--outline); transition: all .12s; -webkit-tap-highlight-color: transparent; }
+.group-opt:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--outline); }
+.group-opt.selected { background: var(--blue); border-color: var(--blue2); transform: translateY(3px); box-shadow: 0 1px 0 var(--blue2); }
+.group-opt.selected .go-num { color: white; }
+.group-opt.selected .go-label { color: rgba(255,255,255,.8); }
+.group-opt.taken { opacity: .3; filter: grayscale(1); cursor: not-allowed; background: #ddd; border-color: #bbb; box-shadow: none; pointer-events: none; }
+.go-num { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 1.4rem; color: var(--ink); line-height: 1; }
+.go-label { font-family: 'Noto Sans TC', sans-serif; font-weight: 700; font-size: .55rem; color: #888; }
+
+/* 符號選擇 */
+.symbol-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.symbol-opt { aspect-ratio: 1; border-radius: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; border: 3px solid var(--outline); background: white; box-shadow: 0 4px 0 var(--outline); transition: all .12s; -webkit-tap-highlight-color: transparent; }
+.symbol-opt:active { transform: translateY(2px); }
 .symbol-opt.selected { background: var(--yellow); transform: translateY(3px); box-shadow: 0 1px 0 var(--outline); }
 .symbol-opt.taken { opacity: .3; filter: grayscale(1); cursor: not-allowed; background: #ddd; border-color: #bbb; box-shadow: none; pointer-events: none; }
 
@@ -264,52 +278,65 @@ body::before {
 </div>
 
 <div id="screen-join" class="screen">
-  <div style="width:100%;max-width:560px"><button class="back-link" onclick="goTo('screen-home')">◀ 返回首頁</button></div>
 
-  <div id="join-step-1" style="width:100%;max-width:560px">
-    <div class="card" style="text-align:center;padding:20px"><span class="mp-title" style="font-size:1.8rem;color:var(--blue)">選擇房間</span></div>
-    <div class="card" style="padding:20px">
+  <!-- Step 1：房間列表 -->
+  <div id="join-step-1" style="width:100%;max-width:480px;display:flex;flex-direction:column;gap:0">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <button class="back-link" style="margin-bottom:0" onclick="goTo('screen-home')">◀ 返回</button>
+      <span style="font-family:'Nunito',sans-serif;font-weight:900;font-size:1.2rem;color:white">選擇房間</span>
+    </div>
+    <div class="card" style="padding:16px">
       <div id="room-list"></div>
-      <div id="room-empty" style="text-align:center;padding:32px 0;display:none">
+      <div id="room-empty" style="text-align:center;padding:28px 0;display:none">
         <div style="font-size:2.5rem">🔍</div>
-        <div style="font-weight:900;color:#aaa;margin-top:10px">目前沒有開放的房間</div>
+        <div style="font-weight:900;color:#aaa;margin-top:10px;font-family:'Nunito',sans-serif">目前沒有開放的房間</div>
+        <div style="font-size:.8rem;color:#bbb;margin-top:6px">請等待老師建立房間</div>
       </div>
     </div>
   </div>
 
-  <div id="join-step-password" style="display:none;width:100%;max-width:400px">
-    <button class="back-link" onclick="backToStep1()">◀ 返回列表</button>
-    <div class="card" style="text-align:center">
-      <div style="font-size:3rem;margin-bottom:10px">🔐</div>
-      <h3 style="font-weight:900;margin-bottom:15px" id="pw-room-title">請輸入密碼</h3>
-      <input type="number" id="room-pw-input" class="input-select" placeholder="四位數代碼" style="text-align:center; font-size: 2rem; letter-spacing: 0.3em" maxlength="4" onkeydown="if(event.key==='Enter') verifyRoomPassword()">
-      <button class="btn btn-blue" style="margin-top:20px" onclick="verifyRoomPassword()">進入房間</button>
+  <!-- Step 1.5：輸入密碼 -->
+  <div id="join-step-password" style="display:none;width:100%;max-width:380px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <button class="back-link" style="margin-bottom:0" onclick="backToStep1()">◀ 返回</button>
+      <span style="font-family:'Nunito',sans-serif;font-weight:900;font-size:1.1rem;color:white" id="pw-room-title">輸入房間密碼</span>
+    </div>
+    <div class="card" style="text-align:center;padding:28px 20px">
+      <div style="font-size:3.2rem;margin-bottom:12px">🔐</div>
+      <input type="tel" id="room-pw-input" class="input-select"
+        placeholder="四位數密碼"
+        style="text-align:center;font-size:2.2rem;letter-spacing:.35em;padding:16px;"
+        maxlength="4" inputmode="numeric" pattern="[0-9]*"
+        onkeydown="if(event.key==='Enter') verifyRoomPassword()">
+      <button class="btn btn-blue" style="margin-top:16px;font-size:1.1rem;padding:16px" onclick="verifyRoomPassword()">進入房間 →</button>
     </div>
   </div>
 
-  <div id="join-step-2" style="display:none;width:100%;max-width:640px">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;width:100%">
+  <!-- Step 2：選組別 + 圖像 -->
+  <div id="join-step-2" style="display:none;width:100%;max-width:480px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
       <button class="back-link" style="margin-bottom:0" onclick="backToPassword()">◀ 返回</button>
-      <div id="selected-room-info" style="font-weight:900;color:white;text-shadow:1px 1px 0 rgba(0,0,0,.3)"></div>
+      <div id="selected-room-info" style="font-family:'Nunito',sans-serif;font-weight:900;font-size:.9rem;color:rgba(255,255,255,.7)"></div>
     </div>
+
     <div class="join-layout">
-      <div class="card" style="padding:24px 20px">
-        <label class="field-label">1. 選擇組別</label>
-        <select id="group-select" class="input-select" onchange="onGroupSelect(this.value)">
-          <option value="">— 請選擇 —</option>
-          <option value="1">第 1 組</option>
-          <option value="2">第 2 組</option>
-          <option value="3">第 3 組</option>
-          <option value="4">第 4 組</option>
-          <option value="5">第 5 組</option>
-        </select>
+      <!-- 組別卡片 -->
+      <div class="card" style="padding:18px 16px">
+        <label class="field-label">① 選擇組別</label>
+        <div class="group-grid" id="group-picker"></div>
       </div>
-      <div class="card" style="padding:24px 20px">
-        <label class="field-label">2. 選擇圖像</label>
+
+      <!-- 符號卡片 -->
+      <div class="card" style="padding:18px 16px">
+        <label class="field-label">② 選擇圖像</label>
         <div id="symbol-picker" class="symbol-grid"></div>
       </div>
     </div>
-    <button class="btn btn-green" onclick="joinRoom()" style="font-size:1.2rem;padding:18px;margin-top:10px">準備完成！→</button>
+
+    <button class="btn btn-green" onclick="joinRoom()"
+      style="font-size:1.2rem;padding:18px;margin-top:12px;border-radius:20px">
+      準備完成！→
+    </button>
   </div>
 </div>
 
@@ -843,13 +870,6 @@ function startSyncListener() {
                         sgIframe.contentWindow.postMessage({ type: 'W3_STATE', data: data.w3state }, '*');
                     }
                 }
-                // W5：收到遊戲狀態更新，推給學生 iframe
-                if (data.w5state && pData.screen === 'screen-student-game' && window.state.selectedGame === 4) {
-                    const sgIframe = document.getElementById('sg-iframe');
-                    if (sgIframe && sgIframe.contentWindow) {
-                        sgIframe.contentWindow.postMessage({ type: 'W5_STATE', data: data.w5state }, '*');
-                    }
-                }
             }
         }
         // 老師端：W3 狀態更新推給 tc-w3-iframe
@@ -902,10 +922,9 @@ function openTeacherConsole() {
 
     const g = GAMES[window.state.selectedGame] || GAMES[0];
     const isW3 = window.state.selectedGame === 2;
-    const isW5 = window.state.selectedGame === 4;
 
-    if (isW3 || isW5) {
-        // W3/W5 沒有關卡選擇，直接啟動遊戲
+    if (isW3) {
+        // W3 沒有關卡選擇，直接啟動遊戲
         tcStartGame();
         return;
     }
@@ -1050,7 +1069,7 @@ function jumpToPhase(phase) {
 
 // ── 即時分數渲染 ──
 function tcRenderScores() {
-    if (window.state.selectedGame === 2 || window.state.selectedGame === 4) return;
+    if (window.state.selectedGame === 2 || window.state.selectedGame === 4) return; const area = document.getElementById('tc-scores-area'); if (!area) return; const players = window.state.players; if (!players.length) {
     const area = document.getElementById('tc-scores-area');
     if (!area) return;
     const players = window.state.players;
@@ -1166,34 +1185,6 @@ function tcStartGame() {
                         w3iframe.contentWindow.postMessage({
                             type: 'PLATFORM_START', isTeacher: true, group: '',
                             state: latestW3,
-                            players: window.state.players || []
-                        }, '*');
-                    } catch(e) {}
-                }, 300);
-            }
-        }
-    } else if (window.state.selectedGame === 4) {
-        // W5：老師控制台嵌入 W5 iframe（老師視角）
-        const settleBtn = document.getElementById('tc-btn-settle');
-        const levelBadge = document.getElementById('tc-level-badge');
-        const pauseBtn = document.getElementById('tc-btn-pause');
-        const resumeBtn = document.getElementById('tc-btn-resume');
-        const nextContainer = document.getElementById('tc-next-level-container');
-        if (settleBtn) settleBtn.style.display = '';
-        if (levelBadge) levelBadge.style.display = 'none';
-        if (pauseBtn) pauseBtn.style.display = 'none';
-        if (resumeBtn) resumeBtn.style.display = 'none';
-        if (nextContainer) nextContainer.style.display = 'none';
-        const sa = document.getElementById('tc-scores-area');
-        if (sa) {
-            sa.style.padding = '0';
-            sa.innerHTML = `<iframe id="tc-w5-iframe" src="W5_你畫我猜.html?role=teacher" style="flex:1; width:100%; border:none; border-radius:0"></iframe>`;
-            const w5iframe = document.getElementById('tc-w5-iframe');
-            if (w5iframe) {
-                w5iframe.onload = () => setTimeout(() => {
-                    try {
-                        w5iframe.contentWindow.postMessage({
-                            type: 'PLATFORM_START', isTeacher: true, group: '',
                             players: window.state.players || []
                         }, '*');
                     } catch(e) {}
@@ -1324,7 +1315,7 @@ function tcLaunchStudentIfNeeded() {
     const level = r.gameLevel || TC.level || 1;
     const selectedGame = r.selectedGame !== undefined ? r.selectedGame : (window.state.selectedGame || 0);
     const gameMode = r.gameMode || 'SINGLE';
-    const gameFiles = ['W1_消除方塊.html', 'W2_能源管線.html', 'W3_五子棋.html', 'W4_節奏合鳴.html', 'W5_你畫我猜.html'];
+    const gameFiles = ['W1_消除方塊.html', 'W2_能源管線.html', 'W3_五子棋.html', 'W4_節奏合鳴.html'];
     const gameFile = gameFiles[selectedGame] || gameFiles[0];
     const isW2 = selectedGame === 1;
     const isW4 = selectedGame === 3;
@@ -1356,7 +1347,6 @@ function tcLaunchStudentIfNeeded() {
 
     if (iframe) {
         const isW3 = selectedGame === 2;
-        const isW5 = selectedGame === 4;
         let url;
         if (isW2) {
             url = gameFile + '?autostart=' + gameMode + '&level=' + level + '&group=' + encodeURIComponent(myGroup);
@@ -1366,8 +1356,6 @@ function tcLaunchStudentIfNeeded() {
             const w4mode  = r.w4mode  || 1;
             const w4level = r.w4level || 1;
             url = gameFile + '?mode=' + w4mode + '&level=' + w4level + '&group=' + encodeURIComponent(myGroup) + '&student=1';
-        } else if (isW5) {
-            url = gameFile + '?group=' + encodeURIComponent(myGroup);
         } else {
             url = gameFile + '?autostart=' + level + '&group=' + encodeURIComponent(myGroup);
         }
@@ -1376,7 +1364,7 @@ function tcLaunchStudentIfNeeded() {
         iframe.onload = () => setTimeout(() => {
             // ★ 修正快轉 Bug：W4 已經透過 URL 參數直接啟動遊戲引擎，
             // 若再發送 PLATFORM_START 會造成重複開啟第二個遊戲迴圈，引發畫面快轉與卡頓
-            if (isW4) return;
+            if (isW4) return; 
             
             try {
                 const rooms2 = window.getRooms();
@@ -1549,8 +1537,8 @@ function exitToLobby() {
 window.addEventListener('message', (e) => {
     if (!e.data || !e.data.type) return;
     const { type, score, group } = e.data;
-    const isScore   = type==='W1_SCORE' || type==='W2_SCORE' || type==='W3_SCORE' || type==='W4_SCORE' || type==='W5_SCORE';
-    const isGameover= type==='W1_GAMEOVER' || type==='W2_GAMEOVER' || type==='W4_GAMEOVER' || type==='W5_GAMEOVER';
+    const isScore   = type==='W1_SCORE' || type==='W2_SCORE' || type==='W3_SCORE' || type==='W4_SCORE';
+    const isGameover= type==='W1_GAMEOVER' || type==='W2_GAMEOVER' || type==='W4_GAMEOVER';
 
     // ── W4 學生端：直接寫入 Firebase (加上過往累積的 baseScores) ──
     if ((type === 'W4_SCORE' || type === 'W4_GAMEOVER') && group && window.state.perspective !== 'teacher') {
@@ -1618,24 +1606,6 @@ window.addEventListener('message', (e) => {
             try { tcW3.contentWindow.postMessage({ type: 'W3_STATE', data: w3d }, '*'); } catch(e2) {}
         }
 
-    }
-
-    // W5 你畫我猜：老師 iframe 廣播遊戲狀態 → 存入 Firebase → 推送給所有學生
-    if (type === 'W5_STATE' && e.data.data) {
-        const w5d = e.data.data;
-        const rooms = window.getRooms();
-        if (rooms[window.state.roomCode]) {
-            rooms[window.state.roomCode].w5state = w5d;
-            window.saveRooms(rooms);
-        }
-    }
-
-    // W5 強制收卷：老師觸發 → 平台廣播給所有學生 iframe
-    if (type === 'W5_FORCE_COLLECT' && window.state.perspective === 'teacher') {
-        const sgIframe = document.getElementById('sg-iframe');
-        if (sgIframe && sgIframe.contentWindow) {
-            try { sgIframe.contentWindow.postMessage({ type: 'W5_FORCE_COLLECT' }, '*'); } catch(e2) {}
-        }
     }
 });
 
@@ -1829,7 +1799,7 @@ const GAMES = [
   {id:2, name:'能源管線',   icon:'⚡', desc:'接通電力線路',     available: true},
   {id:3, name:'五子棋對戰', icon:'⚫', desc:'經典組間對決',     available: true},
   {id:4, name:'節奏合鳴',   icon:'🎵', desc:'跟隨音樂律動',     available: true},
-  {id:5, name:'你畫我猜',   icon:'🎨', desc:'繪畫聯想猜謎',     available: true},
+  {id:5, name:'你畫我猜',   icon:'🎨', desc:'繪畫聯想猜謎',     available: false},
   {id:6, name:'雙人圓圈',   icon:'⭕', desc:'雙人協作平衡',     available: false},
   {id:7, name:'星際大富翁', icon:'🚀', desc:'擲骰冒險奪寶',     available: false},
   {id:8, name:'記憶大考驗', icon:'🧠', desc:'腦力連線挑戰',     available: false}
@@ -1918,7 +1888,7 @@ function startJoinListener(roomCode) {
         // 如果目前在選組畫面，即時更新組別顯示
         const step = window.pStates[window.state.perspective]?.joinStep;
         if (step === 2) {
-            window.renderGroupSelect();
+            renderGroupPicker();
             window.renderSymbolPicker();
         }
     }, () => {});
@@ -1932,10 +1902,9 @@ function syncJoinDOM() {
     if (step === 2) {
         window.state.selectedGroup = '';
         window.state.selectedSymbol = '';
-        document.getElementById('group-select').value = '';
         // 啟動選組即時監聽（其他裝置加入時本機立即更新）
         startJoinListener(window.state.roomCode);
-        window.renderGroupSelect();
+        renderGroupPicker();
         window.renderSymbolPicker();
     } else {
         // 離開選組畫面時停止監聽
@@ -1993,20 +1962,33 @@ function verifyRoomPassword() {
 }
 function backToStep1() { if (window.pStates[window.state.perspective]) window.pStates[window.state.perspective].joinStep = 1; window.syncJoinDOM(); }
 function backToPassword() { if (window.pStates[window.state.perspective]) window.pStates[window.state.perspective].joinStep = 1.5; window.syncJoinDOM(); }
+function pickGroup(n) {
+    const name = `第 ${n} 組`;
+    if ((window.state.takenGroups || []).includes(name)) return;
+    window.state.selectedGroup = String(n);
+    renderGroupPicker();
+}
 function onGroupSelect(val) { window.state.selectedGroup = val; }
 function renderGroupSelect() {
-    const sel = document.getElementById('group-select');
-    if (!sel) return;
-    const takenGroups = window.state.takenGroups || [];
-    Array.from(sel.options).forEach(opt => {
-        if (!opt.value) return; // skip placeholder
-        const groupName = `第 ${opt.value} 組`;
-        const isTaken = takenGroups.includes(groupName);
-        opt.disabled = isTaken;
-        opt.textContent = isTaken ? `第 ${opt.value} 組（已佔用）` : `第 ${opt.value} 組`;
-    });
+    // 舊版 <select> 相容保留（已改為 renderGroupPicker，此函式空執行）
 }
 window.renderGroupSelect = renderGroupSelect;
+
+function renderGroupPicker() {
+    const container = document.getElementById('group-picker');
+    if (!container) return;
+    const takenGroups = window.state.takenGroups || [];
+    container.innerHTML = [1,2,3,4,5].map(n => {
+        const name = `第 ${n} 組`;
+        const taken = takenGroups.includes(name);
+        const selected = window.state.selectedGroup === String(n);
+        return `<div class="group-opt ${taken ? 'taken' : ''} ${selected ? 'selected' : ''}"
+            onclick="pickGroup('${n}')">
+            <span class="go-num">${n}</span>
+            <span class="go-label">${taken ? '已佔' : '第'+n+'組'}</span>
+        </div>`;
+    }).join('');
+}
 function renderSymbolPicker() {
   document.getElementById('symbol-picker').innerHTML = window.SYMBOLS.map(s => {
     const isTaken = window.state.takenSymbols.includes(s);
@@ -2607,12 +2589,12 @@ function tryRestoreSession() {
 // ==========================================
 Object.assign(window, {
     testResetToHome, testSetPerspective, toggleQR, goToTeacherLogin, goToJoin, goTo,
-    backToStep1, verifyRoomPassword, backToPassword, onGroupSelect, joinRoom,
+    backToStep1, verifyRoomPassword, backToPassword, onGroupSelect, pickGroup, joinRoom,
     simulateJoin, doCloseRoom, selectGame, leaveRoomStudent, teacherLogin, _finishJoin,
     openTeacherConsole, changeLevel, jumpToPhase, updateLevelDisplay,
     tcStartGame, tcPauseGame, tcResumeGame, tcSettleGame, tcEndGame, tcW4NextLevel, exitToLobby, studentLeaveGame, tryRestoreSession,
     showToast, setViewTeacher, setViewStudent,
-    syncJoinDOM, renderLobby, renderSymbolPicker, renderGroupSelect, updateStudentWaitDisplay,
+    syncJoinDOM, renderLobby, renderSymbolPicker, renderGroupSelect, renderGroupPicker, renderGroupPicker, updateStudentWaitDisplay,
     getRooms, saveRooms,
     lsW4BackToMode
 });
