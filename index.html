@@ -125,18 +125,10 @@ body::before {
 /* ═══════════════════════════════════════════
    JOIN FLOW
    ═══════════════════════════════════════════ */
-.join-layout { display: grid; grid-template-columns: 1fr; gap: 12px; width: 100%; }
-@media (min-width: 520px) { .join-layout { grid-template-columns: 1fr 1fr; gap: 16px; } }
-#screen-join { justify-content: flex-start; padding: 20px 14px 100px; overflow-y: auto; }
+.join-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; width: 100%; }
+.field-label { display: block; font-family: 'Nunito', sans-serif; font-weight: 900; font-size: .9rem; color: var(--ink); margin-bottom: 12px; }
 .input-select { width: 100%; background: white; border: 4px solid var(--outline); border-radius: 14px; padding: 14px 16px; font-family: 'Nunito','Noto Sans TC',sans-serif; font-weight: 900; font-size: 1rem; color: var(--ink); appearance: none; cursor: pointer; box-shadow: 0 4px 0 var(--outline); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24'%3E%3Cpath fill='%231a1200' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; }
 .symbol-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
-@media (max-width: 480px) {
-  .symbol-grid { gap: 7px; }
-  .symbol-opt { font-size: 1.3rem; border-radius: 10px; }
-  .card { padding: 16px 14px !important; }
-  #join-step-2 { padding: 0 2px; }
-  .btn.btn-green { font-size: 1rem !important; padding: 14px !important; }
-}
 .symbol-opt { aspect-ratio: 1; border-radius: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; border: 3px solid var(--outline); background: white; box-shadow: 0 4px 0 var(--outline); transition: all .12s; }
 .symbol-opt.selected { background: var(--yellow); transform: translateY(3px); box-shadow: 0 1px 0 var(--outline); }
 .symbol-opt.taken { opacity: .3; filter: grayscale(1); cursor: not-allowed; background: #ddd; border-color: #bbb; box-shadow: none; pointer-events: none; }
@@ -470,20 +462,6 @@ body::before {
       <!-- 返回模式選擇 -->
       <button onclick="lsW4BackToMode()" style="width:100%;margin-top:10px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:10px;font-family:'Nunito',sans-serif;font-weight:900;font-size:.8rem;color:rgba(255,255,255,.4);cursor:pointer;transition:all .2s" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,.4)'">← 重新選模式</button>
     </div>
-  </div>
-
-  <!-- W5 你畫我猜（直接開始，無關卡選擇） -->
-  <div id="ls-w5" style="display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:28px;padding:32px 20px">
-    <div style="text-align:center">
-      <div style="font-size:4rem;margin-bottom:12px">🎨</div>
-      <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:1.8rem;color:#f5c800;margin-bottom:8px">你畫我猜</div>
-      <div style="font-family:'Nunito',sans-serif;font-size:.9rem;color:rgba(255,255,255,.5);line-height:1.8;max-width:360px">
-        每組隨機出題，限時 60 秒畫出來<br>
-        畫作傳給下一組猜，猜對雙方得分<br>
-        老師統一公布答案後進入下一輪
-      </div>
-    </div>
-    <button class="kr-btn kr-btn-start" style="font-size:1.2rem;padding:18px 60px" onclick="tcStartGame()">▶ 全班開始！</button>
   </div>
 
   <style>
@@ -874,27 +852,6 @@ function startSyncListener() {
                 try { tcW3.contentWindow.postMessage({ type: 'W3_STATE', data: data.w3state }, '*'); } catch(e2) {}
             }
         }
-        // 老師端：W5 Firebase 更新（學生提交）→ 推給老師 tc-w5-iframe
-        if (p === 'teacher' && data.w5state) {
-            const tcW5 = document.getElementById('tc-w5-iframe');
-            if (tcW5 && tcW5.contentWindow) {
-                try { tcW5.contentWindow.postMessage({ type: 'W5_STATE', data: data.w5state }, '*'); } catch(e2) {}
-            }
-        }
-        // 學生端：W5 Firebase 更新（老師出題/計時）→ 推給學生 sg-iframe
-        if (p !== 'teacher' && data.w5state) {
-            const sgIframe = document.getElementById('sg-iframe');
-            if (sgIframe && sgIframe.contentWindow) {
-                try { sgIframe.contentWindow.postMessage({ type: 'W5_STATE', data: data.w5state }, '*'); } catch(e2) {}
-            }
-        }
-        // 學生端：收到強制收卷信號 → 通知學生 iframe 立刻 capture canvas
-        if (p !== 'teacher' && data.w5forceCollect) {
-            const sgIframe = document.getElementById('sg-iframe');
-            if (sgIframe && sgIframe.contentWindow) {
-                try { sgIframe.contentWindow.postMessage({ type: 'W5_FORCE_COLLECT' }, '*'); } catch(e2) {}
-            }
-        }
     }, err => console.error('Room sync error:', err));
     console.log('✅ 監聽房間:', roomCode);
 }
@@ -938,10 +895,9 @@ function openTeacherConsole() {
 
     const g = GAMES[window.state.selectedGame] || GAMES[0];
     const isW3 = window.state.selectedGame === 2;
-    const isW5direct = window.state.selectedGame === 4;
 
-    if (isW3 || isW5direct) {
-        // W3 / W5 沒有關卡選擇，直接啟動遊戲
+    if (isW3) {
+        // W3 沒有關卡選擇，直接啟動遊戲
         tcStartGame();
         return;
     }
@@ -957,11 +913,9 @@ function openTeacherConsole() {
     // 根據遊戲切換選關 UI
     const isW2 = window.state.selectedGame === 1;
     const isW4 = window.state.selectedGame === 3;
-    const isW5 = window.state.selectedGame === 4;
-    document.getElementById('ls-w1').style.display = (!isW2 && !isW4 && !isW5) ? 'flex' : 'none';
+    document.getElementById('ls-w1').style.display = (!isW2 && !isW4) ? 'flex' : 'none';
     document.getElementById('ls-w2').style.display = isW2 ? 'flex' : 'none';
     document.getElementById('ls-w4').style.display = isW4 ? 'flex' : 'none';
-    document.getElementById('ls-w5').style.display = isW5 ? 'flex' : 'none';
     if (isW2) { lsW2SelectedLevel = 0; TC.level = 1; lsW2Render(); }
     if (isW4) { lsW4Render(); }
     window.pStates['teacher'].screen = 'screen-level-select';
@@ -1088,6 +1042,7 @@ function jumpToPhase(phase) {
 
 // ── 即時分數渲染 ──
 function tcRenderScores() {
+    if (window.state.selectedGame === 2 || window.state.selectedGame === 4) return; const area = document.getElementById('tc-scores-area'); if (!area) return; const players = window.state.players; if (!players.length) {
     const area = document.getElementById('tc-scores-area');
     if (!area) return;
     const players = window.state.players;
@@ -1248,37 +1203,6 @@ function tcStartGame() {
         if (sa) sa.style.padding = '';
         const settleBtn = document.getElementById('tc-btn-settle');
         if (settleBtn) settleBtn.style.display = '';
-    } else if (window.state.selectedGame === 4) {
-        // W5：老師控制台嵌入 W5 iframe（teacher 視角）
-        const settleBtn = document.getElementById('tc-btn-settle');
-        const levelBadge = document.getElementById('tc-level-badge');
-        const pauseBtn = document.getElementById('tc-btn-pause');
-        const resumeBtn = document.getElementById('tc-btn-resume');
-        const nextContainer = document.getElementById('tc-next-level-container');
-        if (settleBtn) settleBtn.style.display = '';
-        if (levelBadge) { levelBadge.textContent = '你畫我猜'; levelBadge.style.display = ''; }
-        if (pauseBtn) pauseBtn.style.display = 'none';
-        if (resumeBtn) resumeBtn.style.display = 'none';
-        if (nextContainer) nextContainer.style.display = 'none';
-        const sa = document.getElementById('tc-scores-area');
-        if (sa) {
-            sa.style.padding = '0';
-            sa.innerHTML = `<iframe id="tc-w5-iframe" src="W5_你畫我猜.html" style="flex:1; width:100%; height:100%; border:none; border-radius:0"></iframe>`;
-            const w5iframe = document.getElementById('tc-w5-iframe');
-            if (w5iframe) {
-                w5iframe.onload = () => setTimeout(() => {
-                    try {
-                        const rooms2 = window.getRooms();
-                        const r2 = rooms2[window.state.roomCode] || {};
-                        w5iframe.contentWindow.postMessage({
-                            type: 'PLATFORM_START', isTeacher: true, group: '',
-                            state: r2.w5state || null,
-                            players: window.state.players || []
-                        }, '*');
-                    } catch(e) {}
-                }, 300);
-            }
-        }
     } else {
         const nextContainer = document.getElementById('tc-next-level-container');
         if (nextContainer) nextContainer.style.display = 'none';
@@ -1364,7 +1288,7 @@ function tcLaunchStudentIfNeeded() {
     const level = r.gameLevel || TC.level || 1;
     const selectedGame = r.selectedGame !== undefined ? r.selectedGame : (window.state.selectedGame || 0);
     const gameMode = r.gameMode || 'SINGLE';
-    const gameFiles = ['W1_消除方塊.html', 'W2_能源管線.html', 'W3_五子棋.html', 'W4_節奏合鳴.html', 'W5_你畫我猜.html'];
+    const gameFiles = ['W1_消除方塊.html', 'W2_能源管線.html', 'W3_五子棋.html', 'W4_節奏合鳴.html'];
     const gameFile = gameFiles[selectedGame] || gameFiles[0];
     const isW2 = selectedGame === 1;
     const isW4 = selectedGame === 3;
@@ -1396,7 +1320,6 @@ function tcLaunchStudentIfNeeded() {
 
     if (iframe) {
         const isW3 = selectedGame === 2;
-        const isW5 = selectedGame === 4;
         let url;
         if (isW2) {
             url = gameFile + '?autostart=' + gameMode + '&level=' + level + '&group=' + encodeURIComponent(myGroup);
@@ -1406,25 +1329,25 @@ function tcLaunchStudentIfNeeded() {
             const w4mode  = r.w4mode  || 1;
             const w4level = r.w4level || 1;
             url = gameFile + '?mode=' + w4mode + '&level=' + w4level + '&group=' + encodeURIComponent(myGroup) + '&student=1';
-        } else if (isW5) {
-            url = gameFile + '?student=1';
         } else {
             url = gameFile + '?autostart=' + level + '&group=' + encodeURIComponent(myGroup);
         }
         iframe.src = url;
         
         iframe.onload = () => setTimeout(() => {
-            // W4 已透過 URL 參數直接啟動，跳過 PLATFORM_START
+            // ★ 修正快轉 Bug：W4 已經透過 URL 參數直接啟動遊戲引擎，
+            // 若再發送 PLATFORM_START 會造成重複開啟第二個遊戲迴圈，引發畫面快轉與卡頓
             if (isW4) return; 
             
             try {
                 const rooms2 = window.getRooms();
                 const r2 = rooms2[window.state.roomCode] || {};
                 const isTeacher2 = window.state.perspective === 'teacher';
+                const w3state = r2.w3state || null;
                 iframe.contentWindow.postMessage({
                     type: 'PLATFORM_START', level, group: myGroup,
                     isTeacher: isTeacher2,
-                    state: isW5 ? (r2.w5state || null) : (r2.w3state || null),
+                    state: w3state,
                     players: r2.players || window.state.players || []
                 }, '*');
             } catch(e) {}
@@ -1587,20 +1510,8 @@ function exitToLobby() {
 window.addEventListener('message', (e) => {
     if (!e.data || !e.data.type) return;
     const { type, score, group } = e.data;
-    const isScore   = type==='W1_SCORE' || type==='W2_SCORE' || type==='W3_SCORE' || type==='W4_SCORE' || type==='W5_SCORE';
-    const isGameover= type==='W1_GAMEOVER' || type==='W2_GAMEOVER' || type==='W4_GAMEOVER' || type==='W5_GAMEOVER';
-
-    // ── W5 分數：從老師端 iframe 直接更新排行榜 ──
-    if (type === 'W5_SCORE' && group) {
-        const rooms = window.getRooms();
-        if (rooms[window.state.roomCode]) {
-            if (!rooms[window.state.roomCode].scores) rooms[window.state.roomCode].scores = {};
-            rooms[window.state.roomCode].scores[group] = score;
-            window.saveRooms(rooms);
-        }
-        tcUpdateScore(group, score);
-        return;
-    }
+    const isScore   = type==='W1_SCORE' || type==='W2_SCORE' || type==='W3_SCORE' || type==='W4_SCORE';
+    const isGameover= type==='W1_GAMEOVER' || type==='W2_GAMEOVER' || type==='W4_GAMEOVER';
 
     // ── W4 學生端：直接寫入 Firebase (加上過往累積的 baseScores) ──
     if ((type === 'W4_SCORE' || type === 'W4_GAMEOVER') && group && window.state.perspective !== 'teacher') {
@@ -1667,43 +1578,7 @@ window.addEventListener('message', (e) => {
         if (tcW3 && tcW3.contentWindow) {
             try { tcW3.contentWindow.postMessage({ type: 'W3_STATE', data: w3d }, '*'); } catch(e2) {}
         }
-    }
 
-    // W5 強制收卷：老師端發送 → 存入 Firebase 觸發學生端收卷
-    if (type === 'W5_FORCE_COLLECT' && window.state.perspective === 'teacher') {
-        const rooms = window.getRooms();
-        if (rooms[window.state.roomCode]) {
-            rooms[window.state.roomCode].w5forceCollect = Date.now();
-            window.saveRooms(rooms);
-        }
-    }
-
-    // W5 你畫我猜：任何端廣播遊戲狀態 → 存入 Firebase → 雙向同步
-    if (type === 'W5_STATE' && e.data.data) {
-        const w5d = e.data.data;
-        const rooms = window.getRooms();
-        if (rooms[window.state.roomCode]) {
-            // 合併：保留 imgData 最大值（學生畫作不可被覆蓋）
-            const existing = rooms[window.state.roomCode].w5state;
-            if (existing && existing.groups && w5d.groups) {
-                w5d.groups.forEach((g, i) => {
-                    if (existing.groups[i] && existing.groups[i].imgData && !g.imgData)
-                        g.imgData = existing.groups[i].imgData;
-                });
-            }
-            rooms[window.state.roomCode].w5state = w5d;
-            window.saveRooms(rooms);
-        }
-        // 推給老師 W5 iframe（老師端接收學生提交的畫作/答案）
-        if (window.state.perspective === 'teacher') {
-            const tcW5 = document.getElementById('tc-w5-iframe');
-            if (tcW5 && tcW5.contentWindow) {
-                try { tcW5.contentWindow.postMessage({ type: 'W5_STATE', data: w5d }, '*'); } catch(e2) {}
-            }
-            // 更新分數顯示
-            if (w5d.phase === 'REVEAL' && w5d.groups)
-                w5d.groups.forEach(g => tcUpdateScore(g.name, g.score));
-        }
     }
 });
 
@@ -1897,7 +1772,7 @@ const GAMES = [
   {id:2, name:'能源管線',   icon:'⚡', desc:'接通電力線路',     available: true},
   {id:3, name:'五子棋對戰', icon:'⚫', desc:'經典組間對決',     available: true},
   {id:4, name:'節奏合鳴',   icon:'🎵', desc:'跟隨音樂律動',     available: true},
-  {id:5, name:'你畫我猜',   icon:'🎨', desc:'繪畫聯想猜謎',     available: true},
+  {id:5, name:'你畫我猜',   icon:'🎨', desc:'繪畫聯想猜謎',     available: false},
   {id:6, name:'雙人圓圈',   icon:'⭕', desc:'雙人協作平衡',     available: false},
   {id:7, name:'星際大富翁', icon:'🚀', desc:'擲骰冒險奪寶',     available: false},
   {id:8, name:'記憶大考驗', icon:'🧠', desc:'腦力連線挑戰',     available: false}
@@ -2400,9 +2275,9 @@ function teacherLogin() {
   // 記住這次的房間密碼，下次登入時自動清除
   localStorage.setItem('my_last_room_code', code);
 
-  // 取得房間編號：用目前已存在的房間數量 +1，不再累積遞增
-  const existingCount = Object.keys(rooms).filter(c => rooms[c] && rooms[c].open).length;
-  let roomNum = existingCount + 1;
+  // 取得房間編號
+  let roomNum = parseInt(localStorage.getItem('playroom_counter') || '0') + 1;
+  localStorage.setItem('playroom_counter', roomNum);
 
   rooms[code] = { 
       open: true, teacherName: tName, roomNum: roomNum, createdAt: Date.now(),
