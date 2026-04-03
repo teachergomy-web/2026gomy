@@ -8,882 +8,226 @@
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
-/* ═══════════════════════════════════════════ DESIGN TOKENS (Mario Party + KartRider Style) ═══════════════════════════════════════════ */
- :root  {
-   --sky: #4ab8ff;
-   --ink: #1a1200;
-   --white: #fff9f0;
-   --yellow: #f5c800;
-   --yellow2:#c89800;
-   --red: #e82020;
-   --red2: #b81010;
-   --blue: #1a78e0;
-   --blue2: #1060c0;
-   --green: #22c040;
-   --green2: #169030;
-   --purple: #9030c8;
-   --outline:#1a1200;
+/* ═══════════════════════════════════════════
+   DESIGN TOKENS (Mario Party + KartRider Style)
+   ═══════════════════════════════════════════ */
+:root {
+  --sky:    #4ab8ff;
+  --ink:    #1a1200;
+  --white:  #fff9f0;
+  --yellow: #f5c800;
+  --yellow2:#c89800;
+  --red:    #e82020; --red2:   #b81010;
+  --blue:   #1a78e0; --blue2:  #1060c0;
+  --green:  #22c040; --green2: #169030;
+  --purple: #9030c8;
+  --outline:#1a1200;
 }
 
-/* ═══════════════════════════════════════════ RESET & BASE ═══════════════════════════════════════════ */
- *, *::before, *::after  {
-   box-sizing: border-box;
-   margin: 0;
-   padding: 0;
+/* ═══════════════════════════════════════════
+   RESET & BASE
+   ═══════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  width: 100%; height: 100%;
+  max-height: -webkit-fill-available;
+  font-family: 'Noto Sans TC', 'Nunito', sans-serif;
+  background: var(--sky) !important; color: var(--ink);
+  overflow: hidden;
+  position: fixed;
+  top: 0; left: 0;
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
 }
- html, body  {
-   width: 100%;
-   height: 100%;
-   max-height: -webkit-fill-available;
-   font-family: 'Noto Sans TC', 'Nunito', sans-serif;
-   background: var(--sky) !important;
-   color: var(--ink);
-   overflow: hidden;
-   position: fixed;
-   top: 0;
-   left: 0;
-   touch-action: manipulation;
-   -webkit-text-size-adjust: 100%;
-   -webkit-tap-highlight-color: transparent;
-}
-
 /* 所有元素禁止縮放手勢 */
- *  {
-   touch-action: manipulation;
-}
- body::before  {
-   content: '';
-   position: fixed;
-   inset: 0;
-   z-index: 0;
-   pointer-events: none;
-   background: radial-gradient(ellipse 80% 50% at 30% 20%, rgba(255,255,255,.25) 0%, transparent 60%), radial-gradient(ellipse 60% 40% at 80% 75%, rgba(255,255,255,.12) 0%, transparent 50%);
+* { touch-action: manipulation; }
+body::before {
+  content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background: radial-gradient(ellipse 80% 50% at 30% 20%, rgba(255,255,255,.25) 0%, transparent 60%),
+              radial-gradient(ellipse 60% 40% at 80% 75%, rgba(255,255,255,.12) 0%, transparent 50%);
 }
 
-/* ═══════════════════════════════════════════ ANIMATIONS & PARTICLES ═══════════════════════════════════════════ */
- @keyframes titleBounce  {
-   from  {
-     transform: translateY(0);
-  }
- to  {
-     transform: translateY(-8px);
-  }
-}
- @keyframes heroBounce  {
-   0%,100% {
-    transform:translateY(0) scale(1);
-  }
- 50% {
-    transform:translateY(-16px) scale(1.05);
-  }
-}
- @keyframes floatCoin  {
-   0% {
-    transform:translateY(110vh) rotate(0deg);
-    opacity:0;
-  }
- 8% {
-    opacity:.55;
-  }
- 92% {
-    opacity:.3;
-  }
- 100% {
-    transform:translateY(-60px) rotate(360deg);
-    opacity:0;
-  }
-}
+/* ═══════════════════════════════════════════
+   ANIMATIONS & PARTICLES
+   ═══════════════════════════════════════════ */
+@keyframes titleBounce { from { transform: translateY(0); } to { transform: translateY(-8px); } }
+@keyframes heroBounce  { 0%,100%{transform:translateY(0) scale(1);} 50%{transform:translateY(-16px) scale(1.05);} }
+@keyframes floatCoin   { 0%{transform:translateY(110vh) rotate(0deg);opacity:0;} 8%{opacity:.55;} 92%{opacity:.3;} 100%{transform:translateY(-60px) rotate(360deg);opacity:0;} }
 
 /* Hero block */
- .hero-block  {
-   text-align:center;
-   margin-bottom: 8px;
-   animation: mpPop .55s cubic-bezier(.34,1.56,.64,1) both;
-}
- .hero-icon  {
-   font-size:4.5rem;
-   display:block;
-   margin-bottom:10px;
-   animation:heroBounce 2s ease-in-out infinite;
-}
+.hero-block { text-align:center; margin-bottom: 8px; animation: mpPop .55s cubic-bezier(.34,1.56,.64,1) both; }
+.hero-icon   { font-size:4.5rem; display:block; margin-bottom:10px; animation:heroBounce 2s ease-in-out infinite; }
 
 /* Coins */
- .coins  {
-   position:fixed;
-   inset:0;
-   z-index:0;
-   pointer-events:none;
-   overflow:hidden;
-}
- .coin  {
-   position:absolute;
-   font-size:1.2rem;
-   animation:floatCoin linear infinite;
-   opacity:.55;
-}
- .clouds  {
-   position: fixed;
-   inset: 0;
-   z-index: 0;
-   pointer-events: none;
-   overflow: hidden;
-}
- .cloud  {
-   position: absolute;
-   background: white;
-   border-radius: 60px;
-   opacity: .85;
-   animation: driftCloud linear infinite;
-}
- .cloud::before, .cloud::after  {
-   content: '';
-   position: absolute;
-   background: white;
-   border-radius: 50%;
-}
- .cloud::before  {
-   width: 50%;
-   height: 100%;
-   top: -40%;
-   left: 15%;
-}
- .cloud::after  {
-   width: 40%;
-   height: 80%;
-   top: -30%;
-   right: 15%;
-}
- @keyframes driftCloud  {
-   from  {
-     transform: translateX(-250px);
-  }
- to  {
-     transform: translateX(calc(100vw + 250px));
-  }
-}
- .ground-bar  {
-   position: fixed;
-   bottom: 0;
-   left: 0;
-   right: 0;
-   z-index: 0;
-   height: 28px;
-   background: #c8882a;
-   border-top: 4px solid var(--outline);
-   pointer-events: none;
-}
- .ground-bar::before  {
-   content: '';
-   position: absolute;
-   top: -16px;
-   left: 0;
-   right: 0;
-   height: 16px;
-   background: #38b044;
-   border-top: 3px solid var(--outline);
-}
+.coins { position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden; }
+.coin  { position:absolute; font-size:1.2rem; animation:floatCoin linear infinite; opacity:.55; }
+.clouds { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.cloud  { position: absolute; background: white; border-radius: 60px; opacity: .85; animation: driftCloud linear infinite; }
+.cloud::before, .cloud::after { content: ''; position: absolute; background: white; border-radius: 50%; }
+.cloud::before { width: 50%; height: 100%; top: -40%; left: 15%; }
+.cloud::after { width: 40%; height: 80%; top: -30%; right: 15%; }
+@keyframes driftCloud { from { transform: translateX(-250px); } to { transform: translateX(calc(100vw + 250px)); } }
 
-/* ═══════════════════════════════════════════ SCREENS & CARDS ═══════════════════════════════════════════ */
- .screen  {
-   display: none;
-   position: fixed;
-   top: 0;
-   left: 0;
-   right: 0;
-   bottom: 0;
-   z-index: 1;
-   flex-direction: column;
-   align-items: center;
-   padding: 28px 16px 80px;
-   overflow-y: auto;
-   -webkit-overflow-scrolling: touch;
+.ground-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 0; height: 28px; background: #c8882a; border-top: 4px solid var(--outline); pointer-events: none; }
+.ground-bar::before { content: ''; position: absolute; top: -16px; left: 0; right: 0; height: 16px; background: #38b044; border-top: 3px solid var(--outline); }
+
+/* ═══════════════════════════════════════════
+   SCREENS & CARDS
+   ═══════════════════════════════════════════ */
+.screen {
+  display: none; position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 1;
+  flex-direction: column; align-items: center;
+  padding: 28px 16px 80px;
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
 }
- .screen.active  {
-   display: flex;
-}
+.screen.active { display: flex; }
 
 /* 深色畫面背景覆蓋 */
-
 /* 深色全螢幕畫面：align-items stretch，不留邊距，不允許捲動 */
- #screen-lobby.active, #screen-student-wait.active, #screen-level-select.active, #screen-teacher-console.active, #screen-settlement.active, #screen-student-game.active  {
-   align-items: stretch;
-   padding: 0;
-   overflow: hidden;
-   top: 0 !important;
-   left: 0 !important;
-   width: 100% !important;
-   height: 100% !important;
+#screen-lobby.active, #screen-student-wait.active,
+#screen-level-select.active, #screen-teacher-console.active,
+#screen-settlement.active, #screen-student-game.active {
+    align-items: stretch; padding: 0; overflow: hidden;
+    top: 0 !important; left: 0 !important;
+    width: 100% !important; height: 100% !important;
 }
 
 /* 排行榜項目 */
- .tc-lb-item  {
-   display: flex;
-   align-items: center;
-   justify-content: space-between;
-   padding: 10px 12px;
-   border-radius: 12px;
-   cursor: pointer;
-   background: rgba(255,255,255,.06);
-   border: 2px solid rgba(255,255,255,.1);
-   transition: all .15s;
+.tc-lb-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px; border-radius: 12px; cursor: pointer;
+  background: rgba(255,255,255,.06); border: 2px solid rgba(255,255,255,.1);
+  transition: all .15s;
 }
- .tc-lb-item:hover  {
-   background: rgba(245,200,0,.15);
-   border-color: rgba(245,200,0,.4);
-}
- .tc-lb-item.broadcasting  {
-   border-color: var(--red);
-   background: rgba(232,32,32,.18);
-   box-shadow: 0 0 10px rgba(232,32,32,.3);
-}
- .tc-lb-rank  {
-   font-family: 'Nunito',sans-serif;
-   font-weight: 900;
-   font-size: .75rem;
-   color: rgba(255,255,255,.4);
-   width: 20px;
-}
- .tc-lb-name  {
-   font-family: 'Nunito',sans-serif;
-   font-weight: 900;
-   font-size: .82rem;
-   color: white;
-   flex: 1;
-   padding: 0 8px;
-}
- .tc-lb-score  {
-   font-family: 'Nunito',sans-serif;
-   font-weight: 900;
-   font-size: 1rem;
-   color: #f5c800;
-   transition: transform .2s;
-}
- .card  {
-   width: 100%;
-   max-width: 560px;
-   background: var(--white);
-   border: 4px solid var(--outline);
-   border-radius: 24px;
-   box-shadow: 0 6px 0 var(--outline);
-   padding: 28px 24px;
-   margin-bottom: 16px;
-}
- .mp-title  {
-   font-family: 'Nunito', sans-serif;
-   font-weight: 900;
-   font-size: 2.6rem;
-   color: var(--yellow);
-   -webkit-text-stroke: 4px var(--outline);
-   paint-order: stroke fill;
-   text-shadow: 4px 5px 0 var(--outline);
-   display: block;
-   line-height: 1.05;
-   animation: titleBounce 1.5s ease-in-out infinite alternate;
-}
- .mp-subtitle  {
-   font-family: 'Nunito', sans-serif;
-   font-weight: 900;
-   font-size: .9rem;
-   color: white;
-   background: var(--blue);
-   border: 3px solid var(--outline);
-   border-radius: 8px;
-   padding: 4px 18px;
-   display: inline-block;
-   box-shadow: 0 3px 0 var(--blue2);
-}
- .home-btn-grid  {
-   display: grid;
-   grid-template-columns: 1fr 1fr;
-   gap: 20px;
-   width: 100%;
-   max-width: 480px;
-}
- .home-btn-card  {
-   padding: 36px 20px 32px;
-   border-radius: 24px;
-   cursor: pointer;
-   border: 4px solid var(--outline);
-   box-shadow: 0 8px 0 var(--outline);
-   text-align: center;
-   transition: transform .12s, box-shadow .12s;
-}
- .home-btn-card:hover  {
-   transform: translateY(-4px);
-   box-shadow: 0 12px 0 var(--outline);
-   filter: brightness(1.05);
-}
- .home-btn-card:active  {
-   transform: translateY(6px);
-   box-shadow: 0 2px 0 var(--outline);
-}
- .home-btn-card.teacher  {
-   background: linear-gradient(160deg, #ffe55a, #f5a800);
-}
- .home-btn-card.student  {
-   background: linear-gradient(160deg, #5fea78, #20b040);
-}
- .hbc-icon  {
-   font-size: 3.8rem;
-   margin-bottom: 14px;
-   display: block;
-}
- .hbc-title  {
-   font-family: 'Nunito', sans-serif;
-   font-weight: 900;
-   font-size: 1.4rem;
-   color: var(--ink);
-}
+.tc-lb-item:hover { background: rgba(245,200,0,.15); border-color: rgba(245,200,0,.4); }
+.tc-lb-item.broadcasting { border-color: var(--red); background: rgba(232,32,32,.18); box-shadow: 0 0 10px rgba(232,32,32,.3); }
+.tc-lb-rank { font-family: 'Nunito',sans-serif; font-weight: 900; font-size: .75rem; color: rgba(255,255,255,.4); width: 20px; }
+.tc-lb-name { font-family: 'Nunito',sans-serif; font-weight: 900; font-size: .82rem; color: white; flex: 1; padding: 0 8px; }
+.tc-lb-score { font-family: 'Nunito',sans-serif; font-weight: 900; font-size: 1rem; color: #f5c800; transition: transform .2s; }
 
-/* ═══════════════════════════════════════════ JOIN FLOW — 手機優先排版 ═══════════════════════════════════════════ */
- .join-layout  {
-   display: flex;
-   flex-direction: column;
-   gap: 12px;
-   width: 100%;
-}
- .field-label  {
-   display: block;
-   font-family: 'Nunito', sans-serif;
-   font-weight: 900;
-   font-size: 1rem;
-   color: var(--ink);
-   margin-bottom: 10px;
-}
- .input-select  {
-   width: 100%;
-   background: white;
-   border: 4px solid var(--outline);
-   border-radius: 14px;
-   padding: 14px 16px;
-   font-family: 'Nunito','Noto Sans TC',sans-serif;
-   font-weight: 900;
-   font-size: 1rem;
-   color: var(--ink);
-   appearance: none;
-   cursor: pointer;
-   box-shadow: 0 4px 0 var(--outline);
-   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24'%3E%3Cpath fill='%231a1200' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
-   background-repeat: no-repeat;
-   background-position: right 14px center;
-}
+.card { width: 100%; max-width: 560px; background: var(--white); border: 4px solid var(--outline); border-radius: 24px; box-shadow: 0 6px 0 var(--outline); padding: 28px 24px; margin-bottom: 16px; }
+
+.mp-title { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 2.6rem; color: var(--yellow); -webkit-text-stroke: 4px var(--outline); paint-order: stroke fill; text-shadow: 4px 5px 0 var(--outline); display: block; line-height: 1.05; animation: titleBounce 1.5s ease-in-out infinite alternate; }
+.mp-subtitle { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: .9rem; color: white; background: var(--blue); border: 3px solid var(--outline); border-radius: 8px; padding: 4px 18px; display: inline-block; box-shadow: 0 3px 0 var(--blue2); }
+
+.home-btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; width: 100%; max-width: 480px; }
+.home-btn-card { padding: 36px 20px 32px; border-radius: 24px; cursor: pointer; border: 4px solid var(--outline); box-shadow: 0 8px 0 var(--outline); text-align: center; transition: transform .12s, box-shadow .12s; }
+.home-btn-card:hover { transform: translateY(-4px); box-shadow: 0 12px 0 var(--outline); filter: brightness(1.05); }
+.home-btn-card:active { transform: translateY(6px); box-shadow: 0 2px 0 var(--outline); }
+.home-btn-card.teacher { background: linear-gradient(160deg, #ffe55a, #f5a800); }
+.home-btn-card.student  { background: linear-gradient(160deg, #5fea78, #20b040); }
+.hbc-icon { font-size: 3.8rem; margin-bottom: 14px; display: block; }
+.hbc-title { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 1.4rem; color: var(--ink); }
+
+/* ═══════════════════════════════════════════
+   JOIN FLOW — 手機優先排版
+   ═══════════════════════════════════════════ */
+.join-layout { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+.field-label { display: block; font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 1rem; color: var(--ink); margin-bottom: 10px; }
+.input-select { width: 100%; background: white; border: 4px solid var(--outline); border-radius: 14px; padding: 14px 16px; font-family: 'Nunito','Noto Sans TC',sans-serif; font-weight: 900; font-size: 1rem; color: var(--ink); appearance: none; cursor: pointer; box-shadow: 0 4px 0 var(--outline); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24'%3E%3Cpath fill='%231a1200' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; }
 
 /* 組別選擇：大按鈕卡片（手機好點擊） */
- .group-grid  {
-   display: grid;
-   grid-template-columns: repeat(5, 1fr);
-   gap: 8px;
-}
- .group-opt  {
-   aspect-ratio: 1;
-   border-radius: 14px;
-   cursor: pointer;
-   display: flex;
-   flex-direction: column;
-   align-items: center;
-   justify-content: center;
-   gap: 2px;
-   border: 3px solid var(--outline);
-   background: white;
-   box-shadow: 0 4px 0 var(--outline);
-   transition: all .12s;
-   -webkit-tap-highlight-color: transparent;
-}
- .group-opt:active  {
-   transform: translateY(3px);
-   box-shadow: 0 1px 0 var(--outline);
-}
- .group-opt.selected  {
-   background: var(--blue);
-   border-color: var(--blue2);
-   transform: translateY(3px);
-   box-shadow: 0 1px 0 var(--blue2);
-}
- .group-opt.selected .go-num  {
-   color: white;
-}
- .group-opt.selected .go-label  {
-   color: rgba(255,255,255,.8);
-}
- .group-opt.taken  {
-   opacity: .3;
-   filter: grayscale(1);
-   cursor: not-allowed;
-   background: #ddd;
-   border-color: #bbb;
-   box-shadow: none;
-   pointer-events: none;
-}
- .go-num  {
-   font-family: 'Nunito', sans-serif;
-   font-weight: 900;
-   font-size: 1.4rem;
-   color: var(--ink);
-   line-height: 1;
-}
- .go-label  {
-   font-family: 'Noto Sans TC', sans-serif;
-   font-weight: 700;
-   font-size: .55rem;
-   color: #888;
-}
+.group-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.group-opt { aspect-ratio: 1; border-radius: 14px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border: 3px solid var(--outline); background: white; box-shadow: 0 4px 0 var(--outline); transition: all .12s; -webkit-tap-highlight-color: transparent; }
+.group-opt:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--outline); }
+.group-opt.selected { background: var(--blue); border-color: var(--blue2); transform: translateY(3px); box-shadow: 0 1px 0 var(--blue2); }
+.group-opt.selected .go-num { color: white; }
+.group-opt.selected .go-label { color: rgba(255,255,255,.8); }
+.group-opt.taken { opacity: .3; filter: grayscale(1); cursor: not-allowed; background: #ddd; border-color: #bbb; box-shadow: none; pointer-events: none; }
+.go-num { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 1.4rem; color: var(--ink); line-height: 1; }
+.go-label { font-family: 'Noto Sans TC', sans-serif; font-weight: 700; font-size: .55rem; color: #888; }
 
 /* 符號選擇 */
- .symbol-grid  {
-   display: grid;
-   grid-template-columns: repeat(5, 1fr);
-   gap: 8px;
-}
- .symbol-opt  {
-   aspect-ratio: 1;
-   border-radius: 14px;
-   cursor: pointer;
-   display: flex;
-   align-items: center;
-   justify-content: center;
-   font-size: 1.8rem;
-   border: 3px solid var(--outline);
-   background: white;
-   box-shadow: 0 4px 0 var(--outline);
-   transition: all .12s;
-   -webkit-tap-highlight-color: transparent;
-}
- .symbol-opt:active  {
-   transform: translateY(2px);
-}
- .symbol-opt.selected  {
-   background: var(--yellow);
-   transform: translateY(3px);
-   box-shadow: 0 1px 0 var(--outline);
-}
- .symbol-opt.taken  {
-   opacity: .3;
-   filter: grayscale(1);
-   cursor: not-allowed;
-   background: #ddd;
-   border-color: #bbb;
-   box-shadow: none;
-   pointer-events: none;
-}
- .room-card  {
-   display: flex;
-   align-items: center;
-   justify-content: space-between;
-   padding: 18px 22px;
-   background: white;
-   border: 4px solid var(--outline);
-   border-radius: 18px;
-   cursor: pointer;
-   box-shadow: 0 5px 0 var(--outline);
-   transition: transform .1s;
-   margin-bottom: 12px;
-}
- .room-card.room-full  {
-   opacity: 0.6;
-   filter: grayscale(0.8);
-   cursor: not-allowed;
-}
- .room-num-badge  {
-   background: var(--blue);
-   color: white;
-   border: 2px solid var(--outline);
-   border-radius: 10px;
-   padding: 4px 12px;
-   font-weight: 900;
-   font-size: .8rem;
-}
- .room-full-badge  {
-   background: var(--red);
-   color: white;
-   border: 2px solid var(--outline);
-   border-radius: 10px;
-   padding: 4px 12px;
-   font-weight: 900;
-   font-size: .8rem;
-}
+.symbol-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.symbol-opt { aspect-ratio: 1; border-radius: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; border: 3px solid var(--outline); background: white; box-shadow: 0 4px 0 var(--outline); transition: all .12s; -webkit-tap-highlight-color: transparent; }
+.symbol-opt:active { transform: translateY(2px); }
+.symbol-opt.selected { background: var(--yellow); transform: translateY(3px); box-shadow: 0 1px 0 var(--outline); }
+.symbol-opt.taken { opacity: .3; filter: grayscale(1); cursor: not-allowed; background: #ddd; border-color: #bbb; box-shadow: none; pointer-events: none; }
 
-/* ═══════════════════════════════════════════ LOBBY & WAIT KR-STYLE ═══════════════════════════════════════════ */
- .kr-header  {
-   display: flex;
-   align-items: center;
-   justify-content: space-between;
-   padding: 14px 24px;
-   background: linear-gradient(180deg, #1a1d30 0%, #0d0f1a 100%);
-   border-bottom: 3px solid #f5c800;
-   width: 100%;
-   flex-shrink: 0;
-}
- .kr-room-name  {
-   font-family: 'Nunito',sans-serif;
-   font-weight: 900;
-   color: white;
-   font-size: 1.1rem;
-}
- .kr-code  {
-   font-family: 'Nunito',sans-serif;
-   font-weight: 900;
-   color: #f5c800;
-   font-size: clamp(1.5rem, 5vw, 2.2rem);
-   letter-spacing: .2em;
-   line-height: 1;
-}
- .kr-body  {
-   flex: 1;
-   display: grid;
-   grid-template-columns: 1fr 1fr;
-   width: 100%;
-   min-height: 0;
-   overflow: hidden;
-   height: 0;
-}
- .kr-body.vertical  {
-   grid-template-columns: 1fr;
-   grid-template-rows: auto 1fr;
-   height: auto;
-   flex: 1;
-}
- .kr-body.vertical .kr-panel  {
-   border-right: none;
-}
- .kr-panel  {
-   padding: 16px 18px;
-   display: flex;
-   flex-direction: column;
-   overflow: hidden;
-}
- .kr-panel-title  {
-   font-family: 'Nunito',sans-serif;
-   font-weight: 900;
-   font-size: .8rem;
-   color: rgba(245,200,0,0.8);
-   text-transform: uppercase;
-   margin-bottom: 12px;
-}
- .kr-seats  {
-   display: grid;
-   grid-template-columns: repeat(5, 1fr);
-   gap: 10px;
-   align-content: start;
-}
- .kr-seat  {
-   display: flex;
-   flex-direction: column;
-   align-items: center;
-   gap: 5px;
-   padding: 12px 8px;
-   background: rgba(255,255,255,.07);
-   border: 2px solid rgba(255,255,255,.15);
-   border-radius: 16px;
-   animation: krPop .25s cubic-bezier(.34,1.56,.64,1) both;
-}
- .kr-seat-emoji  {
-   font-size: 2rem;
-}
- .kr-seat-name  {
-   font-family: 'Nunito','Noto Sans TC',sans-serif;
-   font-weight: 900;
-   font-size: .72rem;
-   color: white;
-   text-align: center;
-}
- .kr-games-grid  {
-   display: grid;
-   grid-template-columns: repeat(4, 1fr);
-   gap: 8px;
-}
- .kr-game-card  {
-   display: flex;
-   flex-direction: row;
-   align-items: center;
-   justify-content: center;
-   gap: 7px;
-   padding: 11px 10px;
-   background: rgba(255,255,255,.05);
-   border: 2px solid rgba(255,255,255,.12);
-   border-radius: 14px;
-   cursor: pointer;
-   transition: all .15s;
-}
- .kr-game-card:hover  {
-   background: rgba(255,255,255,.1);
-   border-color: rgba(255,255,255,.3);
-}
- .kr-game-card:active  {
-   transform: scale(.94);
-}
- .kr-game-card.selected  {
-   border-color: #f5c800;
-   background: rgba(245,200,0,.2);
-   box-shadow: 0 0 12px rgba(245,200,0,0.35);
-}
- .kr-footer  {
-   display: flex;
-   align-items: center;
-   gap: 12px;
-   padding: 14px 24px;
-   background: #1a1d30;
-   border-top: 2px solid rgba(245,200,0,.2);
-   width: 100%;
-   flex-shrink:0;
-}
- .ls-lvl-btn  {
-   width:52px;
-  height:52px;
-  border-radius:12px;
-  border:3px solid #fff;
-  font-family:'Nunito',sans-serif;
-  font-weight:900;
-  font-size:1rem;
-  color:#fff;
-  cursor:pointer;
-  transition:transform .1s,box-shadow .1s;
-  box-shadow:0 4px 0 rgba(0,0,0,.4);
-}
- .ls-lvl-btn:active  {
-   transform:translateY(3px);
-  box-shadow:0 1px 0 rgba(0,0,0,.4);
-}
- .ls-lvl-btn.ls-single  {
-   background:linear-gradient(160deg,#00c8e0,#0080a0);
-  border-color:#00E5FF;
-}
- .ls-lvl-btn.ls-mid  {
-   background:linear-gradient(160deg,#f5a623,#c07000);
-  border-color:#ffcc44;
-}
- .ls-lvl-btn.ls-hard  {
-   background:linear-gradient(160deg,#e74c3c,#a00000);
-  border-color:#ff6644;
-}
- .ls-lvl-btn.ls-double  {
-   background:linear-gradient(160deg,#cc00cc,#880088);
-  border-color:#FF40FF;
-}
- .ls-lvl-btn.ls-selected  {
-   transform:scale(1.15);
-  box-shadow:0 0 16px rgba(255,214,0,.8);
-  border-color:#FFD600;
-}
- .kr-game-card.kr-game-unavailable  {
-   opacity: .45;
-   cursor: not-allowed;
-   filter: grayscale(.6);
-}
- .kr-game-card.kr-game-unavailable:hover  {
-   background: rgba(255,255,255,.05);
-   border-color: rgba(255,255,255,.12);
-}
- .kr-game-card.kr-game-unavailable:active  {
-   transform: none;
-}
- .kr-btn  {
-   font-family: 'Nunito',sans-serif;
-   font-weight: 900;
-   font-size: .85rem;
-   padding: 10px 20px;
-   border-radius: 12px;
-   border: none;
-   cursor: pointer;
-   transition: transform 0.1s;
-}
- .kr-btn:active  {
-   transform: scale(0.95);
-}
- .kr-btn-start  {
-   background: linear-gradient(135deg, #f5c800, #e09000);
-   color: #1a1200;
-   padding: 12px 30px;
-   font-size: 1rem;
-}
- .kr-btn-ghost  {
-   background: rgba(255,255,255,0.1);
-   color: white;
-}
- .kr-btn-danger  {
-   background: rgba(232,32,32,0.2);
-   color: #ff6060;
-}
- .kr-btn-yellow  {
-   background: var(--yellow);
-   color: var(--ink);
-}
- .kr-btn-blue  {
-   background: var(--blue);
-   color: white;
-}
+.room-card { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; background: white; border: 4px solid var(--outline); border-radius: 18px; cursor: pointer; box-shadow: 0 5px 0 var(--outline); transition: transform .1s; margin-bottom: 12px; }
+.room-card.room-full { opacity: 0.6; filter: grayscale(0.8); cursor: not-allowed; }
+.room-num-badge { background: var(--blue); color: white; border: 2px solid var(--outline); border-radius: 10px; padding: 4px 12px; font-weight: 900; font-size: .8rem; }
+.room-full-badge { background: var(--red); color: white; border: 2px solid var(--outline); border-radius: 10px; padding: 4px 12px; font-weight: 900; font-size: .8rem; }
 
-/* ═══════════════════════════════════════════ TEACHER BROADCAST SCREEN ═══════════════════════════════════════════ */
- #tg-broadcast-grid  {
-   flex: 3;
-   padding: 16px;
-   background: #111;
-   display: flex;
-   align-items: center;
-   justify-content: center;
-}
- .tg-screen-wrap  {
-   position: relative;
-   width: 100%;
-   height: 100%;
-   max-width: 1024px;
-   max-height: 768px;
-   border: 4px solid var(--outline);
-   border-radius: 12px;
-   overflow: hidden;
-   background: #000;
-   box-shadow: 0 4px 0 var(--outline);
-   transition: all 0.3s ease;
-   display: none;
-}
- .tg-screen-label  {
-   position: absolute;
-   top: 8px;
-   left: 8px;
-   background: rgba(0,0,0,0.7);
-   border: 2px solid var(--yellow);
-   color: white;
-   padding: 4px 12px;
-   border-radius: 8px;
-   font-weight: 900;
-   font-size: 0.85rem;
-   display: flex;
-   align-items: center;
-   gap: 6px;
-   z-index: 50;
-}
- .lb-item  {
-   background: rgba(255,255,255,0.05);
-   border: 2px solid rgba(255,255,255,0.1);
-   border-radius: 12px;
-   padding: 10px 14px;
-   display: flex;
-   align-items: center;
-   justify-content: space-between;
-   transition: all 0.2s;
-   cursor: pointer;
-}
- .lb-item:hover  {
-   transform: scale(1.02);
-   background: rgba(255,255,255,0.1);
-}
- .fullscreen-student  {
-   position: fixed !important;
-   top: 40px !important;
-   left: 0 !important;
-   width: 100vw !important;
-   height: calc(100vh - 40px) !important;
-   z-index: 9999 !important;
-   border: none !important;
-   border-radius: 0 !important;
-   background: var(--bg) !important;
-   box-shadow: none !important;
-   margin: 0 !important;
-   max-width: none !important;
-   max-height: none !important;
-}
- .fullscreen-student .broadcast-iframe  {
-   pointer-events: auto !important;
-}
- .fullscreen-student .tg-screen-label  {
-   display: none !important;
-}
- .broadcast-iframe  {
-   pointer-events: none;
-}
+/* ═══════════════════════════════════════════
+   LOBBY & WAIT KR-STYLE
+   ═══════════════════════════════════════════ */
+.kr-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; background: linear-gradient(180deg, #1a1d30 0%, #0d0f1a 100%); border-bottom: 3px solid #f5c800; width: 100%; flex-shrink: 0; }
+.kr-room-name { font-family: 'Nunito',sans-serif; font-weight: 900; color: white; font-size: 1.1rem; }
+.kr-code { font-family: 'Nunito',sans-serif; font-weight: 900; color: #f5c800; font-size: clamp(1.5rem, 5vw, 2.2rem); letter-spacing: .2em; line-height: 1; }
 
-/* ═══════════════════════════════════════════ QR CODE & UTILS ═══════════════════════════════════════════ */
- #qr-popup  {
-   position: fixed;
-   inset: 0;
-   background: rgba(0,0,0,0.85);
-   z-index: 1000;
-   display: none;
-   align-items: center;
-   justify-content: center;
-   backdrop-filter: blur(5px);
-}
- .qr-container  {
-   background: #fff;
-   padding: 30px;
-   border-radius: 24px;
-   text-align: center;
-   border: 6px solid #f5c800;
-   box-shadow: 0 0 40px rgba(245,200,0,0.5);
-}
- #qr-canvas  {
-   margin: 15px auto;
-   padding: 10px;
-   background: white;
-   border-radius: 12px;
-   display: inline-block;
-}
- #toast  {
-   position: fixed;
-   bottom: 80px;
-   left: 50%;
-   transform: translateX(-50%) translateY(20px);
-   background: var(--ink);
-   color: var(--yellow);
-   border: 3px solid var(--yellow);
-   border-radius: 12px;
-   padding: 12px 24px;
-   font-weight: 900;
-   opacity: 0;
-   transition: 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-   pointer-events: none;
-   z-index: 2000;
-}
- #toast.show  {
-   opacity: 1;
-   transform: translateX(-50%) translateY(0);
-}
- .btn  {
-   display: inline-flex;
-   align-items: center;
-   justify-content: center;
-   border: 4px solid var(--outline);
-   border-radius: 16px;
-   cursor: pointer;
-   font-weight: 900;
-   padding: 14px;
-   width: 100%;
-}
- .btn-green  {
-   background: var(--green);
-   color: white;
-   box-shadow: 0 4px 0 var(--green2);
-}
- .btn-red  {
-   background: var(--red);
-   color: white;
-   box-shadow: 0 4px 0 var(--red2);
-}
- .btn-blue  {
-   background: var(--blue);
-   color: white;
-   box-shadow: 0 4px 0 var(--blue2);
-}
- .btn-yellow  {
-   background: var(--yellow);
-   color: var(--ink);
-   box-shadow: 0 4px 0 var(--yellow2);
-}
- .back-link  {
-   display: inline-flex;
-   align-items: center;
-   gap: 6px;
-   font-family: 'Nunito', sans-serif;
-   font-weight: 900;
-   font-size: .88rem;
-   color: white;
-   text-shadow: 1px 1px 0 rgba(0,0,0,.3);
-   background: none;
-   border: none;
-   cursor: pointer;
-   padding: 0;
-   margin-bottom: 20px;
-   opacity: .85;
-}
+.kr-body { flex: 1; display: grid; grid-template-columns: 1fr 1fr; width: 100%; min-height: 0; overflow: hidden; height: 0; }
+.kr-body.vertical { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: auto; flex: 1; }
+.kr-body.vertical .kr-panel { border-right: none; }
+
+.kr-panel { padding: 16px 18px; display: flex; flex-direction: column; overflow: hidden; }
+.kr-panel-title { font-family: 'Nunito',sans-serif; font-weight: 900; font-size: .8rem; color: rgba(245,200,0,0.8); text-transform: uppercase; margin-bottom: 12px; }
+
+.kr-seats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; align-content: start; }
+.kr-seat { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 12px 8px; background: rgba(255,255,255,.07); border: 2px solid rgba(255,255,255,.15); border-radius: 16px; animation: krPop .25s cubic-bezier(.34,1.56,.64,1) both; }
+.kr-seat-emoji { font-size: 2rem; }
+.kr-seat-name { font-family: 'Nunito','Noto Sans TC',sans-serif; font-weight: 900; font-size: .72rem; color: white; text-align: center; }
+
+.kr-games-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.kr-game-card { display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 7px; padding: 11px 10px; background: rgba(255,255,255,.05); border: 2px solid rgba(255,255,255,.12); border-radius: 14px; cursor: pointer; transition: all .15s; }
+.kr-game-card:hover  { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.3); }
+.kr-game-card:active { transform: scale(.94); }
+.kr-game-card.selected { border-color: #f5c800; background: rgba(245,200,0,.2); box-shadow: 0 0 12px rgba(245,200,0,0.35); }
+
+.kr-footer { display: flex; align-items: center; gap: 12px; padding: 14px 24px; background: #1a1d30; border-top: 2px solid rgba(245,200,0,.2); width: 100%; flex-shrink:0; }
+.ls-lvl-btn { width:52px;height:52px;border-radius:12px;border:3px solid #fff;font-family:'Nunito',sans-serif;font-weight:900;font-size:1rem;color:#fff;cursor:pointer;transition:transform .1s,box-shadow .1s;box-shadow:0 4px 0 rgba(0,0,0,.4); }
+.ls-lvl-btn:active { transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.4); }
+.ls-lvl-btn.ls-single { background:linear-gradient(160deg,#00c8e0,#0080a0);border-color:#00E5FF; }
+.ls-lvl-btn.ls-mid    { background:linear-gradient(160deg,#f5a623,#c07000);border-color:#ffcc44; }
+.ls-lvl-btn.ls-hard   { background:linear-gradient(160deg,#e74c3c,#a00000);border-color:#ff6644; }
+.ls-lvl-btn.ls-double { background:linear-gradient(160deg,#cc00cc,#880088);border-color:#FF40FF; }
+.ls-lvl-btn.ls-selected { transform:scale(1.15);box-shadow:0 0 16px rgba(255,214,0,.8);border-color:#FFD600; }
+.kr-game-card.kr-game-unavailable { opacity: .45; cursor: not-allowed; filter: grayscale(.6); }
+.kr-game-card.kr-game-unavailable:hover { background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.12); }
+.kr-game-card.kr-game-unavailable:active { transform: none; }
+
+.kr-btn { font-family: 'Nunito',sans-serif; font-weight: 900; font-size: .85rem; padding: 10px 20px; border-radius: 12px; border: none; cursor: pointer; transition: transform 0.1s; }
+.kr-btn:active { transform: scale(0.95); }
+.kr-btn-start { background: linear-gradient(135deg, #f5c800, #e09000); color: #1a1200; padding: 12px 30px; font-size: 1rem; }
+.kr-btn-ghost { background: rgba(255,255,255,0.1); color: white; }
+.kr-btn-danger { background: rgba(232,32,32,0.2); color: #ff6060; }
+.kr-btn-yellow { background: var(--yellow); color: var(--ink); }
+.kr-btn-blue { background: var(--blue); color: white; }
+
+/* ═══════════════════════════════════════════
+   TEACHER BROADCAST SCREEN
+   ═══════════════════════════════════════════ */
+#tg-broadcast-grid { flex: 3; padding: 16px; background: #111; display: flex; align-items: center; justify-content: center; }
+.tg-screen-wrap { position: relative; width: 100%; height: 100%; max-width: 1024px; max-height: 768px; border: 4px solid var(--outline); border-radius: 12px; overflow: hidden; background: #000; box-shadow: 0 4px 0 var(--outline); transition: all 0.3s ease; display: none; }
+.tg-screen-label { position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,0.7); border: 2px solid var(--yellow); color: white; padding: 4px 12px; border-radius: 8px; font-weight: 900; font-size: 0.85rem; display: flex; align-items: center; gap: 6px; z-index: 50; }
+.lb-item { background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s; cursor: pointer; }
+.lb-item:hover { transform: scale(1.02); background: rgba(255,255,255,0.1); }
+
+.fullscreen-student { position: fixed !important; top: 40px !important; left: 0 !important; width: 100vw !important; height: calc(100vh - 40px) !important; z-index: 9999 !important; border: none !important; border-radius: 0 !important; background: var(--bg) !important; box-shadow: none !important; margin: 0 !important; max-width: none !important; max-height: none !important; }
+.fullscreen-student .broadcast-iframe { pointer-events: auto !important; }
+.fullscreen-student .tg-screen-label { display: none !important; }
+.broadcast-iframe { pointer-events: none; }
+
+/* ═══════════════════════════════════════════
+   QR CODE & UTILS
+   ═══════════════════════════════════════════ */
+#qr-popup { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 1000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+.qr-container { background: #fff; padding: 30px; border-radius: 24px; text-align: center; border: 6px solid #f5c800; box-shadow: 0 0 40px rgba(245,200,0,0.5); }
+#qr-canvas { margin: 15px auto; padding: 10px; background: white; border-radius: 12px; display: inline-block; }
+
+#toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--ink); color: var(--yellow); border: 3px solid var(--yellow); border-radius: 12px; padding: 12px 24px; font-weight: 900; opacity: 0; transition: 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); pointer-events: none; z-index: 2000; }
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; border: 4px solid var(--outline); border-radius: 16px; cursor: pointer; font-weight: 900; padding: 14px; width: 100%; }
+.btn-green { background: var(--green); color: white; box-shadow: 0 4px 0 var(--green2); }
+.btn-red { background: var(--red); color: white; box-shadow: 0 4px 0 var(--red2); }
+.btn-blue { background: var(--blue); color: white; box-shadow: 0 4px 0 var(--blue2); }
+.btn-yellow { background: var(--yellow); color: var(--ink); box-shadow: 0 4px 0 var(--yellow2); }
+
+.back-link { display: inline-flex; align-items: center; gap: 6px; font-family: 'Nunito', sans-serif; font-weight: 900; font-size: .88rem; color: white; text-shadow: 1px 1px 0 rgba(0,0,0,.3); background: none; border: none; cursor: pointer; padding: 0; margin-bottom: 20px; opacity: .85; }
 </style>
 </head>
 <body>
@@ -1337,7 +681,6 @@
 
 
 <script>
-
 // ════════════════════════════════════════════
 // FIREBASE / LOCAL SYNC 引擎 (改用動態載入提高相容性)
 // ════════════════════════════════════════════
@@ -1350,51 +693,51 @@ let isFirebaseAuthComplete = false;
 
 (async function initFirebase() {
     try {
-      const appModule  = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
-      const authModule = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
-      const fsModule   = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+        const appModule  = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
+        const authModule = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
+        const fsModule   = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
 
-      const firebaseConfig = {
-        apiKey:            "AIzaSyCVQuGDlfTmYN1VZ6weHy2tWDcegFm7TP4",
-        authDomain:        "gomypartygame.firebaseapp.com",
-        projectId:         "gomypartygame",
-        storageBucket:     "gomypartygame.firebasestorage.app",
-        messagingSenderId: "494993693704",
-        appId:             "1:494993693704:web:86d3d5207a0f9dd3fa45bd"
-      };
+        const firebaseConfig = {
+            apiKey:            "AIzaSyCVQuGDlfTmYN1VZ6weHy2tWDcegFm7TP4",
+            authDomain:        "gomypartygame.firebaseapp.com",
+            projectId:         "gomypartygame",
+            storageBucket:     "gomypartygame.firebasestorage.app",
+            messagingSenderId: "494993693704",
+            appId:             "1:494993693704:web:86d3d5207a0f9dd3fa45bd"
+        };
 
-    const app  = appModule.initializeApp(firebaseConfig);
-    const auth = authModule.getAuth(app);
-    db = fsModule.getFirestore(app);
+        const app  = appModule.initializeApp(firebaseConfig);
+        const auth = authModule.getAuth(app);
+        db = fsModule.getFirestore(app);
 
-    fsDoc        = fsModule.doc;
-    fsSet        = fsModule.setDoc;
-    fsOnSnap     = fsModule.onSnapshot;
-    fsCollection = fsModule.collection;
-    fsDelete     = fsModule.deleteDoc;
-    fsTransaction = fsModule.runTransaction;
-    fsGetDoc      = fsModule.getDoc;
+        fsDoc        = fsModule.doc;
+        fsSet        = fsModule.setDoc;
+        fsOnSnap     = fsModule.onSnapshot;
+        fsCollection = fsModule.collection;
+        fsDelete     = fsModule.deleteDoc;
+        fsTransaction = fsModule.runTransaction;
+        fsGetDoc      = fsModule.getDoc;
 
-    await authModule.signInAnonymously(auth);
+        await authModule.signInAnonymously(auth);
 
-    authModule.onAuthStateChanged(auth, (user) => {
-        if (user) {
-          isFirebaseAuthComplete = true;
-          console.log("✅ Firebase 雲端連線成功！");
-          // 頁面一登入就開始監聽所有房間（學生可以看到房間列表）
-          startAllRoomsListener();
-          // 如果已有房間密碼，再開始監聽單一房間
-          if (window.state && window.state.roomCode) startSyncListener();
-          // Firebase 連線後嘗試恢復 session（延遲讓 allRoomsListener 先拿到資料）
-          setTimeout(tryRestoreSession, 800);
-        } else {
-        isFirebaseAuthComplete = false;
-      }
-});
-} catch(e) {
-console.error("Firebase init error:", e);
-isFirebase = false;
-}
+        authModule.onAuthStateChanged(auth, (user) => {
+            if (user) {
+                isFirebaseAuthComplete = true;
+                console.log("✅ Firebase 雲端連線成功！");
+                // 頁面一登入就開始監聽所有房間（學生可以看到房間列表）
+                startAllRoomsListener();
+                // 如果已有房間密碼，再開始監聽單一房間
+                if (window.state && window.state.roomCode) startSyncListener();
+                // Firebase 連線後嘗試恢復 session（延遲讓 allRoomsListener 先拿到資料）
+                setTimeout(tryRestoreSession, 800);
+            } else {
+                isFirebaseAuthComplete = false;
+            }
+        });
+    } catch(e) {
+        console.error("Firebase init error:", e);
+        isFirebase = false;
+    }
 })();
 
 // ── 房間資料：Firebase 是唯一真相來源 ──
@@ -1402,38 +745,38 @@ isFirebase = false;
 window._allRoomsCache = {};
 
 window.getRooms = function() {
-  // 優先用 Firebase 快取（最新）
-  if (Object.keys(window._allRoomsCache).length > 0) {
-    return Object.assign({}, window._allRoomsCache);
-  }
-// Firebase 還未連線時才用 localStorage 備份
-return JSON.parse(localStorage.getItem('playroom_rooms') || '{}');
+    // 優先用 Firebase 快取（最新）
+    if (Object.keys(window._allRoomsCache).length > 0) {
+        return Object.assign({}, window._allRoomsCache);
+    }
+    // Firebase 還未連線時才用 localStorage 備份
+    return JSON.parse(localStorage.getItem('playroom_rooms') || '{}');
 };
 
 window.saveRooms = function(r) {
-  const myCode = window.state && window.state.roomCode;
-  if (!myCode || !r[myCode]) return;
-  // 更新記憶體快取
-  window._allRoomsCache[myCode] = r[myCode];
-  // 備份到 localStorage
-  const local = JSON.parse(localStorage.getItem('playroom_rooms') || '{}');
-  local[myCode] = r[myCode];
-  localStorage.setItem('playroom_rooms', JSON.stringify(local));
-  // 寫入 Firebase
-  if (isFirebase && db && isFirebaseAuthComplete) {
-    fsSet(fsDoc(db, 'rooms', myCode), r[myCode])
-    .catch(e => console.error("Firebase Save Error:", e));
-  }
+    const myCode = window.state && window.state.roomCode;
+    if (!myCode || !r[myCode]) return;
+    // 更新記憶體快取
+    window._allRoomsCache[myCode] = r[myCode];
+    // 備份到 localStorage
+    const local = JSON.parse(localStorage.getItem('playroom_rooms') || '{}');
+    local[myCode] = r[myCode];
+    localStorage.setItem('playroom_rooms', JSON.stringify(local));
+    // 寫入 Firebase
+    if (isFirebase && db && isFirebaseAuthComplete) {
+        fsSet(fsDoc(db, 'rooms', myCode), r[myCode])
+            .catch(e => console.error("Firebase Save Error:", e));
+    }
 };
 
 window.deleteRoom = function(code) {
-  delete window._allRoomsCache[code];
-  const local = JSON.parse(localStorage.getItem('playroom_rooms') || '{}');
-  delete local[code];
-  localStorage.setItem('playroom_rooms', JSON.stringify(local));
-  if (isFirebase && db && isFirebaseAuthComplete) {
-    fsDelete(fsDoc(db, 'rooms', code)).catch(e => console.error("Firebase Delete Error:", e));
-  }
+    delete window._allRoomsCache[code];
+    const local = JSON.parse(localStorage.getItem('playroom_rooms') || '{}');
+    delete local[code];
+    localStorage.setItem('playroom_rooms', JSON.stringify(local));
+    if (isFirebase && db && isFirebaseAuthComplete) {
+        fsDelete(fsDoc(db, 'rooms', code)).catch(e => console.error("Firebase Delete Error:", e));
+    }
 };
 
 let roomSyncUnsubscribe = null;
@@ -1441,127 +784,127 @@ let allRoomsUnsubscribe = null;
 
 // ── 監聽所有房間（Firebase → 記憶體，Firebase 刪了就從快取移除）──
 function startAllRoomsListener() {
-  if (!isFirebase || !db) return;
-  if (allRoomsUnsubscribe) { allRoomsUnsubscribe(); allRoomsUnsubscribe = null; }
-  const colRef = fsCollection(db, 'rooms');
-  allRoomsUnsubscribe = fsOnSnap(colRef, (snapshot) => {
-      const now = Date.now();
-      const newCache = {};
-      snapshot.forEach(doc => {
-          const data = doc.data();
-          if (data.createdAt && (now - data.createdAt) > 2 * 60 * 60 * 1000) {
-            // 超過2小時靜默刪除
-            if (isFirebaseAuthComplete) fsDelete(fsDoc(db, 'rooms', doc.id)).catch(()=>{});
-          } else {
-          newCache[doc.id] = data;
+    if (!isFirebase || !db) return;
+    if (allRoomsUnsubscribe) { allRoomsUnsubscribe(); allRoomsUnsubscribe = null; }
+    const colRef = fsCollection(db, 'rooms');
+    allRoomsUnsubscribe = fsOnSnap(colRef, (snapshot) => {
+        const now = Date.now();
+        const newCache = {};
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            if (data.createdAt && (now - data.createdAt) > 2 * 60 * 60 * 1000) {
+                // 超過2小時靜默刪除
+                if (isFirebaseAuthComplete) fsDelete(fsDoc(db, 'rooms', doc.id)).catch(()=>{});
+            } else {
+                newCache[doc.id] = data;
+            }
+        });
+        // Firebase 快照完整取代記憶體快取（確保刪除即時反映）
+        window._allRoomsCache = newCache;
+
+        // 同時清理 localStorage 中已不在 Firebase 的房間
+        const local = JSON.parse(localStorage.getItem('playroom_rooms') || '{}');
+        let changed = false;
+        Object.keys(local).forEach(id => {
+            if (!newCache[id]) { delete local[id]; changed = true; }
+        });
+        if (changed) localStorage.setItem('playroom_rooms', JSON.stringify(local));
+
+        // 重新渲染房間列表
+        const p = window.state && window.state.perspective;
+        const pData = p && window.pStates && window.pStates[p];
+        if (pData && pData.screen === 'screen-join' && pData.joinStep === 1) {
+            window.renderRoomList();
         }
-  });
-// Firebase 快照完整取代記憶體快取（確保刪除即時反映）
-window._allRoomsCache = newCache;
-
-// 同時清理 localStorage 中已不在 Firebase 的房間
-const local = JSON.parse(localStorage.getItem('playroom_rooms') || '{}');
-let changed = false;
-Object.keys(local).forEach(id => {
-    if (!newCache[id]) { delete local[id]; changed = true; }
-});
-if (changed) localStorage.setItem('playroom_rooms', JSON.stringify(local));
-
-// 重新渲染房間列表
-const p = window.state && window.state.perspective;
-const pData = p && window.pStates && window.pStates[p];
-if (pData && pData.screen === 'screen-join' && pData.joinStep === 1) {
-  window.renderRoomList();
-}
-}, err => console.error('All rooms sync error:', err));
+    }, err => console.error('All rooms sync error:', err));
 }
 
 // ── 監聽單一房間（遊戲中即時同步）──
 function startSyncListener() {
-  if (!isFirebase || !db || !window.state || !window.state.roomCode) return;
-  if (roomSyncUnsubscribe) { roomSyncUnsubscribe(); roomSyncUnsubscribe = null; }
-  const roomCode = window.state.roomCode;
-  const ref = fsDoc(db, 'rooms', roomCode);
-  roomSyncUnsubscribe = fsOnSnap(ref, (snap) => {
-      if (!snap.exists()) {
-        // 房間被刪除 → 學生回首頁
+    if (!isFirebase || !db || !window.state || !window.state.roomCode) return;
+    if (roomSyncUnsubscribe) { roomSyncUnsubscribe(); roomSyncUnsubscribe = null; }
+    const roomCode = window.state.roomCode;
+    const ref = fsDoc(db, 'rooms', roomCode);
+    roomSyncUnsubscribe = fsOnSnap(ref, (snap) => {
+        if (!snap.exists()) {
+            // 房間被刪除 → 學生回首頁
+            const p = window.state.perspective;
+            if (p !== 'teacher') {
+                const pData = window.pStates[p];
+                if (pData) { pData.joined = false; pData.screen = 'screen-home'; }
+                localStorage.removeItem('game_session');
+                window.goTo('screen-home');
+                window.showToast('🚪 房間已關閉');
+            }
+            return;
+        }
+        const data = snap.data();
+        // 更新本機快取
+        const local = JSON.parse(localStorage.getItem('playroom_rooms') || '{}');
+        local[roomCode] = data;
+        localStorage.setItem('playroom_rooms', JSON.stringify(local));
+        window._allRoomsCache[roomCode] = data;
+
+        // 學生端：Firebase 資料一到就主動檢查是否需要跳轉
         const p = window.state.perspective;
         if (p !== 'teacher') {
-          const pData = window.pStates[p];
-          if (pData) { pData.joined = false; pData.screen = 'screen-home'; }
-          localStorage.removeItem('game_session');
-          window.goTo('screen-home');
-          window.showToast('🚪 房間已關閉');
+            const pData = window.pStates[p];
+            if (pData && pData.joined) {
+                if (data.status === 'playing' && pData.screen !== 'screen-student-game') {
+                    tcLaunchStudentIfNeeded();
+                }
+                if (data.status === 'settlement' && pData.screen !== 'screen-settlement') {
+                    // 顯示結算畫面（poll 已處理，這裡再觸發一次確保即時）
+                }
+                if ((data.status === 'lobby' || data.status === 'finished') &&
+                    (pData.screen === 'screen-student-game' || pData.screen === 'screen-settlement')) {
+                    const sgIframe = document.getElementById('sg-iframe');
+                    if (sgIframe) sgIframe.src = 'about:blank';
+                    pData.screen = 'screen-student-wait';
+                    window.goTo('screen-student-wait');
+                }
+                // W3：收到棋局狀態更新，推給學生 iframe
+                if (data.w3state && pData.screen === 'screen-student-game') {
+                    const sgIframe = document.getElementById('sg-iframe');
+                    if (sgIframe && sgIframe.contentWindow) {
+                        sgIframe.contentWindow.postMessage({ type: 'W3_STATE', data: data.w3state }, '*');
+                    }
+                }
+                // W5：收到遊戲狀態更新，推給學生 iframe
+                if (data.w5state && pData.screen === 'screen-student-game' && (window.state.selectedGame === 4 || data.selectedGame === 4)) {
+                    const sgIframe = document.getElementById('sg-iframe');
+                    if (sgIframe && sgIframe.contentWindow) {
+                        sgIframe.contentWindow.postMessage({ type: 'W5_STATE', data: data.w5state }, '*');
+                    }
+                }
+            }
         }
-      return;
-    }
-  const data = snap.data();
-  // 更新本機快取
-  const local = JSON.parse(localStorage.getItem('playroom_rooms') || '{}');
-  local[roomCode] = data;
-  localStorage.setItem('playroom_rooms', JSON.stringify(local));
-  window._allRoomsCache[roomCode] = data;
-
-  // 學生端：Firebase 資料一到就主動檢查是否需要跳轉
-  const p = window.state.perspective;
-  if (p !== 'teacher') {
-    const pData = window.pStates[p];
-    if (pData && pData.joined) {
-      if (data.status === 'playing' && pData.screen !== 'screen-student-game') {
-        tcLaunchStudentIfNeeded();
-      }
-    if (data.status === 'settlement' && pData.screen !== 'screen-settlement') {
-      // 顯示結算畫面（poll 已處理，這裡再觸發一次確保即時）
-    }
-  if ((data.status === 'lobby' || data.status === 'finished') &&
-    (pData.screen === 'screen-student-game' || pData.screen === 'screen-settlement')) {
-    const sgIframe = document.getElementById('sg-iframe');
-    if (sgIframe) sgIframe.src = 'about:blank';
-    pData.screen = 'screen-student-wait';
-    window.goTo('screen-student-wait');
-  }
-// W3：收到棋局狀態更新，推給學生 iframe
-if (data.w3state && pData.screen === 'screen-student-game') {
-  const sgIframe = document.getElementById('sg-iframe');
-  if (sgIframe && sgIframe.contentWindow) {
-    sgIframe.contentWindow.postMessage({ type: 'W3_STATE', data: data.w3state }, '*');
-  }
-}
-// W5：收到遊戲狀態更新，推給學生 iframe
-if (data.w5state && pData.screen === 'screen-student-game' && (window.state.selectedGame === 4 || data.selectedGame === 4)) {
-  const sgIframe = document.getElementById('sg-iframe');
-  if (sgIframe && sgIframe.contentWindow) {
-    sgIframe.contentWindow.postMessage({ type: 'W5_STATE', data: data.w5state }, '*');
-  }
-}
-}
-}
-// 老師端：W3 狀態更新推給 tc-w3-iframe
-if (p === 'teacher' && data.w3state) {
-  const tcW3 = document.getElementById('tc-w3-iframe');
-  if (tcW3 && tcW3.contentWindow) {
-    try { tcW3.contentWindow.postMessage({ type: 'W3_STATE', data: data.w3state }, '*'); } catch(e2) {}
-  }
-}
-}, err => console.error('Room sync error:', err));
-console.log('✅ 監聽房間:', roomCode);
+        // 老師端：W3 狀態更新推給 tc-w3-iframe
+        if (p === 'teacher' && data.w3state) {
+            const tcW3 = document.getElementById('tc-w3-iframe');
+            if (tcW3 && tcW3.contentWindow) {
+                try { tcW3.contentWindow.postMessage({ type: 'W3_STATE', data: data.w3state }, '*'); } catch(e2) {}
+            }
+        }
+    }, err => console.error('Room sync error:', err));
+    console.log('✅ 監聽房間:', roomCode);
 }
 
 function stopSyncListener() {
-  if (roomSyncUnsubscribe) { roomSyncUnsubscribe(); roomSyncUnsubscribe = null; }
+    if (roomSyncUnsubscribe) { roomSyncUnsubscribe(); roomSyncUnsubscribe = null; }
 }
 function initReset() {
-  // 清除本機 localStorage 中超過 6 小時的舊房間
-  const rooms = window.getRooms();
-  const now = Date.now();
-  let changed = false;
-  Object.keys(rooms).forEach(code => {
-      const r = rooms[code];
-      if (r.createdAt && (now - r.createdAt) > 6 * 60 * 60 * 1000) {
-        delete rooms[code]; changed = true;
-      }
-});
-if (changed) localStorage.setItem('playroom_rooms', JSON.stringify(rooms));
+    // 清除本機 localStorage 中超過 6 小時的舊房間
+    const rooms = window.getRooms();
+    const now = Date.now();
+    let changed = false;
+    Object.keys(rooms).forEach(code => {
+        const r = rooms[code];
+        if (r.createdAt && (now - r.createdAt) > 6 * 60 * 60 * 1000) {
+            delete rooms[code]; changed = true;
+        }
+    });
+    if (changed) localStorage.setItem('playroom_rooms', JSON.stringify(rooms));
 }
 initReset();
 
@@ -1569,73 +912,73 @@ initReset();
 // 老師控制台
 // ══════════════════════════════════════════
 const TC = {
-  level: 1, running: false, paused: false,
-  scores: {},
-  isNextLevel: false, // 標記是否為點擊「下一關」進入的狀態
-  get gameFile() {
-    const g = (window.state && window.state.selectedGame) || 0;
-    const files = ['W1_消除方塊.html', 'W2_能源管線.html'];
-    return files[g] || files[0];
-  }
+    level: 1, running: false, paused: false,
+    scores: {},
+    isNextLevel: false, // 標記是否為點擊「下一關」進入的狀態
+    get gameFile() {
+        const g = (window.state && window.state.selectedGame) || 0;
+        const files = ['W1_消除方塊.html', 'W2_能源管線.html'];
+        return files[g] || files[0];
+    }
 };
 
 // ── 開啟老師控制台（選關卡畫面）──
 function openTeacherConsole() {
-  if (!window.state.roomCode) { showToast('⚠️ 請先建立房間'); return; }
-  TC.level = 1; TC.running = false; TC.paused = false; TC.scores = {};
+    if (!window.state.roomCode) { showToast('⚠️ 請先建立房間'); return; }
+    TC.level = 1; TC.running = false; TC.paused = false; TC.scores = {};
 
-  const g = GAMES[window.state.selectedGame] || GAMES[0];
-  const isW3 = window.state.selectedGame === 2;
-  const isW5 = window.state.selectedGame === 4;
+    const g = GAMES[window.state.selectedGame] || GAMES[0];
+    const isW3 = window.state.selectedGame === 2;
+    const isW5 = window.state.selectedGame === 4;
 
-  if (isW3 || isW5) {
-    // W3/W5 沒有關卡選擇，直接啟動遊戲
-    tcStartGame();
-    return;
-  }
+    if (isW3 || isW5) {
+        // W3/W5 沒有關卡選擇，直接啟動遊戲
+        tcStartGame();
+        return;
+    }
 
-updateLevelDisplay();
-const lsCount = document.getElementById('ls-count');
-if (lsCount) lsCount.textContent = window.state.players.length + ' 組';
-// 更新左上角遊戲名稱
-const lsIcon = document.getElementById('ls-game-icon');
-if (lsIcon) lsIcon.textContent = g.icon + ' ' + g.name;
-const lsCode = document.getElementById('ls-room-code-badge');
-if (lsCode) lsCode.textContent = window.state.roomCode || '0000';
-// 根據遊戲切換選關 UI
-const isW2 = window.state.selectedGame === 1;
-const isW4 = window.state.selectedGame === 3;
-document.getElementById('ls-w1').style.display = (!isW2 && !isW4) ? 'flex' : 'none';
-document.getElementById('ls-w2').style.display = isW2 ? 'flex' : 'none';
-document.getElementById('ls-w4').style.display = isW4 ? 'flex' : 'none';
-if (isW2) { lsW2SelectedLevel = 0; TC.level = 1; lsW2Render(); }
-if (isW4) { lsW4Render(); }
-window.pStates['teacher'].screen = 'screen-level-select';
-window.goTo('screen-level-select');
+    updateLevelDisplay();
+    const lsCount = document.getElementById('ls-count');
+    if (lsCount) lsCount.textContent = window.state.players.length + ' 組';
+    // 更新左上角遊戲名稱
+    const lsIcon = document.getElementById('ls-game-icon');
+    if (lsIcon) lsIcon.textContent = g.icon + ' ' + g.name;
+    const lsCode = document.getElementById('ls-room-code-badge');
+    if (lsCode) lsCode.textContent = window.state.roomCode || '0000';
+    // 根據遊戲切換選關 UI
+    const isW2 = window.state.selectedGame === 1;
+    const isW4 = window.state.selectedGame === 3;
+    document.getElementById('ls-w1').style.display = (!isW2 && !isW4) ? 'flex' : 'none';
+    document.getElementById('ls-w2').style.display = isW2 ? 'flex' : 'none';
+    document.getElementById('ls-w4').style.display = isW4 ? 'flex' : 'none';
+    if (isW2) { lsW2SelectedLevel = 0; TC.level = 1; lsW2Render(); }
+    if (isW4) { lsW4Render(); }
+    window.pStates['teacher'].screen = 'screen-level-select';
+    window.goTo('screen-level-select');
 }
 
 // ── W2 格子選關（28關，無模式切換）──
 let lsW2SelectedLevel = 0;
 let lsW2Inited = false;
 function lsW2Render() {
-  const grid = document.getElementById('ls-w2-grid');
-  if (!grid) return;
-  const total = 28;
-  grid.innerHTML = '';
-  for (let i = 0; i < total; i++) {
-    const cls = i < 10 ? 'ls-single' : i < 20 ? 'ls-mid' : 'ls-hard';
-    const btn = document.createElement('button');
-    btn.className = 'ls-lvl-btn ' + cls + (i === lsW2SelectedLevel ? ' ls-selected' : '');
-    btn.textContent = i + 1;
-    btn.onclick = () => {
-      lsW2SelectedLevel = i;
-      TC.level = i + 1;
-      lsW2Render();
-      const startBtn = document.getElementById('ls-w2-start-btn');
-      if (startBtn) { startBtn.disabled = false; startBtn.style.opacity = '1'; startBtn.style.cursor = 'pointer'; }
-    };
-  grid.appendChild(btn);
-}
+    const grid = document.getElementById('ls-w2-grid');
+    if (!grid) return;
+    const total = 28;
+    grid.innerHTML = '';
+    for (let i = 0; i < total; i++) {
+        const cls = i < 10 ? 'ls-single' : i < 20 ? 'ls-mid' : 'ls-hard';
+        const btn = document.createElement('button');
+        btn.className = 'ls-lvl-btn ' + cls + (i === lsW2SelectedLevel ? ' ls-selected' : '');
+        btn.textContent = i + 1;
+        btn.onclick = () => {
+            lsW2SelectedLevel = i;
+            TC.level = i + 1;
+            lsW2Render();
+            const startBtn = document.getElementById('ls-w2-start-btn');
+            if (startBtn) { startBtn.disabled = false; startBtn.style.opacity = '1'; startBtn.style.cursor = 'pointer'; }
+        };
+        grid.appendChild(btn);
+    }
 }
 
 // ── W4 節奏合鳴選關（兩階段：模式卡片 → 關卡網格）──
@@ -1646,585 +989,585 @@ const lsW4ModeNames  = ['', '縮圈點擊', '鋼琴黑塊', '底線軌道'];
 const lsW4ModeColors = ['', '#3498db', '#9b59b6', '#e74c3c'];
 
 function lsW4Render() {
-  lsW4SelectedMode  = 0;
-  lsW4SelectedLevel = 0;
-  const s1 = document.getElementById('ls-w4-step1');
-  const s2 = document.getElementById('ls-w4-step2');
-  if (s1) { s1.style.display = ''; s1.style.animation = 'lsSlideIn .35s cubic-bezier(.34,1.56,.64,1) both'; }
-  if (s2) s2.style.display = 'none';
-  lsW4SetStartBtn(false);
+    lsW4SelectedMode  = 0;
+    lsW4SelectedLevel = 0;
+    const s1 = document.getElementById('ls-w4-step1');
+    const s2 = document.getElementById('ls-w4-step2');
+    if (s1) { s1.style.display = ''; s1.style.animation = 'lsSlideIn .35s cubic-bezier(.34,1.56,.64,1) both'; }
+    if (s2) s2.style.display = 'none';
+    lsW4SetStartBtn(false);
 }
 
 function lsW4SelectMode(mode) {
-  lsW4SelectedMode  = mode;
-  lsW4SelectedLevel = 0;
-  const s1 = document.getElementById('ls-w4-step1');
-  const s2 = document.getElementById('ls-w4-step2');
-  if (s1) s1.style.display = 'none';
-  if (s2) { s2.style.display = ''; s2.style.animation = 'lsSlideIn .3s cubic-bezier(.34,1.56,.64,1) both'; }
-  const title = document.getElementById('ls-w4-mode-title');
-  if (title) {
-    title.textContent = lsW4ModeNames[mode] || '';
-    title.style.color = lsW4ModeColors[mode] || '#00f5ff';
-    title.style.textShadow = `0 0 16px ${lsW4ModeColors[mode] || '#00f5ff'}80`;
-  }
-const grid = document.getElementById('ls-w4-level-grid');
-if (!grid) return;
-grid.innerHTML = '';
-for (let i = 1; i <= 10; i++) {
-  const btn = document.createElement('button');
-  btn.className = 'ls-w4-lvl-btn';
-  btn.id = 'ls-w4-lvl-' + i;
-  btn.textContent = i;
-  btn.onclick = () => lsW4SelectLevel(i);
-  grid.appendChild(btn);
-}
-lsW4SetStartBtn(false);
+    lsW4SelectedMode  = mode;
+    lsW4SelectedLevel = 0;
+    const s1 = document.getElementById('ls-w4-step1');
+    const s2 = document.getElementById('ls-w4-step2');
+    if (s1) s1.style.display = 'none';
+    if (s2) { s2.style.display = ''; s2.style.animation = 'lsSlideIn .3s cubic-bezier(.34,1.56,.64,1) both'; }
+    const title = document.getElementById('ls-w4-mode-title');
+    if (title) {
+        title.textContent = lsW4ModeNames[mode] || '';
+        title.style.color = lsW4ModeColors[mode] || '#00f5ff';
+        title.style.textShadow = `0 0 16px ${lsW4ModeColors[mode] || '#00f5ff'}80`;
+    }
+    const grid = document.getElementById('ls-w4-level-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    for (let i = 1; i <= 10; i++) {
+        const btn = document.createElement('button');
+        btn.className = 'ls-w4-lvl-btn';
+        btn.id = 'ls-w4-lvl-' + i;
+        btn.textContent = i;
+        btn.onclick = () => lsW4SelectLevel(i);
+        grid.appendChild(btn);
+    }
+    lsW4SetStartBtn(false);
 }
 
 function lsW4BackToMode() {
-  lsW4SelectedMode  = 0;
-  lsW4SelectedLevel = 0;
-  const s1 = document.getElementById('ls-w4-step1');
-  const s2 = document.getElementById('ls-w4-step2');
-  if (s2) s2.style.display = 'none';
-  if (s1) { s1.style.display = ''; s1.style.animation = 'lsSlideInL .3s cubic-bezier(.34,1.56,.64,1) both'; }
+    lsW4SelectedMode  = 0;
+    lsW4SelectedLevel = 0;
+    const s1 = document.getElementById('ls-w4-step1');
+    const s2 = document.getElementById('ls-w4-step2');
+    if (s2) s2.style.display = 'none';
+    if (s1) { s1.style.display = ''; s1.style.animation = 'lsSlideInL .3s cubic-bezier(.34,1.56,.64,1) both'; }
 }
 
 function lsW4SelectLevel(level) {
-  lsW4SelectedLevel = level;
-  TC.level = level;
-  for (let i = 1; i <= 10; i++) {
-    const b = document.getElementById('ls-w4-lvl-' + i);
-    if (b) b.classList.toggle('selected', i === level);
-  }
-lsW4SetStartBtn(true);
+    lsW4SelectedLevel = level;
+    TC.level = level;
+    for (let i = 1; i <= 10; i++) {
+        const b = document.getElementById('ls-w4-lvl-' + i);
+        if (b) b.classList.toggle('selected', i === level);
+    }
+    lsW4SetStartBtn(true);
 }
 
 function lsW4SetStartBtn(ready) {
-  const btn = document.getElementById('ls-w4-start-btn');
-  if (!btn) return;
-  btn.disabled = !ready;
+    const btn = document.getElementById('ls-w4-start-btn');
+    if (!btn) return;
+    btn.disabled = !ready;
 }
 
 function lsW4CheckReady() {
-  lsW4SetStartBtn(lsW4SelectedMode > 0 && lsW4SelectedLevel > 0);
-  if (lsW4SelectedLevel > 0) TC.level = lsW4SelectedLevel;
+    lsW4SetStartBtn(lsW4SelectedMode > 0 && lsW4SelectedLevel > 0);
+    if (lsW4SelectedLevel > 0) TC.level = lsW4SelectedLevel;
 }
 
 function updateLevelDisplay() {
-  const phases = ['','🌿 初級','⚡ 中級','🔥 高級'];
-  const phase  = TC.level > 20 ? 3 : TC.level > 10 ? 2 : 1;
-  const numEl   = document.getElementById('ls-level-num');
-  const phaseEl = document.getElementById('ls-level-phase');
-  if (numEl)   numEl.textContent   = TC.level;
-  if (phaseEl) phaseEl.textContent = phases[phase];
+    const phases = ['','🌿 初級','⚡ 中級','🔥 高級'];
+    const phase  = TC.level > 20 ? 3 : TC.level > 10 ? 2 : 1;
+    const numEl   = document.getElementById('ls-level-num');
+    const phaseEl = document.getElementById('ls-level-phase');
+    if (numEl)   numEl.textContent   = TC.level;
+    if (phaseEl) phaseEl.textContent = phases[phase];
 }
 
 function changeLevel(d) {
-  if (TC.running) return;
-  TC.level = Math.max(1, Math.min(30, TC.level + d));
-  updateLevelDisplay();
+    if (TC.running) return;
+    TC.level = Math.max(1, Math.min(30, TC.level + d));
+    updateLevelDisplay();
 }
 
 function jumpToPhase(phase) {
-  TC.level = phase === 1 ? 1 : phase === 2 ? 11 : 21;
-  updateLevelDisplay();
+    TC.level = phase === 1 ? 1 : phase === 2 ? 11 : 21;
+    updateLevelDisplay();
 }
 
 // ── 即時分數渲染 ──
 function tcRenderScores() {
-  if (window.state.selectedGame === 2 || window.state.selectedGame === 4) return;
-  const area = document.getElementById('tc-scores-area');
-  if (!area) return;
-  const players = window.state.players;
-  if (!players.length) {
-    area.innerHTML = '<div style="color:rgba(255,255,255,.25);font-family:Nunito,sans-serif;font-size:.9rem">等待玩家加入...</div>';
-    return;
-  }
-const sorted = [...players].sort((a,b) => (TC.scores[b.group]||0) - (TC.scores[a.group]||0));
-const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
-area.innerHTML = sorted.map((p,i) => `
-  <div style="display:flex;align-items:center;gap:16px;background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.12);border-radius:20px;padding:16px 24px;width:100%;max-width:600px">
-  <div style="font-size:2rem;width:40px;text-align:center">${medals[i]||''}</div>
-  <div style="font-size:2rem">${p.symbol}</div>
-  <div style="flex:1;font-family:'Nunito',sans-serif;font-weight:900;font-size:1.1rem;color:white">${p.group}</div>
-  <div id="tc-score-${p.group.replace(/\s/g,'')}" style="font-family:'Nunito',sans-serif;font-weight:900;font-size:2rem;color:#f5c800;min-width:80px;text-align:right;transition:transform .2s">${TC.scores[p.group]||0}</div>
-  </div>`).join('');
+    if (window.state.selectedGame === 2 || window.state.selectedGame === 4) return;
+    const area = document.getElementById('tc-scores-area');
+    if (!area) return;
+    const players = window.state.players;
+    if (!players.length) {
+        area.innerHTML = '<div style="color:rgba(255,255,255,.25);font-family:Nunito,sans-serif;font-size:.9rem">等待玩家加入...</div>';
+        return;
+    }
+    const sorted = [...players].sort((a,b) => (TC.scores[b.group]||0) - (TC.scores[a.group]||0));
+    const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+    area.innerHTML = sorted.map((p,i) => `
+        <div style="display:flex;align-items:center;gap:16px;background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.12);border-radius:20px;padding:16px 24px;width:100%;max-width:600px">
+            <div style="font-size:2rem;width:40px;text-align:center">${medals[i]||''}</div>
+            <div style="font-size:2rem">${p.symbol}</div>
+            <div style="flex:1;font-family:'Nunito',sans-serif;font-weight:900;font-size:1.1rem;color:white">${p.group}</div>
+            <div id="tc-score-${p.group.replace(/\s/g,'')}" style="font-family:'Nunito',sans-serif;font-weight:900;font-size:2rem;color:#f5c800;min-width:80px;text-align:right;transition:transform .2s">${TC.scores[p.group]||0}</div>
+        </div>`).join('');
 }
 
 function tcUpdateScore(group, score) {
-  TC.scores[group] = score;
-  const el = document.getElementById('tc-score-' + group.replace(/\s/g,''));
-  if (el) {
-    el.textContent = score;
-    el.style.transform = 'scale(1.4)';
-    setTimeout(() => { if(el) el.style.transform = 'scale(1)'; }, 250);
-  }
-// 重新排序
-tcRenderScores();
+    TC.scores[group] = score;
+    const el = document.getElementById('tc-score-' + group.replace(/\s/g,''));
+    if (el) {
+        el.textContent = score;
+        el.style.transform = 'scale(1.4)';
+        setTimeout(() => { if(el) el.style.transform = 'scale(1)'; }, 250);
+    }
+    // 重新排序
+    tcRenderScores();
 }
 
 // ── 開始遊戲 ──
 function tcStartGame() {
-  const players = window.state.players;
-  if (!players.length) { showToast('⚠️ 還沒有學生加入！'); return; }
-  TC.running = true; TC.paused = false; TC._lastPaused = false;
+    const players = window.state.players;
+    if (!players.length) { showToast('⚠️ 還沒有學生加入！'); return; }
+    TC.running = true; TC.paused = false; TC._lastPaused = false;
 
-  // 支援分數累加邏輯
-  const rooms = window.getRooms();
-  const r = rooms[window.state.roomCode];
-  if (r) {
-    if (!TC.isNextLevel) {
-      TC.scores = {};
-      r.scores = {};
-      r.baseScores = {}; // 第一關，基底分數歸零
+    // 支援分數累加邏輯
+    const rooms = window.getRooms();
+    const r = rooms[window.state.roomCode];
+    if (r) {
+        if (!TC.isNextLevel) {
+            TC.scores = {};
+            r.scores = {};
+            r.baseScores = {}; // 第一關，基底分數歸零
+        } else {
+            // 是下一關，將目前成績備份為 baseScores
+            r.baseScores = JSON.parse(JSON.stringify(r.scores || {}));
+        }
+    }
+    TC.isNextLevel = false;
+
+    // ★ 確保 W4 模式與關卡為嚴格數字，避免字串串接導致判定失敗
+    if (window.state.selectedGame === 3) {
+        lsW4SelectedMode = parseInt(lsW4SelectedMode || (r && r.w4mode) || 1, 10);
+        lsW4SelectedLevel = parseInt(lsW4SelectedLevel || (r && r.w4level) || TC.level || 1, 10);
+        TC.level = lsW4SelectedLevel;
+    }
+
+    // 更新 header
+    const badge = document.getElementById('tc-level-badge');
+    const isW3game = window.state.selectedGame === 2;
+    if (badge) badge.textContent = isW3game ? '第 1 回合' : '關卡 ' + TC.level;
+    const gameName = document.getElementById('tc-game-name');
+    if (gameName) { const g = GAMES[window.state.selectedGame] || GAMES[0]; gameName.textContent = g.icon + ' ' + g.name; }
+    // 更新房間密碼顯示
+    const tcCode = document.getElementById('tc-room-code-badge');
+    if (tcCode) tcCode.textContent = window.state.roomCode || '0000';
+    document.getElementById('tc-btn-pause').style.display  = '';
+    document.getElementById('tc-btn-resume').style.display = 'none';
+
+    // 更新 rooms
+    if (r) {
+        r.status    = 'playing';
+        r.gameLevel = TC.level;
+        r.gameMode  = 'SINGLE'; 
+        // W4 額外存 mode / level
+        if (window.state.selectedGame === 3) {
+            r.w4mode  = lsW4SelectedMode;
+            r.w4level = lsW4SelectedLevel;
+        }
+        window.saveRooms(rooms);
+    }
+
+    if (window.state.selectedGame === 2) {
+        // W3：新遊戲開始時清空上次的 w3state
+        const rooms0 = window.getRooms();
+        if (rooms0[window.state.roomCode]) {
+            rooms0[window.state.roomCode].w3state = null;
+            window.saveRooms(rooms0);
+        }
+        // W3：老師控制台嵌入 W3 iframe
+        const settleBtn = document.getElementById('tc-btn-settle');
+        const levelBadge = document.getElementById('tc-level-badge');
+        const pauseBtn = document.getElementById('tc-btn-pause');
+        const resumeBtn = document.getElementById('tc-btn-resume');
+        const nextContainer = document.getElementById('tc-next-level-container');
+        if (settleBtn) { settleBtn.style.display = ''; }
+        if (levelBadge) levelBadge.style.display = 'none';
+        if (pauseBtn) pauseBtn.style.display = 'none';
+        if (resumeBtn) resumeBtn.style.display = 'none';
+        if (nextContainer) nextContainer.style.display = 'none'; // W3 隱藏
+        const sa = document.getElementById('tc-scores-area');
+        if (sa) {
+            sa.style.padding = '0';
+            sa.innerHTML = `<iframe id="tc-w3-iframe" src="W3_五子棋.html?teacher=1" style="flex:1; width:100%; border:none; border-radius:0"></iframe>`;
+            const w3iframe = document.getElementById('tc-w3-iframe');
+            if (w3iframe) {
+                w3iframe.onload = () => setTimeout(() => {
+                    try {
+                        const rooms2 = window.getRooms();
+                        const r2 = rooms2[window.state.roomCode] || {};
+                        const latestW3 = r2.w3state || null;
+                        w3iframe.contentWindow.postMessage({
+                            type: 'PLATFORM_START', isTeacher: true, group: '',
+                            state: latestW3,
+                            players: window.state.players || []
+                        }, '*');
+                    } catch(e) {}
+                }, 300);
+            }
+        }
+    } else if (window.state.selectedGame === 4) {
+        // W5：老師控制台嵌入 W5 iframe（老師視角），並傳入參加人數
+        const settleBtn = document.getElementById('tc-btn-settle');
+        const levelBadge = document.getElementById('tc-level-badge');
+        const pauseBtn = document.getElementById('tc-btn-pause');
+        const resumeBtn = document.getElementById('tc-btn-resume');
+        const nextContainer = document.getElementById('tc-next-level-container');
+        if (settleBtn) settleBtn.style.display = '';
+        if (levelBadge) levelBadge.style.display = 'none';
+        if (pauseBtn) pauseBtn.style.display = 'none';
+        if (resumeBtn) resumeBtn.style.display = 'none';
+        if (nextContainer) nextContainer.style.display = 'none';
+        const sa = document.getElementById('tc-scores-area');
+        if (sa) {
+            sa.style.padding = '0';
+            sa.innerHTML = `<iframe id="tc-w5-iframe" src="W5_你畫我猜.html?role=teacher" style="flex:1;width:100%;height:100%;border:none;border-radius:0"></iframe>`;
+            const w5iframe = document.getElementById('tc-w5-iframe');
+            if (w5iframe) {
+                w5iframe.onload = () => setTimeout(() => {
+                    try {
+                        w5iframe.contentWindow.postMessage({
+                            type: 'PLATFORM_START', isTeacher: true, group: '',
+                            players: window.state.players || []
+                        }, '*');
+                    } catch(e) {}
+                }, 300);
+            }
+        }
+    } else if (window.state.selectedGame === 3) {
+        // W4：老師控制台顯示即時分數排行，並顯示當前 mode/level badge
+        const badge = document.getElementById('tc-level-badge');
+        if (badge) {
+            badge.textContent = `M${lsW4SelectedMode} · LV${lsW4SelectedLevel}`;
+            badge.style.display = '';
+        }
+        // 顯示底部「下一關」按鈕容器，並支援跨模式顯示
+        const nextContainer = document.getElementById('tc-next-level-container');
+        if (nextContainer) {
+            let nextM = lsW4SelectedMode;
+            let nextL = lsW4SelectedLevel + 1;
+            let hasNext = true;
+            
+            if (nextL > 10) {
+                if (nextM < 3) {
+                    nextM++;
+                    nextL = 1;
+                } else {
+                    hasNext = false;
+                }
+            }
+
+            if (hasNext) {
+                nextContainer.style.display = 'block';
+                const elMode = document.getElementById('nl-mode');
+                const elLevel = document.getElementById('nl-level');
+                if (elMode) elMode.textContent = nextM;
+                if (elLevel) elLevel.textContent = nextL;
+            } else {
+                nextContainer.style.display = 'none';
+            }
+        }
+        
+        tcRenderScores();
+        const sa = document.getElementById('tc-scores-area');
+        if (sa) sa.style.padding = '';
+        const settleBtn = document.getElementById('tc-btn-settle');
+        if (settleBtn) settleBtn.style.display = '';
     } else {
-    // 是下一關，將目前成績備份為 baseScores
-    r.baseScores = JSON.parse(JSON.stringify(r.scores || {}));
-  }
-}
-TC.isNextLevel = false;
+        const nextContainer = document.getElementById('tc-next-level-container');
+        if (nextContainer) nextContainer.style.display = 'none';
 
-// ★ 確保 W4 模式與關卡為嚴格數字，避免字串串接導致判定失敗
-if (window.state.selectedGame === 3) {
-  lsW4SelectedMode = parseInt(lsW4SelectedMode || (r && r.w4mode) || 1, 10);
-  lsW4SelectedLevel = parseInt(lsW4SelectedLevel || (r && r.w4level) || TC.level || 1, 10);
-  TC.level = lsW4SelectedLevel;
-}
+        tcRenderScores();
+        const sa = document.getElementById('tc-scores-area');
+        if (sa) sa.style.padding = '';
+    }
+    window.pStates['teacher'].screen = 'screen-teacher-console';
+    window.goTo('screen-teacher-console');
+    // 大廳：顯示遊戲控制區
+    const lgs = document.getElementById('lobby-game-status');
+    const lsb = document.getElementById('lobby-start-btn');
+    const lp  = document.getElementById('lobby-btn-pause');
+    const lr  = document.getElementById('lobby-btn-resume');
+    const lsl = document.getElementById('lobby-status-label');
+    if (lgs) lgs.style.display = 'flex';
+    if (lsb) lsb.style.display = 'none';
+    if (lp)  lp.style.display  = '';
+    if (lr)  lr.style.display  = 'none';
+    if (lsl) lsl.textContent   = '🔴 遊戲中';
 
-// 更新 header
-const badge = document.getElementById('tc-level-badge');
-const isW3game = window.state.selectedGame === 2;
-if (badge) badge.textContent = isW3game ? '第 1 回合' : '關卡 ' + TC.level;
-const gameName = document.getElementById('tc-game-name');
-if (gameName) { const g = GAMES[window.state.selectedGame] || GAMES[0]; gameName.textContent = g.icon + ' ' + g.name; }
-// 更新房間密碼顯示
-const tcCode = document.getElementById('tc-room-code-badge');
-if (tcCode) tcCode.textContent = window.state.roomCode || '0000';
-document.getElementById('tc-btn-pause').style.display  = '';
-document.getElementById('tc-btn-resume').style.display = 'none';
-
-// 更新 rooms
-if (r) {
-  r.status    = 'playing';
-  r.gameLevel = TC.level;
-  r.gameMode  = 'SINGLE';
-  // W4 額外存 mode / level
-  if (window.state.selectedGame === 3) {
-    r.w4mode  = lsW4SelectedMode;
-    r.w4level = lsW4SelectedLevel;
-  }
-window.saveRooms(rooms);
-}
-
-if (window.state.selectedGame === 2) {
-  // W3：新遊戲開始時清空上次的 w3state
-  const rooms0 = window.getRooms();
-  if (rooms0[window.state.roomCode]) {
-    rooms0[window.state.roomCode].w3state = null;
-    window.saveRooms(rooms0);
-  }
-// W3：老師控制台嵌入 W3 iframe
-const settleBtn = document.getElementById('tc-btn-settle');
-const levelBadge = document.getElementById('tc-level-badge');
-const pauseBtn = document.getElementById('tc-btn-pause');
-const resumeBtn = document.getElementById('tc-btn-resume');
-const nextContainer = document.getElementById('tc-next-level-container');
-if (settleBtn) { settleBtn.style.display = ''; }
-if (levelBadge) levelBadge.style.display = 'none';
-if (pauseBtn) pauseBtn.style.display = 'none';
-if (resumeBtn) resumeBtn.style.display = 'none';
-if (nextContainer) nextContainer.style.display = 'none'; // W3 隱藏
-const sa = document.getElementById('tc-scores-area');
-if (sa) {
-  sa.style.padding = '0';
-  sa.innerHTML = `<iframe id="tc-w3-iframe" src="W3_五子棋.html?teacher=1" style="flex:1; width:100%; border:none; border-radius:0"></iframe>`;
-  const w3iframe = document.getElementById('tc-w3-iframe');
-  if (w3iframe) {
-    w3iframe.onload = () => setTimeout(() => {
-        try {
-          const rooms2 = window.getRooms();
-          const r2 = rooms2[window.state.roomCode] || {};
-          const latestW3 = r2.w3state || null;
-          w3iframe.contentWindow.postMessage({
-              type: 'PLATFORM_START', isTeacher: true, group: '',
-              state: latestW3,
-              players: window.state.players || []
-            }, '*');
-      } catch(e) {}
-  }, 300);
-}
-}
-} else if (window.state.selectedGame === 4) {
-// W5：老師控制台嵌入 W5 iframe（老師視角），並傳入參加人數
-const settleBtn = document.getElementById('tc-btn-settle');
-const levelBadge = document.getElementById('tc-level-badge');
-const pauseBtn = document.getElementById('tc-btn-pause');
-const resumeBtn = document.getElementById('tc-btn-resume');
-const nextContainer = document.getElementById('tc-next-level-container');
-if (settleBtn) settleBtn.style.display = '';
-if (levelBadge) levelBadge.style.display = 'none';
-if (pauseBtn) pauseBtn.style.display = 'none';
-if (resumeBtn) resumeBtn.style.display = 'none';
-if (nextContainer) nextContainer.style.display = 'none';
-const sa = document.getElementById('tc-scores-area');
-if (sa) {
-  sa.style.padding = '0';
-  sa.innerHTML = `<iframe id="tc-w5-iframe" src="W5_你畫我猜.html?role=teacher" style="flex:1;width:100%;height:100%;border:none;border-radius:0"></iframe>`;
-  const w5iframe = document.getElementById('tc-w5-iframe');
-  if (w5iframe) {
-    w5iframe.onload = () => setTimeout(() => {
-        try {
-          w5iframe.contentWindow.postMessage({
-              type: 'PLATFORM_START', isTeacher: true, group: '',
-              players: window.state.players || []
-            }, '*');
-      } catch(e) {}
-  }, 300);
-}
-}
-} else if (window.state.selectedGame === 3) {
-// W4：老師控制台顯示即時分數排行，並顯示當前 mode/level badge
-const badge = document.getElementById('tc-level-badge');
-if (badge) {
-  badge.textContent = `M${lsW4SelectedMode} · LV${lsW4SelectedLevel}`;
-  badge.style.display = '';
-}
-// 顯示底部「下一關」按鈕容器，並支援跨模式顯示
-const nextContainer = document.getElementById('tc-next-level-container');
-if (nextContainer) {
-  let nextM = lsW4SelectedMode;
-  let nextL = lsW4SelectedLevel + 1;
-  let hasNext = true;
-
-  if (nextL > 10) {
-    if (nextM < 3) {
-      nextM++;
-      nextL = 1;
-    } else {
-    hasNext = false;
-  }
-}
-
-if (hasNext) {
-  nextContainer.style.display = 'block';
-  const elMode = document.getElementById('nl-mode');
-  const elLevel = document.getElementById('nl-level');
-  if (elMode) elMode.textContent = nextM;
-  if (elLevel) elLevel.textContent = nextL;
-} else {
-nextContainer.style.display = 'none';
-}
-}
-
-tcRenderScores();
-const sa = document.getElementById('tc-scores-area');
-if (sa) sa.style.padding = '';
-const settleBtn = document.getElementById('tc-btn-settle');
-if (settleBtn) settleBtn.style.display = '';
-} else {
-const nextContainer = document.getElementById('tc-next-level-container');
-if (nextContainer) nextContainer.style.display = 'none';
-
-tcRenderScores();
-const sa = document.getElementById('tc-scores-area');
-if (sa) sa.style.padding = '';
-}
-window.pStates['teacher'].screen = 'screen-teacher-console';
-window.goTo('screen-teacher-console');
-// 大廳：顯示遊戲控制區
-const lgs = document.getElementById('lobby-game-status');
-const lsb = document.getElementById('lobby-start-btn');
-const lp  = document.getElementById('lobby-btn-pause');
-const lr  = document.getElementById('lobby-btn-resume');
-const lsl = document.getElementById('lobby-status-label');
-if (lgs) lgs.style.display = 'flex';
-if (lsb) lsb.style.display = 'none';
-if (lp)  lp.style.display  = '';
-if (lr)  lr.style.display  = 'none';
-if (lsl) lsl.textContent   = '🔴 遊戲中';
-
-// 若目前是學生視角，立刻進入遊戲
-tcLaunchStudentIfNeeded();
-const _toastG = window.state.selectedGame;
-showToast(_toastG === 2 ? '🎮 五子棋對戰開始！'
-  : _toastG === 3 ? `🎵 節奏合鳴！M${lsW4SelectedMode} · LV${lsW4SelectedLevel}`
-  : '🎮 遊戲開始！關卡 ' + TC.level);
+    // 若目前是學生視角，立刻進入遊戲
+    tcLaunchStudentIfNeeded();
+    const _toastG = window.state.selectedGame;
+    showToast(_toastG === 2 ? '🎮 五子棋對戰開始！'
+            : _toastG === 3 ? `🎵 節奏合鳴！M${lsW4SelectedMode} · LV${lsW4SelectedLevel}`
+            : '🎮 遊戲開始！關卡 ' + TC.level);
 }
 
 // 修改: 下一關邏輯，直接啟動下一關，不回選關畫面，並支援跨模式銜接
 // 並移除 lobby 切換造成的畫面閃爍卡頓
 function tcW4NextLevel() {
-  const rooms = window.getRooms();
-  const r = rooms[window.state.roomCode];
+    const rooms = window.getRooms();
+    const r = rooms[window.state.roomCode];
 
-  let currentMode = parseInt(lsW4SelectedMode || (r && r.w4mode) || 1, 10);
-  let currentLevel = parseInt(lsW4SelectedLevel || (r && r.w4level) || TC.level || 1, 10);
-  let hasNext = true;
+    let currentMode = parseInt(lsW4SelectedMode || (r && r.w4mode) || 1, 10);
+    let currentLevel = parseInt(lsW4SelectedLevel || (r && r.w4level) || TC.level || 1, 10);
+    let hasNext = true;
+    
+    if (currentLevel < 10) {
+        currentLevel++;
+    } else if (currentMode < 3) {
+        // 當前 LV10，且不是最後一個模式，切換到下一個模式的 LV1
+        currentMode++;
+        currentLevel = 1;
+    } else {
+        hasNext = false;
+    }
 
-  if (currentLevel < 10) {
-    currentLevel++;
-  } else if (currentMode < 3) {
-  // 當前 LV10，且不是最後一個模式，切換到下一個模式的 LV1
-  currentMode++;
-  currentLevel = 1;
-} else {
-hasNext = false;
-}
-
-if (hasNext) {
-  lsW4SelectedMode = currentMode;
-  lsW4SelectedLevel = currentLevel;
-  TC.level = currentLevel;
-  TC.isNextLevel = true; // 告知 tcStartGame 這是下一關，保留分數
-
-  // 直接啟動，不再透過切換 lobby 狀態來強迫載入，以避免 UI 卡頓與重新整理閃爍
-  tcStartGame();
-} else {
-showToast('已是最後一模式的最後一關！');
-}
+    if (hasNext) {
+        lsW4SelectedMode = currentMode;
+        lsW4SelectedLevel = currentLevel;
+        TC.level = currentLevel;
+        TC.isNextLevel = true; // 告知 tcStartGame 這是下一關，保留分數
+        
+        // 直接啟動，不再透過切換 lobby 狀態來強迫載入，以避免 UI 卡頓與重新整理閃爍
+        tcStartGame();
+    } else {
+        showToast('已是最後一模式的最後一關！');
+    }
 }
 
 function studentLeaveGame() {
-  const p = window.state.perspective;
-  const pData = window.pStates[p];
-  const sgIframe = document.getElementById('sg-iframe');
-  if (sgIframe) sgIframe.src = 'about:blank';
-  if (pData) {
-    pData.screen = 'screen-student-wait';
-  }
-window.goTo('screen-student-wait');
+    const p = window.state.perspective;
+    const pData = window.pStates[p];
+    const sgIframe = document.getElementById('sg-iframe');
+    if (sgIframe) sgIframe.src = 'about:blank';
+    if (pData) {
+        pData.screen = 'screen-student-wait';
+    }
+    window.goTo('screen-student-wait');
 }
 
 // ── 學生進入遊戲 ──
 function tcLaunchStudentIfNeeded() {
-  const p = window.state.perspective;
-  if (p==='teacher') return;
-  const pData = window.pStates[p];
-  if (!pData || !pData.joined) return;
+    const p = window.state.perspective;
+    if (p==='teacher') return;
+    const pData = window.pStates[p];
+    if (!pData || !pData.joined) return;
 
-  const r = window.getRooms()[window.state.roomCode] || {};
-  const level = r.gameLevel || TC.level || 1;
-  const selectedGame = r.selectedGame !== undefined ? r.selectedGame : (window.state.selectedGame || 0);
-  const gameMode = r.gameMode || 'SINGLE';
-  const gameFiles = ['W1_消除方塊.html', 'W2_能源管線.html', 'W3_五子棋.html', 'W4_節奏合鳴.html', 'W5_你畫我猜.html'];
-  const gameFile = gameFiles[selectedGame] || gameFiles[0];
-  const isW2 = selectedGame === 1;
-  const isW4 = selectedGame === 3;
+    const r = window.getRooms()[window.state.roomCode] || {};
+    const level = r.gameLevel || TC.level || 1;
+    const selectedGame = r.selectedGame !== undefined ? r.selectedGame : (window.state.selectedGame || 0);
+    const gameMode = r.gameMode || 'SINGLE';
+    const gameFiles = ['W1_消除方塊.html', 'W2_能源管線.html', 'W3_五子棋.html', 'W4_節奏合鳴.html', 'W5_你畫我猜.html'];
+    const gameFile = gameFiles[selectedGame] || gameFiles[0];
+    const isW2 = selectedGame === 1;
+    const isW4 = selectedGame === 3;
 
-  // 記錄目前載入的關卡狀態，防止輪詢重複觸發 iframe 重新載入
-  pData.gameLevel = level;
-  if (isW4) {
-    pData.w4mode = r.w4mode || 1;
-    pData.w4level = r.w4level || 1;
-  }
+    // 記錄目前載入的關卡狀態，防止輪詢重複觸發 iframe 重新載入
+    pData.gameLevel = level;
+    if (isW4) {
+        pData.w4mode = r.w4mode || 1;
+        pData.w4level = r.w4level || 1;
+    }
 
-// group 優先從 pData 取，沒有就從 Firebase rooms.players 找
-let myGroup = pData.group || '';
-if (!myGroup && r.players) {
-  const saved = JSON.parse(localStorage.getItem('game_session') || '{}');
-  const match = r.players.find(pl => pl.group === saved.group);
-  if (match) {
-    myGroup = match.group;
-    pData.group = match.group;
-    pData.symbol = match.symbol;
-  }
-}
+    // group 優先從 pData 取，沒有就從 Firebase rooms.players 找
+    let myGroup = pData.group || '';
+    if (!myGroup && r.players) {
+        const saved = JSON.parse(localStorage.getItem('game_session') || '{}');
+        const match = r.players.find(pl => pl.group === saved.group);
+        if (match) {
+            myGroup = match.group;
+            pData.group = match.group;
+            pData.symbol = match.symbol;
+        }
+    }
 
-const iframe = document.getElementById('sg-iframe');
-const titleEl = document.getElementById('sg-title');
-const groupEl = document.getElementById('sg-group');
-if (titleEl) { const g = GAMES[selectedGame] || GAMES[0]; titleEl.textContent = `${g.icon} ${g.name}`; }
-if (groupEl) groupEl.textContent = (pData.symbol||'') + ' ' + myGroup;
+    const iframe = document.getElementById('sg-iframe');
+    const titleEl = document.getElementById('sg-title');
+    const groupEl = document.getElementById('sg-group');
+    if (titleEl) { const g = GAMES[selectedGame] || GAMES[0]; titleEl.textContent = `${g.icon} ${g.name}`; }
+    if (groupEl) groupEl.textContent = (pData.symbol||'') + ' ' + myGroup;
 
-if (iframe) {
-  const isW3 = selectedGame === 2;
-  const isW5 = selectedGame === 4;
-  let url;
-  if (isW2) {
-    url = gameFile + '?autostart=' + gameMode + '&level=' + level + '&group=' + encodeURIComponent(myGroup);
-  } else if (isW3) {
-  url = gameFile + '?group=' + encodeURIComponent(myGroup);
-} else if (isW4) {
-const w4mode  = r.w4mode  || 1;
-const w4level = r.w4level || 1;
-url = gameFile + '?mode=' + w4mode + '&level=' + w4level + '&group=' + encodeURIComponent(myGroup) + '&student=1';
-} else if (isW5) {
-url = gameFile + '?group=' + encodeURIComponent(myGroup);
-} else {
-url = gameFile + '?autostart=' + level + '&group=' + encodeURIComponent(myGroup);
-}
-iframe.src = url;
-
-iframe.onload = () => setTimeout(() => {
-    if (isW4) return;
-    try {
-      const rooms2 = window.getRooms();
-      const r2 = rooms2[window.state.roomCode] || {};
-      const isTeacher2 = window.state.perspective === 'teacher';
-      const w3state = r2.w3state || null;
-      const w5state = r2.w5state || null;
-      iframe.contentWindow.postMessage({
-          type: 'PLATFORM_START', level, group: myGroup,
-          isTeacher: isTeacher2,
-          state: isW5 ? w5state : w3state,
-          players: r2.players || window.state.players || []
-        }, '*');
-  } catch(e) {}
-}, 400);
-}
-pData.screen = 'screen-student-game';
-window.goTo('screen-student-game');
+    if (iframe) {
+        const isW3 = selectedGame === 2;
+        const isW5 = selectedGame === 4;
+        let url;
+        if (isW2) {
+            url = gameFile + '?autostart=' + gameMode + '&level=' + level + '&group=' + encodeURIComponent(myGroup);
+        } else if (isW3) {
+            url = gameFile + '?group=' + encodeURIComponent(myGroup);
+        } else if (isW4) {
+            const w4mode  = r.w4mode  || 1;
+            const w4level = r.w4level || 1;
+            url = gameFile + '?mode=' + w4mode + '&level=' + w4level + '&group=' + encodeURIComponent(myGroup) + '&student=1';
+        } else if (isW5) {
+            url = gameFile + '?group=' + encodeURIComponent(myGroup);
+        } else {
+            url = gameFile + '?autostart=' + level + '&group=' + encodeURIComponent(myGroup);
+        }
+        iframe.src = url;
+        
+        iframe.onload = () => setTimeout(() => {
+            if (isW4) return;
+            try {
+                const rooms2 = window.getRooms();
+                const r2 = rooms2[window.state.roomCode] || {};
+                const isTeacher2 = window.state.perspective === 'teacher';
+                const w3state = r2.w3state || null;
+                const w5state = r2.w5state || null;
+                iframe.contentWindow.postMessage({
+                    type: 'PLATFORM_START', level, group: myGroup,
+                    isTeacher: isTeacher2,
+                    state: isW5 ? w5state : w3state,
+                    players: r2.players || window.state.players || []
+                }, '*');
+            } catch(e) {}
+        }, 400);
+    }
+    pData.screen = 'screen-student-game';
+    window.goTo('screen-student-game');
 }
 
 function tcPauseGame() {
-  TC.paused = true;
-  // 控制台按鈕
-  document.getElementById('tc-btn-pause').style.display  = 'none';
-  document.getElementById('tc-btn-resume').style.display = '';
-  // 大廳：顯示暫停狀態
-  const lgs = document.getElementById('lobby-game-status');
-  const lsb = document.getElementById('lobby-start-btn');
-  const lp  = document.getElementById('lobby-btn-pause');
-  const lr  = document.getElementById('lobby-btn-resume');
-  const lsl = document.getElementById('lobby-status-label');
-  if (lgs) lgs.style.display = 'flex';
-  if (lsb) lsb.style.display = 'none';
-  if (lp)  lp.style.display  = 'none';
-  if (lr)  lr.style.display  = '';
-  if (lsl) lsl.textContent   = '⏸ 暫停中';
-  // 寫入 rooms 讓學生端 poll 偵測到
-  const rooms = window.getRooms();
-  if (rooms[window.state.roomCode]) {
-    rooms[window.state.roomCode].paused = true;
-    window.saveRooms(rooms);
-  }
-// 同頁面學生 iframe 也直接發
-document.getElementById('sg-iframe')?.contentWindow?.postMessage({ type:'PLATFORM_PAUSE' }, '*');
-showToast('⏸ 遊戲已暫停');
+    TC.paused = true;
+    // 控制台按鈕
+    document.getElementById('tc-btn-pause').style.display  = 'none';
+    document.getElementById('tc-btn-resume').style.display = '';
+    // 大廳：顯示暫停狀態
+    const lgs = document.getElementById('lobby-game-status');
+    const lsb = document.getElementById('lobby-start-btn');
+    const lp  = document.getElementById('lobby-btn-pause');
+    const lr  = document.getElementById('lobby-btn-resume');
+    const lsl = document.getElementById('lobby-status-label');
+    if (lgs) lgs.style.display = 'flex';
+    if (lsb) lsb.style.display = 'none';
+    if (lp)  lp.style.display  = 'none';
+    if (lr)  lr.style.display  = '';
+    if (lsl) lsl.textContent   = '⏸ 暫停中';
+    // 寫入 rooms 讓學生端 poll 偵測到
+    const rooms = window.getRooms();
+    if (rooms[window.state.roomCode]) {
+        rooms[window.state.roomCode].paused = true;
+        window.saveRooms(rooms);
+    }
+    // 同頁面學生 iframe 也直接發
+    document.getElementById('sg-iframe')?.contentWindow?.postMessage({ type:'PLATFORM_PAUSE' }, '*');
+    showToast('⏸ 遊戲已暫停');
 }
 
 function tcResumeGame() {
-  TC.paused = false;
-  document.getElementById('tc-btn-pause').style.display  = '';
-  document.getElementById('tc-btn-resume').style.display = 'none';
-  // 大廳：恢復遊戲狀態
-  const lgs = document.getElementById('lobby-game-status');
-  const lsb = document.getElementById('lobby-start-btn');
-  const lp  = document.getElementById('lobby-btn-pause');
-  const lr  = document.getElementById('lobby-btn-resume');
-  const lsl = document.getElementById('lobby-status-label');
-  if (lgs) lgs.style.display = 'flex';
-  if (lsb) lsb.style.display = 'none';
-  if (lp)  lp.style.display  = '';
-  if (lr)  lr.style.display  = 'none';
-  if (lsl) lsl.textContent   = '🔴 遊戲中';
-  const rooms = window.getRooms();
-  if (rooms[window.state.roomCode]) {
-    rooms[window.state.roomCode].paused = false;
-    window.saveRooms(rooms);
-  }
-document.getElementById('sg-iframe')?.contentWindow?.postMessage({ type:'PLATFORM_RESUME' }, '*');
-showToast('▶ 遊戲繼續');
+    TC.paused = false;
+    document.getElementById('tc-btn-pause').style.display  = '';
+    document.getElementById('tc-btn-resume').style.display = 'none';
+    // 大廳：恢復遊戲狀態
+    const lgs = document.getElementById('lobby-game-status');
+    const lsb = document.getElementById('lobby-start-btn');
+    const lp  = document.getElementById('lobby-btn-pause');
+    const lr  = document.getElementById('lobby-btn-resume');
+    const lsl = document.getElementById('lobby-status-label');
+    if (lgs) lgs.style.display = 'flex';
+    if (lsb) lsb.style.display = 'none';
+    if (lp)  lp.style.display  = '';
+    if (lr)  lr.style.display  = 'none';
+    if (lsl) lsl.textContent   = '🔴 遊戲中';
+    const rooms = window.getRooms();
+    if (rooms[window.state.roomCode]) {
+        rooms[window.state.roomCode].paused = false;
+        window.saveRooms(rooms);
+    }
+    document.getElementById('sg-iframe')?.contentWindow?.postMessage({ type:'PLATFORM_RESUME' }, '*');
+    showToast('▶ 遊戲繼續');
 }
 
 function tcSettleGame() {
-  const list = document.getElementById('settlement-list');
-  if (!list) return;
-  const players = window.state.players;
-  const isW3 = window.state.selectedGame === 2;
-  const rooms = window.getRooms();
-  const room  = rooms[window.state.roomCode] || {};
+    const list = document.getElementById('settlement-list');
+    if (!list) return;
+    const players = window.state.players;
+    const isW3 = window.state.selectedGame === 2;
+    const rooms = window.getRooms();
+    const room  = rooms[window.state.roomCode] || {};
 
-  // W3：從 w3state.scores 讀取最新分數，並通知 tc-w3-iframe 發送分數
-  let w3scores = room.w3scores || {};
-  if (isW3 && room.w3state && room.w3state.scores) {
-    // 直接從 w3state 取得各組分數
-    const raw = room.w3state.scores;
-    Object.keys(raw).forEach(g => {
-        w3scores[g] = { wins: raw[g].wins || 0, matches: raw[g].matches || 0 };
-        TC.scores[g] = raw[g].wins || 0;
-    });
-}
-const sorted = [...players].sort((a,b) => (TC.scores[b.group]||0) - (TC.scores[a.group]||0));
-const medals  = ['🥇','🥈','🥉','4️⃣','5️⃣'];
-const colors  = ['#FFD600','#C0C0C0','#CD7F32','#aaa','#aaa'];
-list.innerHTML = `
-<div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:1.4rem;color:#f5c800;margin-bottom:8px;text-align:center">${isW3 ? '⚔️ 五子棋排名' : '⭐ 最終排名'}</div>
-${sorted.map((p,i) => {
-      const w3d = w3scores[p.group] || {wins:0,matches:0};
-      const scoreDisplay = isW3
-      ? `<div style="text-align:right"><div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:1.8rem;color:${colors[i]||'#f5c800'}">${w3d.wins}</div><div style="font-size:.7rem;color:rgba(255,255,255,.4);font-family:'Nunito',sans-serif">共${w3d.matches}場</div></div>`
-      : `<div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:2.2rem;color:${colors[i]||'#f5c800'}">${TC.scores[p.group]||0}</div>`;
-      return `<div style="display:flex;align-items:center;gap:16px;background:rgba(255,255,255,.08);border:3px solid ${colors[i]||'rgba(255,255,255,.15)'};border-radius:20px;padding:18px 28px;width:100%;max-width:560px">
-      <div style="font-size:2.4rem;width:44px;text-align:center">${medals[i]||''}</div>
-      <div style="font-size:2rem">${p.symbol}</div>
-      <div style="flex:1;font-family:'Nunito',sans-serif;font-weight:900;font-size:1.1rem;color:white">${p.group}</div>
-      ${scoreDisplay}
-      </div>`;
-  }).join('')}`;
-window.pStates['teacher'].screen = 'screen-settlement';
-window.goTo('screen-settlement');
-// 把排名資料存入 Firebase，讓學生端可以顯示同樣的結算畫面
-if (rooms[window.state.roomCode]) {
-  rooms[window.state.roomCode].status = 'settlement';
-  rooms[window.state.roomCode].paused = false;
-  rooms[window.state.roomCode].finalScores = TC.scores;
-  rooms[window.state.roomCode].finalPlayers = window.state.players;
-  window.saveRooms(rooms);
-}
-TC.paused = false;
-TC._lastPaused = false;
-// 大廳：隱藏遊戲控制區
-const lgs = document.getElementById('lobby-game-status');
-const lsb = document.getElementById('lobby-start-btn');
-const lp  = document.getElementById('lobby-btn-pause');
-const lr  = document.getElementById('lobby-btn-resume');
-const lsl = document.getElementById('lobby-status-label');
-if (lgs) lgs.style.display = 'none';
-if (lsb) lsb.style.display = '';
-if (lp)  lp.style.display  = 'none';
-if (lr)  lr.style.display  = 'none';
-if (lsl) lsl.textContent   = '🔴 遊戲中';
+    // W3：從 w3state.scores 讀取最新分數，並通知 tc-w3-iframe 發送分數
+    let w3scores = room.w3scores || {};
+    if (isW3 && room.w3state && room.w3state.scores) {
+        // 直接從 w3state 取得各組分數
+        const raw = room.w3state.scores;
+        Object.keys(raw).forEach(g => {
+            w3scores[g] = { wins: raw[g].wins || 0, matches: raw[g].matches || 0 };
+            TC.scores[g] = raw[g].wins || 0;
+        });
+    }
+    const sorted = [...players].sort((a,b) => (TC.scores[b.group]||0) - (TC.scores[a.group]||0));
+    const medals  = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+    const colors  = ['#FFD600','#C0C0C0','#CD7F32','#aaa','#aaa'];
+    list.innerHTML = `
+        <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:1.4rem;color:#f5c800;margin-bottom:8px;text-align:center">${isW3 ? '⚔️ 五子棋排名' : '⭐ 最終排名'}</div>
+        ${sorted.map((p,i) => {
+            const w3d = w3scores[p.group] || {wins:0,matches:0};
+            const scoreDisplay = isW3
+                ? `<div style="text-align:right"><div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:1.8rem;color:${colors[i]||'#f5c800'}">${w3d.wins}</div><div style="font-size:.7rem;color:rgba(255,255,255,.4);font-family:'Nunito',sans-serif">共${w3d.matches}場</div></div>`
+                : `<div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:2.2rem;color:${colors[i]||'#f5c800'}">${TC.scores[p.group]||0}</div>`;
+            return `<div style="display:flex;align-items:center;gap:16px;background:rgba(255,255,255,.08);border:3px solid ${colors[i]||'rgba(255,255,255,.15)'};border-radius:20px;padding:18px 28px;width:100%;max-width:560px">
+                <div style="font-size:2.4rem;width:44px;text-align:center">${medals[i]||''}</div>
+                <div style="font-size:2rem">${p.symbol}</div>
+                <div style="flex:1;font-family:'Nunito',sans-serif;font-weight:900;font-size:1.1rem;color:white">${p.group}</div>
+                ${scoreDisplay}
+            </div>`;
+        }).join('')}`;
+    window.pStates['teacher'].screen = 'screen-settlement';
+    window.goTo('screen-settlement');
+    // 把排名資料存入 Firebase，讓學生端可以顯示同樣的結算畫面
+    if (rooms[window.state.roomCode]) {
+        rooms[window.state.roomCode].status = 'settlement';
+        rooms[window.state.roomCode].paused = false;
+        rooms[window.state.roomCode].finalScores = TC.scores;
+        rooms[window.state.roomCode].finalPlayers = window.state.players;
+        window.saveRooms(rooms);
+    }
+    TC.paused = false;
+    TC._lastPaused = false;
+    // 大廳：隱藏遊戲控制區
+    const lgs = document.getElementById('lobby-game-status');
+    const lsb = document.getElementById('lobby-start-btn');
+    const lp  = document.getElementById('lobby-btn-pause');
+    const lr  = document.getElementById('lobby-btn-resume');
+    const lsl = document.getElementById('lobby-status-label');
+    if (lgs) lgs.style.display = 'none';
+    if (lsb) lsb.style.display = '';
+    if (lp)  lp.style.display  = 'none';
+    if (lr)  lr.style.display  = 'none';
+    if (lsl) lsl.textContent   = '🔴 遊戲中';
 }
 
 function tcEndGame() {
-  TC.running = false; TC.paused = false; TC._lastPaused = false;
-  const sgIframe = document.getElementById('sg-iframe');
-  if (sgIframe) { sgIframe.src = 'about:blank'; }
-  document.getElementById('tc-btn-pause').style.display  = '';
-  document.getElementById('tc-btn-resume').style.display = 'none';
-  // 大廳：隱藏遊戲控制區，顯示開始按鈕
-  const lgs = document.getElementById('lobby-game-status');
-  const lsb = document.getElementById('lobby-start-btn');
-  const lp  = document.getElementById('lobby-btn-pause');
-  const lr  = document.getElementById('lobby-btn-resume');
-  const lsl = document.getElementById('lobby-status-label');
-  if (lgs) lgs.style.display = 'none';
-  if (lsb) lsb.style.display = '';
-  if (lp)  lp.style.display  = 'none';
-  if (lr)  lr.style.display  = 'none';
-  if (lsl) lsl.textContent   = '🔴 遊戲中';
-  const rooms = window.getRooms();
-  if (rooms[window.state.roomCode]) {
-    rooms[window.state.roomCode].status = 'lobby';
-    rooms[window.state.roomCode].paused = false;
-    window.saveRooms(rooms);
-  }
-// 不強制改學生 pState，讓學生 poll 偵測到 status='lobby' 自然跳回
-window.pStates['teacher'].screen = 'screen-lobby';
-window.renderLobby();
-window.goTo('screen-lobby');
-showToast('✓ 遊戲結束，返回大廳');
-}
-
-function exitToLobby() {
-  if (TC.running) tcEndGame(); else {
+    TC.running = false; TC.paused = false; TC._lastPaused = false;
+    const sgIframe = document.getElementById('sg-iframe');
+    if (sgIframe) { sgIframe.src = 'about:blank'; }
+    document.getElementById('tc-btn-pause').style.display  = '';
+    document.getElementById('tc-btn-resume').style.display = 'none';
+    // 大廳：隱藏遊戲控制區，顯示開始按鈕
+    const lgs = document.getElementById('lobby-game-status');
+    const lsb = document.getElementById('lobby-start-btn');
+    const lp  = document.getElementById('lobby-btn-pause');
+    const lr  = document.getElementById('lobby-btn-resume');
+    const lsl = document.getElementById('lobby-status-label');
+    if (lgs) lgs.style.display = 'none';
+    if (lsb) lsb.style.display = '';
+    if (lp)  lp.style.display  = 'none';
+    if (lr)  lr.style.display  = 'none';
+    if (lsl) lsl.textContent   = '🔴 遊戲中';
+    const rooms = window.getRooms();
+    if (rooms[window.state.roomCode]) {
+        rooms[window.state.roomCode].status = 'lobby';
+        rooms[window.state.roomCode].paused = false;
+        window.saveRooms(rooms);
+    }
+    // 不強制改學生 pState，讓學生 poll 偵測到 status='lobby' 自然跳回
     window.pStates['teacher'].screen = 'screen-lobby';
     window.renderLobby();
     window.goTo('screen-lobby');
-  }
+    showToast('✓ 遊戲結束，返回大廳');
+}
+
+function exitToLobby() {
+    if (TC.running) tcEndGame(); else {
+        window.pStates['teacher'].screen = 'screen-lobby';
+        window.renderLobby();
+        window.goTo('screen-lobby');
+    }
 }
 
 // 修改: 接收遊戲 postMessage，處理累加分數
@@ -2236,237 +1579,271 @@ window.addEventListener('message', (e) => {
 
     // ── W4 學生端：直接寫入 Firebase (加上過往累積的 baseScores) ──
     if ((type === 'W4_SCORE' || type === 'W4_GAMEOVER') && group && window.state.perspective !== 'teacher') {
-      const rooms = window.getRooms();
-      if (rooms[window.state.roomCode]) {
-        if (!rooms[window.state.roomCode].scores) rooms[window.state.roomCode].scores = {};
-        const base = rooms[window.state.roomCode].baseScores || {};
-        rooms[window.state.roomCode].scores[group] = (base[group] || 0) + score;
-        window.saveRooms(rooms);
-      }
-    return;
-  }
-
-// 老師端處理
-if ((isScore || isGameover) && group) {
-  const rooms = window.getRooms();
-  let finalScore = score;
-
-  if (rooms[window.state.roomCode]) {
-    const base = rooms[window.state.roomCode].baseScores || {};
-    finalScore = (base[group] || 0) + score;
-
-    if (!rooms[window.state.roomCode].scores) rooms[window.state.roomCode].scores = {};
-    rooms[window.state.roomCode].scores[group] = finalScore;
-
-    if (type === 'W3_SCORE') {
-      if (!rooms[window.state.roomCode].w3scores) rooms[window.state.roomCode].w3scores = {};
-      rooms[window.state.roomCode].w3scores[group] = {
-        wins: e.data.wins || 0,
-        matches: e.data.matches || 0
-      };
-  }
-window.saveRooms(rooms);
-}
-
-tcUpdateScore(group, finalScore);
-
-if (isGameover && window.state.perspective === 'teacher') {
-  showToast(`🏁 ${group} 完成！累積得分：${finalScore}`);
-}
-}
-
-// W3：老師 iframe 廣播棋局狀態 → 存入 Firebase → 推送給所有學生
-if (type === 'W3_STATE' && e.data.data) {
-  const w3d = e.data.data;
-  if (window.state.selectedGame === 2) {
-    const badge = document.getElementById('tc-level-badge');
-    if (badge && w3d.cells) {
-      const stones = w3d.cells.filter(v => v !== 0).length;
-      const round = Math.floor(stones / 2) + 1;
-      badge.textContent = `第 ${round} 回合`;
+        const rooms = window.getRooms();
+        if (rooms[window.state.roomCode]) {
+            if (!rooms[window.state.roomCode].scores) rooms[window.state.roomCode].scores = {};
+            const base = rooms[window.state.roomCode].baseScores || {};
+            rooms[window.state.roomCode].scores[group] = (base[group] || 0) + score;
+            window.saveRooms(rooms);
+        }
+        return; 
     }
-}
-const rooms = window.getRooms();
-if (rooms[window.state.roomCode]) {
-  rooms[window.state.roomCode].w3state = w3d;
-  window.saveRooms(rooms);
-}
-const tcW3 = document.getElementById('tc-w3-iframe');
-if (tcW3 && tcW3.contentWindow) {
-  try { tcW3.contentWindow.postMessage({ type: 'W3_STATE', data: w3d }, '*'); } catch(e2) {}
-}
-}
+    
+    // 老師端處理
+    if ((isScore || isGameover) && group) {
+        const rooms = window.getRooms();
+        let finalScore = score;
+        
+        if (rooms[window.state.roomCode]) {
+            const base = rooms[window.state.roomCode].baseScores || {};
+            finalScore = (base[group] || 0) + score;
+            
+            if (!rooms[window.state.roomCode].scores) rooms[window.state.roomCode].scores = {};
+            rooms[window.state.roomCode].scores[group] = finalScore;
+            
+            if (type === 'W3_SCORE') {
+                if (!rooms[window.state.roomCode].w3scores) rooms[window.state.roomCode].w3scores = {};
+                rooms[window.state.roomCode].w3scores[group] = {
+                    wins: e.data.wins || 0,
+                    matches: e.data.matches || 0
+                };
+            }
+            window.saveRooms(rooms);
+        }
+        
+        tcUpdateScore(group, finalScore);
+        
+        if (isGameover && window.state.perspective === 'teacher') {
+            showToast(`🏁 ${group} 完成！累積得分：${finalScore}`);
+        }
+    }
+    
+    // W3：老師 iframe 廣播棋局狀態 → 存入 Firebase → 推送給所有學生
+    if (type === 'W3_STATE' && e.data.data) {
+        const w3d = e.data.data;
+        if (window.state.selectedGame === 2) {
+            const badge = document.getElementById('tc-level-badge');
+            if (badge && w3d.cells) {
+                const stones = w3d.cells.filter(v => v !== 0).length;
+                const round = Math.floor(stones / 2) + 1;
+                badge.textContent = `第 ${round} 回合`;
+            }
+        }
+        const rooms = window.getRooms();
+        if (rooms[window.state.roomCode]) {
+            rooms[window.state.roomCode].w3state = w3d;
+            window.saveRooms(rooms);
+        }
+        const tcW3 = document.getElementById('tc-w3-iframe');
+        if (tcW3 && tcW3.contentWindow) {
+            try { tcW3.contentWindow.postMessage({ type: 'W3_STATE', data: w3d }, '*'); } catch(e2) {}
+        }
+    }
 
-// W5：老師 iframe 廣播遊戲狀態 → 存入 Firebase → 推送給所有學生
-if (type === 'W5_STATE' && e.data.data) {
-  const w5d = e.data.data;
-  const rooms = window.getRooms();
-  if (rooms[window.state.roomCode]) {
-    rooms[window.state.roomCode].w5state = w5d;
-    window.saveRooms(rooms);
-  }
-}
+    // W5：老師 iframe 廣播完整遊戲狀態 → 存入 Firebase
+    if (type === 'W5_STATE' && e.data.data) {
+        const w5d = e.data.data;
+        const rooms = window.getRooms();
+        if (rooms[window.state.roomCode]) {
+            rooms[window.state.roomCode].w5state = w5d;
+            window.saveRooms(rooms);
+        }
+        // 同時推給老師 iframe（如果存在）
+        const tcW5 = document.getElementById('tc-w5-iframe');
+        if (tcW5 && tcW5.contentWindow) {
+            try { tcW5.contentWindow.postMessage({ type: 'W5_STATE', data: w5d }, '*'); } catch(e2) {}
+        }
+    }
 
-// W5 強制收卷：老師觸發 → 平台廣播給學生 iframe
-if (type === 'W5_FORCE_COLLECT' && window.state.perspective === 'teacher') {
-  const sgIframe = document.getElementById('sg-iframe');
-  if (sgIframe && sgIframe.contentWindow) {
-    try { sgIframe.contentWindow.postMessage({ type: 'W5_FORCE_COLLECT' }, '*'); } catch(e2) {}
-  }
-}
+    // W5：學生端更新自己的畫作/猜題資料 → 合併進 Firebase w5state → 推給老師 iframe
+    if (type === 'W5_STUDENT_UPDATE' && e.data.groupName) {
+        const rooms = window.getRooms();
+        if (rooms[window.state.roomCode]) {
+            const w5state = rooms[window.state.roomCode].w5state;
+            if (w5state && w5state.groups) {
+                const gIdx = w5state.groups.findIndex(g => g.name === e.data.groupName);
+                if (gIdx >= 0) {
+                    // 只更新學生自己那一組的欄位
+                    const target = w5state.groups[gIdx];
+                    if (e.data.imgData)         target.imgData       = e.data.imgData;
+                    if (e.data.submitted)        target.submitted     = e.data.submitted;
+                    if (e.data.guess !== undefined)        target.guess         = e.data.guess;
+                    if (e.data.guessSubmitted)   target.guessSubmitted= e.data.guessSubmitted;
+                    if (e.data.score !== undefined)        target.score         = e.data.score;
+                    if (e.data.forcedBlank)      target.forcedBlank   = e.data.forcedBlank;
+                    rooms[window.state.roomCode].w5state = w5state;
+                    window.saveRooms(rooms);
+                    // 推給老師 iframe 顯示即時畫作
+                    const tcW5 = document.getElementById('tc-w5-iframe');
+                    if (tcW5 && tcW5.contentWindow) {
+                        try { tcW5.contentWindow.postMessage({ type: 'W5_STATE', data: w5state }, '*'); } catch(e2) {}
+                    }
+                }
+            }
+        }
+    }
+
+    // W5 強制收卷：老師觸發 → 平台廣播給學生 iframe
+    if (type === 'W5_FORCE_COLLECT' && window.state.perspective === 'teacher') {
+        const sgIframe = document.getElementById('sg-iframe');
+        if (sgIframe && sgIframe.contentWindow) {
+            try { sgIframe.contentWindow.postMessage({ type: 'W5_FORCE_COLLECT' }, '*'); } catch(e2) {}
+        }
+    }
 });
 
 // 輪詢：偵測玩家加入、遊戲狀態、分數同步 + 房間關閉
 setInterval(() => {
     // 停留在加入房間列表，自動更新列表
     if (window.state && window.pStates) {
-      const currentPState = window.pStates[window.state.perspective];
-      if (currentPState && currentPState.screen === 'screen-join' && currentPState.joinStep === 1) {
-        window.renderRoomList();
-      }
-  }
-
-if (!window.state || !window.state.roomCode) return;
-const rooms = window.getRooms();
-const r = rooms[window.state.roomCode];
-if (!r) return;
-
-// 老師端透過輪詢從 shared rooms 讀取所有學生即時同步的最新分數
-if (r.scores) {
-  let scoreChanged = false;
-  for (let g in r.scores) {
-    if (TC.scores[g] !== r.scores[g]) {
-      TC.scores[g] = r.scores[g];
-      scoreChanged = true;
-
-      // 如果目前是老師端，只針對有變動的項目觸發跳動特效
-      if (window.state.perspective === 'teacher' && window.pStates['teacher'].screen === 'screen-teacher-console') {
-        const el = document.getElementById('tc-score-' + g.replace(/\s/g,''));
-        if (el) {
-          el.textContent = r.scores[g];
-          el.style.transform = 'scale(1.4)';
-          setTimeout(() => { if(el) el.style.transform = 'scale(1)'; }, 250);
+        const currentPState = window.pStates[window.state.perspective];
+        if (currentPState && currentPState.screen === 'screen-join' && currentPState.joinStep === 1) {
+            window.renderRoomList();
         }
     }
-}
-}
-// 如果分數有變且是老師端，重新排序並渲染
-if (scoreChanged && window.state.perspective === 'teacher' && window.pStates['teacher'].screen === 'screen-teacher-console') {
-  tcRenderScores();
-}
-}
 
-// 同步玩家列表（Firebase 為唯一真相，JSON 比較避免不必要的重繪）
-const remotePlayers = r ? (r.players || []) : [];
-if (JSON.stringify(remotePlayers) !== JSON.stringify(window.state.players)) {
-  window.state.players = remotePlayers;
-  window.state.takenSymbols = remotePlayers.map(p => p.symbol);
-  window.renderLobby();
-  const perspective = window.state.perspective;
-  if (perspective !== 'teacher') window.updateStudentWaitDisplay();
-}
+    if (!window.state || !window.state.roomCode) return;
+    const rooms = window.getRooms();
+    const r = rooms[window.state.roomCode];
+    if (!r) return;
 
-// 同步老師選擇的遊戲
-if (r && r.selectedGame !== undefined && r.selectedGame !== window.state.selectedGame) {
-  window.state.selectedGame = r.selectedGame;
-  window.renderLobby();
-  // 學生端也更新遊戲卡片
-  const p2 = window.state.perspective;
-  if (p2 !== 'teacher') window.updateStudentWaitDisplay();
-}
-
-const p = window.state.perspective;
-if (p === 'teacher') return;
-const pData = window.pStates && window.pStates[p];
-if (!pData || !pData.joined) return;
-if (!r || !r.open) {
-  pData.joined = false; pData.screen = 'screen-home';
-  stopSyncListener();
-  localStorage.removeItem('game_session');
-  window.goTo('screen-home');
-  window.showToast('🚪 房間已關閉');
-  return;
-}
-
-// 偵測老師按了開始遊戲 或 關卡發生改變 (支援不回大廳直接切換 iframe 網址)
-if (r.status === 'playing') {
-  const selGame = r.selectedGame !== undefined ? r.selectedGame : (window.state.selectedGame || 0);
-  const isNewGame = pData.screen !== 'screen-student-game';
-  const isW4Changed = selGame === 3 && (pData.w4mode !== r.w4mode || pData.w4level !== r.w4level);
-  const isOtherChanged = selGame !== 3 && pData.gameLevel !== r.gameLevel;
-
-  if (isNewGame || isW4Changed || isOtherChanged) {
-    tcLaunchStudentIfNeeded();
-  }
-}
-
-// 偵測暫停/繼續
-if (r.status === 'playing' && pData.screen === 'screen-student-game') {
-  const sgIfr = document.getElementById('sg-iframe');
-  if (sgIfr?.contentWindow) {
-    const wasPaused = pData._lastPaused;
-    if (r.paused && !wasPaused) {
-      sgIfr.contentWindow.postMessage({ type:'PLATFORM_PAUSE' }, '*');
-    } else if (!r.paused && wasPaused) {
-    sgIfr.contentWindow.postMessage({ type:'PLATFORM_RESUME' }, '*');
-  }
-pData._lastPaused = !!r.paused;
-}
-}
-// 偵測老師按下結算 → 學生顯示結算畫面
-if (r.status === 'settlement' && pData.screen !== 'screen-settlement') {
-  // 用 Firebase 的排名資料渲染結算
-  if (r.finalScores && r.finalPlayers) {
-    const list = document.getElementById('settlement-list');
-    if (list) {
-      const sorted = [...r.finalPlayers].sort((a,b) => (r.finalScores[b.group]||0) - (r.finalScores[a.group]||0));
-      const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
-      const colors = ['#FFD600','#C0C0C0','#CD7F32','#aaa','#aaa'];
-      list.innerHTML = `
-      <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:1.4rem;color:#f5c800;margin-bottom:8px;text-align:center">⭐ 最終排名</div>
-      ${sorted.map((p,i) => `
-          <div style="display:flex;align-items:center;gap:16px;background:rgba(255,255,255,.08);border:3px solid ${colors[i]||'rgba(255,255,255,.15)'};border-radius:20px;padding:18px 28px;width:100%;max-width:560px">
-          <div style="font-size:2.4rem;width:44px;text-align:center">${medals[i]||''}</div>
-          <div style="font-size:2rem">${p.symbol}</div>
-          <div style="flex:1;font-family:'Nunito',sans-serif;font-weight:900;font-size:1.1rem;color:white">${p.group}</div>
-          <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:2.2rem;color:${colors[i]||'#f5c800'}">${r.finalScores[p.group]||0}</div>
-          </div>`).join('')}`;
+    // 老師端透過輪詢從 shared rooms 讀取所有學生即時同步的最新分數
+    if (r.scores) {
+        let scoreChanged = false;
+        for (let g in r.scores) {
+            if (TC.scores[g] !== r.scores[g]) {
+                TC.scores[g] = r.scores[g];
+                scoreChanged = true;
+                
+                // 如果目前是老師端，只針對有變動的項目觸發跳動特效
+                if (window.state.perspective === 'teacher' && window.pStates['teacher'].screen === 'screen-teacher-console') {
+                    const el = document.getElementById('tc-score-' + g.replace(/\s/g,''));
+                    if (el) {
+                        el.textContent = r.scores[g];
+                        el.style.transform = 'scale(1.4)';
+                        setTimeout(() => { if(el) el.style.transform = 'scale(1)'; }, 250);
+                    }
+                }
+            }
         }
-      // 學生端隱藏返回大廳按鈕（只有老師能按）
-      const backBtn = document.getElementById('settlement-back-btn');
-      if (backBtn) backBtn.style.display = 'none';
+        // 如果分數有變且是老師端，重新排序並渲染
+        if (scoreChanged && window.state.perspective === 'teacher' && window.pStates['teacher'].screen === 'screen-teacher-console') {
+            tcRenderScores();
+        }
     }
-  pData.screen = 'screen-settlement';
-  window.goTo('screen-settlement');
-}
-// 偵測老師按下返回大廳（結算後）→ 學生也跟著回等待
-if (r.status === 'finished' && pData.screen === 'screen-student-game') {
-  pData.screen = 'screen-student-wait';
-  window.goTo('screen-student-wait');
-  window.showToast('🏁 遊戲結束！');
-}
-// 老師退回大廳 → 學生跟著回等待畫面
-if (r.status === 'lobby' && (pData.screen === 'screen-student-game' || pData.screen === 'screen-settlement')) {
-  const sgIframe = document.getElementById('sg-iframe');
-  if (sgIframe) sgIframe.src = 'about:blank';
-  pData.screen = 'screen-student-wait';
-  window.goTo('screen-student-wait');
-  if (pData.screen === 'screen-student-game') window.showToast('⏹ 老師已暫停遊戲');
-}
+
+    // 同步玩家列表（Firebase 為唯一真相，JSON 比較避免不必要的重繪）
+    const remotePlayers = r ? (r.players || []) : [];
+    if (JSON.stringify(remotePlayers) !== JSON.stringify(window.state.players)) {
+        window.state.players = remotePlayers;
+        window.state.takenSymbols = remotePlayers.map(p => p.symbol);
+        window.renderLobby();
+        const perspective = window.state.perspective;
+        if (perspective !== 'teacher') window.updateStudentWaitDisplay();
+    }
+
+    // 同步老師選擇的遊戲
+    if (r && r.selectedGame !== undefined && r.selectedGame !== window.state.selectedGame) {
+        window.state.selectedGame = r.selectedGame;
+        window.renderLobby();
+        // 學生端也更新遊戲卡片
+        const p2 = window.state.perspective;
+        if (p2 !== 'teacher') window.updateStudentWaitDisplay();
+    }
+
+    const p = window.state.perspective;
+    if (p === 'teacher') return;
+    const pData = window.pStates && window.pStates[p];
+    if (!pData || !pData.joined) return;
+    if (!r || !r.open) {
+        pData.joined = false; pData.screen = 'screen-home';
+        stopSyncListener();
+        localStorage.removeItem('game_session');
+        window.goTo('screen-home');
+        window.showToast('🚪 房間已關閉');
+        return;
+    }
+
+    // 偵測老師按了開始遊戲 或 關卡發生改變 (支援不回大廳直接切換 iframe 網址)
+    if (r.status === 'playing') {
+        const selGame = r.selectedGame !== undefined ? r.selectedGame : (window.state.selectedGame || 0);
+        const isNewGame = pData.screen !== 'screen-student-game';
+        const isW4Changed = selGame === 3 && (pData.w4mode !== r.w4mode || pData.w4level !== r.w4level);
+        const isOtherChanged = selGame !== 3 && pData.gameLevel !== r.gameLevel;
+        
+        if (isNewGame || isW4Changed || isOtherChanged) {
+            tcLaunchStudentIfNeeded();
+        }
+    }
+
+    // 偵測暫停/繼續
+    if (r.status === 'playing' && pData.screen === 'screen-student-game') {
+        const sgIfr = document.getElementById('sg-iframe');
+        if (sgIfr?.contentWindow) {
+            const wasPaused = pData._lastPaused;
+            if (r.paused && !wasPaused) {
+                sgIfr.contentWindow.postMessage({ type:'PLATFORM_PAUSE' }, '*');
+            } else if (!r.paused && wasPaused) {
+                sgIfr.contentWindow.postMessage({ type:'PLATFORM_RESUME' }, '*');
+            }
+            pData._lastPaused = !!r.paused;
+        }
+    }
+    // 偵測老師按下結算 → 學生顯示結算畫面
+    if (r.status === 'settlement' && pData.screen !== 'screen-settlement') {
+        // 用 Firebase 的排名資料渲染結算
+        if (r.finalScores && r.finalPlayers) {
+            const list = document.getElementById('settlement-list');
+            if (list) {
+                const sorted = [...r.finalPlayers].sort((a,b) => (r.finalScores[b.group]||0) - (r.finalScores[a.group]||0));
+                const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+                const colors = ['#FFD600','#C0C0C0','#CD7F32','#aaa','#aaa'];
+                list.innerHTML = `
+                    <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:1.4rem;color:#f5c800;margin-bottom:8px;text-align:center">⭐ 最終排名</div>
+                    ${sorted.map((p,i) => `
+                    <div style="display:flex;align-items:center;gap:16px;background:rgba(255,255,255,.08);border:3px solid ${colors[i]||'rgba(255,255,255,.15)'};border-radius:20px;padding:18px 28px;width:100%;max-width:560px">
+                        <div style="font-size:2.4rem;width:44px;text-align:center">${medals[i]||''}</div>
+                        <div style="font-size:2rem">${p.symbol}</div>
+                        <div style="flex:1;font-family:'Nunito',sans-serif;font-weight:900;font-size:1.1rem;color:white">${p.group}</div>
+                        <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:2.2rem;color:${colors[i]||'#f5c800'}">${r.finalScores[p.group]||0}</div>
+                    </div>`).join('')}`;
+            }
+            // 學生端隱藏返回大廳按鈕（只有老師能按）
+            const backBtn = document.getElementById('settlement-back-btn');
+            if (backBtn) backBtn.style.display = 'none';
+        }
+        pData.screen = 'screen-settlement';
+        window.goTo('screen-settlement');
+    }
+    // 偵測老師按下返回大廳（結算後）→ 學生也跟著回等待
+    if (r.status === 'finished' && pData.screen === 'screen-student-game') {
+        pData.screen = 'screen-student-wait';
+        window.goTo('screen-student-wait');
+        window.showToast('🏁 遊戲結束！');
+    }
+    // 老師退回大廳 → 學生跟著回等待畫面
+    if (r.status === 'lobby' && (pData.screen === 'screen-student-game' || pData.screen === 'screen-settlement')) {
+        const sgIframe = document.getElementById('sg-iframe');
+        if (sgIframe) sgIframe.src = 'about:blank';
+        pData.screen = 'screen-student-wait';
+        window.goTo('screen-student-wait');
+        if (pData.screen === 'screen-student-game') window.showToast('⏹ 老師已暫停遊戲');
+    }
 }, 1000);
+
 
 // ── 環境動畫：雲朵 + 金幣 ──
 (function(){
-    const clouds = document.getElementById('clouds');
-    const coins  = document.getElementById('coins');
-    const sz = [[80,40],[130,58],[92,46],[165,68],[72,36]];
-    for(let i=0;i<6;i++){
-      const [w,h]=sz[i%sz.length];
-      const d=document.createElement('div');d.className='cloud';
-      const dur=22+Math.random()*28;
-      d.style.cssText=`width:${w}px;height:${h}px;top:${Math.random()*38+5}%;animation-duration:${dur}s;animation-delay:-${Math.random()*dur}s`;
-      clouds.appendChild(d);
-    }
+  const clouds = document.getElementById('clouds');
+  const coins  = document.getElementById('coins');
+  const sz = [[80,40],[130,58],[92,46],[165,68],[72,36]];
+  for(let i=0;i<6;i++){
+    const [w,h]=sz[i%sz.length];
+    const d=document.createElement('div');d.className='cloud';
+    const dur=22+Math.random()*28;
+    d.style.cssText=`width:${w}px;height:${h}px;top:${Math.random()*38+5}%;animation-duration:${dur}s;animation-delay:-${Math.random()*dur}s`;
+    clouds.appendChild(d);
+  }
   const COIN_EMOJI=['⭐','💎','🎮','🏆','✨'];
   for(let i=0;i<10;i++){
     const d=document.createElement('div');d.className='coin';
@@ -2478,8 +1855,8 @@ if (r.status === 'lobby' && (pData.screen === 'screen-student-game' || pData.scr
 })();
 
 window.state = {
-  perspective: 'guest',
-  roomCode: '', tempRoomCode: '',
+  perspective: 'guest', 
+  roomCode: '', tempRoomCode: '', 
   selectedGroup: '', selectedSymbol: '',
   players: [], selectedGame: 0, takenSymbols: []
 };
@@ -2533,40 +1910,40 @@ function goTo(id) {
   // 深色畫面時把 body 背景也換掉
   document.body.style.background = isDark ? '#0d0f1a' : '';
   if (!window.isSwitchingPerspective && window.state.perspective && window.pStates[window.state.perspective]) {
-    window.pStates[window.state.perspective].screen = id;
+      window.pStates[window.state.perspective].screen = id;
   }
 }
 function toggleQR() {
-  const popup = document.getElementById('qr-popup');
-  if (!popup) return;
-  const isOpen = popup.style.display === 'flex';
-  if (isOpen) {
-    popup.style.display = 'none';
-  } else {
-  popup.style.display = 'flex';
-  // 產生 QR Code（每次開啟重新產生）
-  const canvas = document.getElementById('qr-canvas');
-  const urlEl  = document.getElementById('qr-url');
-  if (canvas) {
-    canvas.innerHTML = '';
-    const url = window.location.href.split('?')[0].split('#')[0];
-    if (urlEl) urlEl.textContent = url;
-    if (window.QRCode) {
-      try {
-        new QRCode(canvas, {
-            text: url,
-            width: 200, height: 200,
-            colorDark: '#1a1200', colorLight: '#ffffff',
-            correctLevel: QRCode.CorrectLevel.M
-        });
-  } catch(e) {
-  canvas.innerHTML = '<div style="padding:20px;color:#aaa;font-size:.8rem">QR Code 產生失敗</div>';
-}
-} else {
-canvas.innerHTML = '<div style="padding:20px;color:#aaa;font-size:.8rem">載入中…</div>';
-}
-}
-}
+    const popup = document.getElementById('qr-popup');
+    if (!popup) return;
+    const isOpen = popup.style.display === 'flex';
+    if (isOpen) {
+        popup.style.display = 'none';
+    } else {
+        popup.style.display = 'flex';
+        // 產生 QR Code（每次開啟重新產生）
+        const canvas = document.getElementById('qr-canvas');
+        const urlEl  = document.getElementById('qr-url');
+        if (canvas) {
+            canvas.innerHTML = '';
+            const url = window.location.href.split('?')[0].split('#')[0];
+            if (urlEl) urlEl.textContent = url;
+            if (window.QRCode) {
+                try {
+                    new QRCode(canvas, {
+                        text: url,
+                        width: 200, height: 200,
+                        colorDark: '#1a1200', colorLight: '#ffffff',
+                        correctLevel: QRCode.CorrectLevel.M
+                    });
+                } catch(e) {
+                    canvas.innerHTML = '<div style="padding:20px;color:#aaa;font-size:.8rem">QR Code 產生失敗</div>';
+                }
+            } else {
+                canvas.innerHTML = '<div style="padding:20px;color:#aaa;font-size:.8rem">載入中…</div>';
+            }
+        }
+    }
 }
 
 function showToast(msg) {
@@ -2578,44 +1955,44 @@ function showToast(msg) {
 let _joinRoomListener = null; // 選組畫面的即時監聽器
 
 function stopJoinListener() {
-  if (_joinRoomListener) { _joinRoomListener(); _joinRoomListener = null; }
+    if (_joinRoomListener) { _joinRoomListener(); _joinRoomListener = null; }
 }
 
 function startJoinListener(roomCode) {
-  stopJoinListener();
-  if (!isFirebase || !db || !fsOnSnap || !roomCode) return;
-  const ref = fsDoc(db, 'rooms', roomCode);
-  _joinRoomListener = fsOnSnap(ref, (snap) => {
-      if (!snap.exists()) return;
-      const data = snap.data();
-      window.state.players      = data.players || [];
-      window.state.takenSymbols = window.state.players.map(p => p.symbol);
-      window.state.takenGroups  = window.state.players.map(p => p.group);
-      // 如果目前在選組畫面，即時更新組別顯示
-      const step = window.pStates[window.state.perspective]?.joinStep;
-      if (step === 2) {
-        renderGroupPicker();
-        window.renderSymbolPicker();
-      }
-  }, () => {});
+    stopJoinListener();
+    if (!isFirebase || !db || !fsOnSnap || !roomCode) return;
+    const ref = fsDoc(db, 'rooms', roomCode);
+    _joinRoomListener = fsOnSnap(ref, (snap) => {
+        if (!snap.exists()) return;
+        const data = snap.data();
+        window.state.players      = data.players || [];
+        window.state.takenSymbols = window.state.players.map(p => p.symbol);
+        window.state.takenGroups  = window.state.players.map(p => p.group);
+        // 如果目前在選組畫面，即時更新組別顯示
+        const step = window.pStates[window.state.perspective]?.joinStep;
+        if (step === 2) {
+            renderGroupPicker();
+            window.renderSymbolPicker();
+        }
+    }, () => {});
 }
 
 function syncJoinDOM() {
-  const step = window.pStates[window.state.perspective]?.joinStep || 1;
-  document.getElementById('join-step-1').style.display = step === 1 ? 'block' : 'none';
-  document.getElementById('join-step-password').style.display = step === 1.5 ? 'block' : 'none';
-  document.getElementById('join-step-2').style.display = step === 2 ? 'block' : 'none';
-  if (step === 2) {
-    window.state.selectedGroup = '';
-    window.state.selectedSymbol = '';
-    // 啟動選組即時監聽（其他裝置加入時本機立即更新）
-    startJoinListener(window.state.roomCode);
-    renderGroupPicker();
-    window.renderSymbolPicker();
-  } else {
-  // 離開選組畫面時停止監聽
-  stopJoinListener();
-}
+    const step = window.pStates[window.state.perspective]?.joinStep || 1;
+    document.getElementById('join-step-1').style.display = step === 1 ? 'block' : 'none';
+    document.getElementById('join-step-password').style.display = step === 1.5 ? 'block' : 'none';
+    document.getElementById('join-step-2').style.display = step === 2 ? 'block' : 'none';
+    if (step === 2) {
+        window.state.selectedGroup = '';
+        window.state.selectedSymbol = '';
+        // 啟動選組即時監聽（其他裝置加入時本機立即更新）
+        startJoinListener(window.state.roomCode);
+        renderGroupPicker();
+        window.renderSymbolPicker();
+    } else {
+        // 離開選組畫面時停止監聽
+        stopJoinListener();
+    }
 }
 
 function goToJoin() { if (window.pStates[window.state.perspective]) window.pStates[window.state.perspective].joinStep = 1; stopJoinListener(); window.syncJoinDOM(); window.renderRoomList(); window.goTo('screen-join'); }
@@ -2629,22 +2006,22 @@ function renderRoomList() {
   if (openRooms.length === 0) {
     listEl.innerHTML = ''; emptyEl.style.display = 'block';
   } else {
-  emptyEl.style.display = 'none';
-  listEl.innerHTML = openRooms.map(([code, r]) => {
+    emptyEl.style.display = 'none';
+    listEl.innerHTML = openRooms.map(([code, r]) => {
       const isPlaying = r.status === 'playing';
       // 如果遊戲已經開始，開放點擊進入，方便斷線重連
-      const isFull = (r.playerCount || 0) >= 5 && !isPlaying;
+      const isFull = (r.playerCount || 0) >= 5 && !isPlaying; 
       const statusBadge = isPlaying ? `<span style="margin-left:8px;background:var(--yellow);color:var(--ink);padding:2px 8px;border-radius:6px;font-size:0.7rem;font-weight:900;">遊戲中</span>` : '';
-
+      
       return `<div class="room-card ${isFull ? 'room-full' : ''}" onclick="${isFull ? "showToast('房間已滿')" : `selectRoom('${code}', '${r.roomNum}')`}">
-      <div style="display:flex;flex-direction:column;gap:4px">
-      <div style="font-weight:900;font-size:1.1rem">${r.teacherName || '老師'} 的房間${statusBadge}</div>
-      <div style="font-size:.8rem;color:#888">房間 #${r.roomNum}</div>
-      </div>
-      <div class="${(r.playerCount || 0) >= 5 ? 'room-full-badge' : 'room-num-badge'}">${r.playerCount || 0}/5</div>
-      </div>`;
-  }).join('');
-}
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <div style="font-weight:900;font-size:1.1rem">${r.teacherName || '老師'} 的房間${statusBadge}</div>
+            <div style="font-size:.8rem;color:#888">房間 #${r.roomNum}</div>
+          </div>
+          <div class="${(r.playerCount || 0) >= 5 ? 'room-full-badge' : 'room-num-badge'}">${r.playerCount || 0}/5</div>
+        </div>`;
+    }).join('');
+  }
 }
 
 function selectRoom(code, num) {
@@ -2656,49 +2033,49 @@ function selectRoom(code, num) {
 }
 
 function verifyRoomPassword() {
-  if (document.getElementById('room-pw-input').value === window.state.tempRoomCode) {
-    window.state.roomCode = window.state.tempRoomCode;
-    startSyncListener(); // 學生加入後開始監聽 Firebase
-    const room = window.getRooms()[window.state.roomCode];
-    if(!room || !room.open) { window.showToast('⚠️ 房間已關閉'); return; }
-    document.getElementById('selected-room-info').textContent = `房間：${window.state.roomCode}`;
-    if (window.pStates[window.state.perspective]) window.pStates[window.state.perspective].joinStep = 2;
-    window.syncJoinDOM();
-  } else { window.showToast('❌ 密碼錯誤'); }
+    if (document.getElementById('room-pw-input').value === window.state.tempRoomCode) {
+        window.state.roomCode = window.state.tempRoomCode;
+        startSyncListener(); // 學生加入後開始監聽 Firebase
+        const room = window.getRooms()[window.state.roomCode];
+        if(!room || !room.open) { window.showToast('⚠️ 房間已關閉'); return; }
+        document.getElementById('selected-room-info').textContent = `房間：${window.state.roomCode}`;
+        if (window.pStates[window.state.perspective]) window.pStates[window.state.perspective].joinStep = 2;
+        window.syncJoinDOM();
+    } else { window.showToast('❌ 密碼錯誤'); }
 }
 function backToStep1() { if (window.pStates[window.state.perspective]) window.pStates[window.state.perspective].joinStep = 1; window.syncJoinDOM(); }
 function backToPassword() { if (window.pStates[window.state.perspective]) window.pStates[window.state.perspective].joinStep = 1.5; window.syncJoinDOM(); }
 function pickGroup(n) {
-  const name = `第 ${n} 組`;
-  if ((window.state.takenGroups || []).includes(name)) return;
-  window.state.selectedGroup = String(n);
-  renderGroupPicker();
+    const name = `第 ${n} 組`;
+    if ((window.state.takenGroups || []).includes(name)) return;
+    window.state.selectedGroup = String(n);
+    renderGroupPicker();
 }
 function onGroupSelect(val) { window.state.selectedGroup = val; }
 function renderGroupSelect() {
-  // 舊版 <select> 相容保留（已改為 renderGroupPicker，此函式空執行）
+    // 舊版 <select> 相容保留（已改為 renderGroupPicker，此函式空執行）
 }
 window.renderGroupSelect = renderGroupSelect;
 
 function renderGroupPicker() {
-  const container = document.getElementById('group-picker');
-  if (!container) return;
-  const takenGroups = window.state.takenGroups || [];
-  container.innerHTML = [1,2,3,4,5].map(n => {
-      const name = `第 ${n} 組`;
-      const taken = takenGroups.includes(name);
-      const selected = window.state.selectedGroup === String(n);
-      return `<div class="group-opt ${taken ? 'taken' : ''} ${selected ? 'selected' : ''}"
-      onclick="pickGroup('${n}')">
-      <span class="go-num">${n}</span>
-      <span class="go-label">${taken ? '已佔' : '第'+n+'組'}</span>
-      </div>`;
-  }).join('');
+    const container = document.getElementById('group-picker');
+    if (!container) return;
+    const takenGroups = window.state.takenGroups || [];
+    container.innerHTML = [1,2,3,4,5].map(n => {
+        const name = `第 ${n} 組`;
+        const taken = takenGroups.includes(name);
+        const selected = window.state.selectedGroup === String(n);
+        return `<div class="group-opt ${taken ? 'taken' : ''} ${selected ? 'selected' : ''}"
+            onclick="pickGroup('${n}')">
+            <span class="go-num">${n}</span>
+            <span class="go-label">${taken ? '已佔' : '第'+n+'組'}</span>
+        </div>`;
+    }).join('');
 }
 function renderSymbolPicker() {
   document.getElementById('symbol-picker').innerHTML = window.SYMBOLS.map(s => {
-      const isTaken = window.state.takenSymbols.includes(s);
-      return `<div class="symbol-opt ${isTaken ? 'taken' : ''} ${window.state.selectedSymbol === s ? 'selected' : ''}" onclick="pickSymbol('${s}')">${s}</div>`;
+    const isTaken = window.state.takenSymbols.includes(s);
+    return `<div class="symbol-opt ${isTaken ? 'taken' : ''} ${window.state.selectedSymbol === s ? 'selected' : ''}" onclick="pickSymbol('${s}')">${s}</div>`;
   }).join('');
 }
 function pickSymbol(s) { if (!window.state.takenSymbols.includes(s)) { window.state.selectedSymbol = s; window.renderSymbolPicker(); } }
@@ -2716,106 +2093,107 @@ function joinRoom() {
   if (joinBtn) { joinBtn.disabled = true; joinBtn.textContent = '確認中...'; }
 
   const restoreBtn = () => {
-    const btn = document.querySelector('#screen-join .btn-green');
-    if (btn) { btn.disabled = false; btn.textContent = '準備完成！→'; }
+      const btn = document.querySelector('#screen-join .btn-green');
+      if (btn) { btn.disabled = false; btn.textContent = '準備完成！→'; }
   };
 
-// Firebase 未就緒：等待後重試（最多5次）
-if (!window._joinRetry) window._joinRetry = 0;
-if (isFirebase && db && fsTransaction && !isFirebaseAuthComplete) {
-  window._joinRetry++;
-  if (window._joinRetry > 5) {
-    window._joinRetry = 0;
-    restoreBtn();
-    window.showToast('❌ 連線失敗，請重新整理頁面');
-    return;
-  }
-setTimeout(() => joinRoom(), 1500);
-return;
-}
-window._joinRetry = 0;
-
-if (isFirebase && db && fsTransaction && isFirebaseAuthComplete) {
-  const ref = fsDoc(db, 'rooms', roomCode);
-  fsTransaction(db, async (tx) => {
-      const snap = await tx.get(ref);
-      if (!snap.exists()) throw new Error('房間不存在');
-      const room = snap.data();
-      if (!room.open) throw new Error('房間已關閉');
-
-      const players = [...(room.players || [])];
-
-      // 組別或符號已存在 → 一律拒絕（重連走 tryRestoreSession，不走 joinRoom）
-      if (players.some(p => p.group === groupName)) {
-        throw new Error('組別已被佔用');
+  // Firebase 未就緒：等待後重試（最多5次）
+  if (!window._joinRetry) window._joinRetry = 0;
+  if (isFirebase && db && fsTransaction && !isFirebaseAuthComplete) {
+      window._joinRetry++;
+      if (window._joinRetry > 5) {
+          window._joinRetry = 0;
+          restoreBtn();
+          window.showToast('❌ 連線失敗，請重新整理頁面');
+          return;
       }
-    if (players.some(p => p.symbol === symbol)) {
-      throw new Error('符號已被使用');
-    }
-  if (players.length >= 5) throw new Error('房間已滿');
+      setTimeout(() => joinRoom(), 1500);
+      return;
+  }
+  window._joinRetry = 0;
 
-  players.push({ group: groupName, symbol });
-  tx.update(ref, { players, playerCount: players.length });
-  return players;
-}).then((players) => {
-window._joinRetry = 0;
-window.state.players      = players;
-window.state.takenSymbols = players.map(p => p.symbol);
-window.state.takenGroups  = players.map(p => p.group);
-_finishJoin(groupName, symbol, roomCode);
-}).catch((err) => {
-window._joinRetry = 0;
-restoreBtn();
-if (err.message === '組別已被佔用' || err.message === '符號已被使用') {
-  window.showToast('⚠️ 該組已被其他人搶先加入，請重新選擇！');
-  if (fsGetDoc) {
-    fsGetDoc(fsDoc(db, 'rooms', roomCode)).then(snap => {
-        if (snap.exists()) {
-          const latest = snap.data();
-          window.state.players     = latest.players || [];
-          window.state.takenGroups = window.state.players.map(p => p.group);
-          window.state.selectedGroup  = null;
-          window.state.selectedSymbol = null;
-          window.syncJoinDOM();
-        }
-  }).catch(()=>{});
-}
-} else if (err.message === '房間已滿') {
-window.showToast('⚠️ 房間已滿');
-window.goToJoin();
-} else if (err.message === '房間已關閉') {
-window.showToast('⚠️ 房間已關閉');
-window.goToJoin();
-} else {
-console.error('joinRoom error:', err);
-window.showToast('❌ 加入失敗，請重試');
-}
-});
-return;
+  if (isFirebase && db && fsTransaction && isFirebaseAuthComplete) {
+      const ref = fsDoc(db, 'rooms', roomCode);
+      fsTransaction(db, async (tx) => {
+          const snap = await tx.get(ref);
+          if (!snap.exists()) throw new Error('房間不存在');
+          const room = snap.data();
+          if (!room.open) throw new Error('房間已關閉');
+
+          const players = [...(room.players || [])];
+
+          // 組別或符號已存在 → 一律拒絕（重連走 tryRestoreSession，不走 joinRoom）
+          if (players.some(p => p.group === groupName)) {
+              throw new Error('組別已被佔用');
+          }
+          if (players.some(p => p.symbol === symbol)) {
+              throw new Error('符號已被使用');
+          }
+          if (players.length >= 5) throw new Error('房間已滿');
+
+          players.push({ group: groupName, symbol });
+          tx.update(ref, { players, playerCount: players.length });
+          return players;
+      }).then((players) => {
+          window._joinRetry = 0;
+          window.state.players      = players;
+          window.state.takenSymbols = players.map(p => p.symbol);
+          window.state.takenGroups  = players.map(p => p.group);
+          _finishJoin(groupName, symbol, roomCode);
+      }).catch((err) => {
+          window._joinRetry = 0;
+          restoreBtn();
+          if (err.message === '組別已被佔用' || err.message === '符號已被使用') {
+              window.showToast('⚠️ 該組已被其他人搶先加入，請重新選擇！');
+              if (fsGetDoc) {
+                  fsGetDoc(fsDoc(db, 'rooms', roomCode)).then(snap => {
+                      if (snap.exists()) {
+                          const latest = snap.data();
+                          window.state.players     = latest.players || [];
+                          window.state.takenGroups = window.state.players.map(p => p.group);
+                          window.state.selectedGroup  = null;
+                          window.state.selectedSymbol = null;
+                          window.syncJoinDOM();
+                      }
+                  }).catch(()=>{});
+              }
+          } else if (err.message === '房間已滿') {
+              window.showToast('⚠️ 房間已滿');
+              window.goToJoin();
+          } else if (err.message === '房間已關閉') {
+              window.showToast('⚠️ 房間已關閉');
+              window.goToJoin();
+          } else {
+              console.error('joinRoom error:', err);
+              window.showToast('❌ 加入失敗，請重試');
+          }
+      });
+      return;
+  }
+
+  // Fallback（無 Firebase）
+  const rooms = window.getRooms();
+  if (!rooms[roomCode] || !rooms[roomCode].open) { window.showToast('⚠️ 房間已關閉'); window.goToJoin(); return; }
+  const latestPlayers = rooms[roomCode].players || [];
+  if (latestPlayers.some(p => p.group === groupName)) {
+      restoreBtn(); window.showToast('⚠️ 組別已被佔用'); return;
+  }
+  if (latestPlayers.some(p => p.symbol === symbol)) {
+      restoreBtn(); window.showToast('⚠️ 符號已被使用'); return;
+  }
+  if (!latestPlayers.some(p => p.group === groupName)) {
+      if (latestPlayers.length >= 5) { restoreBtn(); window.showToast('⚠️ 房間已滿'); return; }
+      latestPlayers.push({ group: groupName, symbol });
+      rooms[roomCode].players = latestPlayers;
+      rooms[roomCode].playerCount = latestPlayers.length;
+      window.saveRooms(rooms);
+  }
+  window.state.players      = latestPlayers;
+  window.state.takenSymbols = latestPlayers.map(p => p.symbol);
+  window.state.takenGroups  = latestPlayers.map(p => p.group);
+  _finishJoin(groupName, symbol, roomCode);
 }
 
-// Fallback（無 Firebase）
-const rooms = window.getRooms();
-if (!rooms[roomCode] || !rooms[roomCode].open) { window.showToast('⚠️ 房間已關閉'); window.goToJoin(); return; }
-const latestPlayers = rooms[roomCode].players || [];
-if (latestPlayers.some(p => p.group === groupName)) {
-  restoreBtn(); window.showToast('⚠️ 組別已被佔用'); return;
-}
-if (latestPlayers.some(p => p.symbol === symbol)) {
-  restoreBtn(); window.showToast('⚠️ 符號已被使用'); return;
-}
-if (!latestPlayers.some(p => p.group === groupName)) {
-  if (latestPlayers.length >= 5) { restoreBtn(); window.showToast('⚠️ 房間已滿'); return; }
-  latestPlayers.push({ group: groupName, symbol });
-  rooms[roomCode].players = latestPlayers;
-  rooms[roomCode].playerCount = latestPlayers.length;
-  window.saveRooms(rooms);
-}
-window.state.players      = latestPlayers;
-window.state.takenSymbols = latestPlayers.map(p => p.symbol);
-window.state.takenGroups  = latestPlayers.map(p => p.group);
-_finishJoin(groupName, symbol, roomCode);
-}
 
 function _finishJoin(groupName, symbol, roomCode) {
   stopJoinListener(); // 加入成功，停止選組監聽
@@ -2826,94 +2204,94 @@ function _finishJoin(groupName, symbol, roomCode) {
     pData.symbol = symbol;
     pData.screen = 'screen-student-wait';
   }
-const rooms = window.getRooms();
-const room  = rooms[roomCode] || {};
-document.getElementById('sw-code').textContent = roomCode;
-document.getElementById('sw-room-name').textContent = `誰是遊戲王 — 房間 #${room.roomNum || ''}`;
-document.getElementById('sw-my-group-status').innerHTML = `✅ <b>${groupName}</b> 已連線，等待老師啟動...`;
-window.renderLobby();
-window.updateStudentWaitDisplay();
-window.goTo('screen-student-wait');
-// 學生 session：只儲存學生資訊，不含 teacher 標記
-if (groupName) {
-  localStorage.setItem('game_session', JSON.stringify({ perspective: window.state.perspective, roomCode, group: groupName, symbol }));
-}
-window.showToast(`✅ ${groupName} 已加入房間！`);
+  const rooms = window.getRooms();
+  const room  = rooms[roomCode] || {};
+  document.getElementById('sw-code').textContent = roomCode;
+  document.getElementById('sw-room-name').textContent = `誰是遊戲王 — 房間 #${room.roomNum || ''}`;
+  document.getElementById('sw-my-group-status').innerHTML = `✅ <b>${groupName}</b> 已連線，等待老師啟動...`;
+  window.renderLobby();
+  window.updateStudentWaitDisplay();
+  window.goTo('screen-student-wait');
+  // 學生 session：只儲存學生資訊，不含 teacher 標記
+  if (groupName) {
+      localStorage.setItem('game_session', JSON.stringify({ perspective: window.state.perspective, roomCode, group: groupName, symbol }));
+  }
+  window.showToast(`✅ ${groupName} 已加入房間！`);
 }
 
 function leaveRoomStudent() {
-  if(window.state.perspective && window.pStates[window.state.perspective]) {
-    const pData = window.pStates[window.state.perspective];
-    pData.joined = false;
-    if(pData.group) {
-      const groupName = pData.group;
-      window.state.players = window.state.players.filter(p => p.group !== groupName);
-      window.state.takenSymbols = window.state.takenSymbols.filter(s => s !== pData.symbol);
-      // 同時更新 rooms.players
-      const rooms = window.getRooms();
-      if(rooms[window.state.roomCode]) {
-        rooms[window.state.roomCode].players = window.state.players;
-        rooms[window.state.roomCode].playerCount = window.state.players.length;
-        window.saveRooms(rooms);
-      }
-    window.renderLobby();
-  }
-pData.group = ''; pData.symbol = ''; pData.joinStep = 1;
-}
-window.syncJoinDOM(); localStorage.removeItem('game_session'); window.goTo('screen-home'); window.showToast('🚪 已離開房間');
+    if(window.state.perspective && window.pStates[window.state.perspective]) {
+        const pData = window.pStates[window.state.perspective];
+        pData.joined = false;
+        if(pData.group) {
+            const groupName = pData.group;
+            window.state.players = window.state.players.filter(p => p.group !== groupName);
+            window.state.takenSymbols = window.state.takenSymbols.filter(s => s !== pData.symbol);
+            // 同時更新 rooms.players
+            const rooms = window.getRooms();
+            if(rooms[window.state.roomCode]) {
+                rooms[window.state.roomCode].players = window.state.players;
+                rooms[window.state.roomCode].playerCount = window.state.players.length;
+                window.saveRooms(rooms);
+            }
+            window.renderLobby();
+        }
+        pData.group = ''; pData.symbol = ''; pData.joinStep = 1;
+    }
+    window.syncJoinDOM(); localStorage.removeItem('game_session'); window.goTo('screen-home'); window.showToast('🚪 已離開房間');
 }
 
 function selectGame(i) {
-  const g = GAMES[i];
-  if (!g || !g.available) { showToast(`🚧 ${g ? g.name : '此遊戲'} 即將推出，敬請期待！`); return; }
-  window.state.selectedGame = i;
-
-  // 將選擇的遊戲同步寫入共用房間資料
-  const rooms = window.getRooms();
-  if (window.state.roomCode && rooms[window.state.roomCode]) {
-    rooms[window.state.roomCode].selectedGame = i;
-    window.saveRooms(rooms);
-  }
-
-window.renderLobby();
-window.showToast(`已選擇：${g.icon} ${g.name}`);
+    const g = GAMES[i];
+    if (!g || !g.available) { showToast(`🚧 ${g ? g.name : '此遊戲'} 即將推出，敬請期待！`); return; }
+    window.state.selectedGame = i;
+    
+    // 將選擇的遊戲同步寫入共用房間資料
+    const rooms = window.getRooms();
+    if (window.state.roomCode && rooms[window.state.roomCode]) {
+        rooms[window.state.roomCode].selectedGame = i;
+        window.saveRooms(rooms);
+    }
+    
+    window.renderLobby();
+    window.showToast(`已選擇：${g.icon} ${g.name}`);
 }
 function renderLobby() {
   // 從 Firebase 同步最新玩家資料（避免 window.state.players 過期）
   if (window.state.roomCode) {
-    const rooms = window.getRooms();
-    const r = rooms[window.state.roomCode];
-    if (r && r.players !== undefined) {
-      window.state.players = r.players;
-      window.state.takenSymbols = r.players.map(p => p.symbol);
-    }
-}
-// 固定顯示5個座位格，有人就填，沒人就空位
-const slots = Array.from({length:5}, (_,i) => {
+      const rooms = window.getRooms();
+      const r = rooms[window.state.roomCode];
+      if (r && r.players !== undefined) {
+          window.state.players = r.players;
+          window.state.takenSymbols = r.players.map(p => p.symbol);
+      }
+  }
+  // 固定顯示5個座位格，有人就填，沒人就空位
+  const slots = Array.from({length:5}, (_,i) => {
     const p = window.state.players[i];
     if (p) {
-      return `<div class="kr-seat"><div class="kr-seat-emoji">${p.symbol}</div><div class="kr-seat-name">${p.group}</div></div>`;
+        return `<div class="kr-seat"><div class="kr-seat-emoji">${p.symbol}</div><div class="kr-seat-name">${p.group}</div></div>`;
     }
-  return `<div class="kr-seat" style="opacity:.2;border-style:dashed"><div class="kr-seat-emoji">＋</div><div class="kr-seat-name">空位</div></div>`;
-});
-const pHTML = slots.join('');
+    return `<div class="kr-seat" style="opacity:.2;border-style:dashed"><div class="kr-seat-emoji">＋</div><div class="kr-seat-name">空位</div></div>`;
+  });
+  const pHTML = slots.join('');
+  
+  document.getElementById('lobby-players').innerHTML = pHTML;
+  document.getElementById('lobby-count').textContent = `${window.state.players.length}/5`;
+  document.getElementById('sw-lobby-players').innerHTML = pHTML;
+  document.getElementById('sw-count').textContent = `${window.state.players.length}/5`;
 
-document.getElementById('lobby-players').innerHTML = pHTML;
-document.getElementById('lobby-count').textContent = `${window.state.players.length}/5`;
-document.getElementById('sw-lobby-players').innerHTML = pHTML;
-document.getElementById('sw-count').textContent = `${window.state.players.length}/5`;
-
-document.getElementById('lobby-games').innerHTML = GAMES.map((g, i) => `
-  <div class="kr-game-card ${window.state.selectedGame === i ? 'selected' : ''} ${!g.available ? 'kr-game-unavailable' : ''}" onclick="selectGame(${i})" title="${!g.available ? '即將推出' : g.desc}">
-  <span style="font-size:1.3rem;flex-shrink:0">${g.icon}</span>
-  <span style="color:${g.available ? 'white' : 'rgba(255,255,255,.35)'};font-size:.72rem;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${g.name}${!g.available ? '<span style="font-size:.55rem;color:rgba(255,200,0,.5);display:block">即將推出</span>' : g.devNote ? `<span style="font-size:.5rem;color:rgba(255,160,0,.85);display:block">[${g.devNote}]</span>` : ''}</span>
-  </div>`).join('');
-
+  document.getElementById('lobby-games').innerHTML = GAMES.map((g, i) => `
+    <div class="kr-game-card ${window.state.selectedGame === i ? 'selected' : ''} ${!g.available ? 'kr-game-unavailable' : ''}" onclick="selectGame(${i})" title="${!g.available ? '即將推出' : g.desc}">
+        <span style="font-size:1.3rem;flex-shrink:0">${g.icon}</span>
+        <span style="color:${g.available ? 'white' : 'rgba(255,255,255,.35)'};font-size:.72rem;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${g.name}${!g.available ? '<span style="font-size:.55rem;color:rgba(255,200,0,.5);display:block">即將推出</span>' : g.devNote ? `<span style="font-size:.5rem;color:rgba(255,160,0,.85);display:block">[${g.devNote}]</span>` : ''}</span>
+    </div>`).join('');
+    
   const selGame = GAMES[window.state.selectedGame] || GAMES[0];
   document.getElementById('sw-selected-game-card').innerHTML = `
-  <div style="font-size:3rem; margin-bottom:5px;">${selGame.icon}</div>
-  <div style="font-size:1.3rem; color:var(--yellow); font-weight:900;">${selGame.name}</div>
-  <div style="color:rgba(255,255,255,0.6); font-size:0.8rem; margin-top:5px;">${selGame.desc}</div>
+      <div style="font-size:3rem; margin-bottom:5px;">${selGame.icon}</div>
+      <div style="font-size:1.3rem; color:var(--yellow); font-weight:900;">${selGame.name}</div>
+      <div style="color:rgba(255,255,255,0.6); font-size:0.8rem; margin-top:5px;">${selGame.desc}</div>
   `;
 }
 function updateStudentWaitDisplay() {
@@ -2933,27 +2311,27 @@ function updateStudentWaitDisplay() {
   const rooms = window.getRooms();
   const room = rooms[window.state.roomCode];
   if (room) {
-    if (swName) swName.textContent = `誰是遊戲王 — 房間 #${room.roomNum || ''}`;
-    if (swCnt) swCnt.textContent = `${(room.players||[]).length}/5`;
-    // 玩家座位（用正確的 CSS class）
-    const seatEl = document.getElementById('sw-lobby-players');
-    if (seatEl && room.players) {
-      seatEl.innerHTML = room.players.map(pl =>
-        `<div class="kr-seat"><div class="kr-seat-emoji">${pl.symbol}</div><div class="kr-seat-name">${pl.group}</div></div>`
-      ).join('');
+      if (swName) swName.textContent = `誰是遊戲王 — 房間 #${room.roomNum || ''}`;
+      if (swCnt) swCnt.textContent = `${(room.players||[]).length}/5`;
+      // 玩家座位（用正確的 CSS class）
+      const seatEl = document.getElementById('sw-lobby-players');
+      if (seatEl && room.players) {
+          seatEl.innerHTML = room.players.map(pl =>
+              `<div class="kr-seat"><div class="kr-seat-emoji">${pl.symbol}</div><div class="kr-seat-name">${pl.group}</div></div>`
+          ).join('');
+      }
+      // 老師選擇的遊戲卡片
+      const gameIdx = room.selectedGame !== undefined ? room.selectedGame : (window.state.selectedGame || 0);
+      window.state.selectedGame = gameIdx;
+      const gameCard = document.getElementById('sw-selected-game-card');
+      if (gameCard) {
+          const g = GAMES[gameIdx] || GAMES[0];
+          gameCard.innerHTML = `
+              <div style="font-size:3rem;margin-bottom:5px">${g.icon}</div>
+              <div style="font-size:1.3rem;color:var(--yellow);font-weight:900">${g.name}</div>
+              <div style="color:rgba(255,255,255,.6);font-size:.8rem;margin-top:5px">${g.desc}</div>`;
+      }
   }
-// 老師選擇的遊戲卡片
-const gameIdx = room.selectedGame !== undefined ? room.selectedGame : (window.state.selectedGame || 0);
-window.state.selectedGame = gameIdx;
-const gameCard = document.getElementById('sw-selected-game-card');
-if (gameCard) {
-  const g = GAMES[gameIdx] || GAMES[0];
-  gameCard.innerHTML = `
-  <div style="font-size:3rem;margin-bottom:5px">${g.icon}</div>
-  <div style="font-size:1.3rem;color:var(--yellow);font-weight:900">${g.name}</div>
-  <div style="color:rgba(255,255,255,.6);font-size:.8rem;margin-top:5px">${g.desc}</div>`;
-}
-}
 }
 
 function simulateJoin() {
@@ -2974,26 +2352,26 @@ function simulateJoin() {
     window.pStates[pKey].screen = 'screen-student-wait';
   }
 
-const rooms = window.getRooms();
-if (rooms[window.state.roomCode]) {
-  rooms[window.state.roomCode].players = window.state.players;
-  rooms[window.state.roomCode].playerCount = window.state.players.length;
-  window.saveRooms(rooms);
-}
-window.renderLobby();
-updateStudentWaitDisplay();
-window.showToast(`✅ 第 ${gNum} 組加入！`);
+  const rooms = window.getRooms();
+  if (rooms[window.state.roomCode]) {
+    rooms[window.state.roomCode].players = window.state.players;
+    rooms[window.state.roomCode].playerCount = window.state.players.length;
+    window.saveRooms(rooms);
+  }
+  window.renderLobby();
+  updateStudentWaitDisplay();
+  window.showToast(`✅ 第 ${gNum} 組加入！`);
 }
 
 function teacherLogin() {
   const pwEl = document.getElementById('tl-pw');
   const nameEl = document.getElementById('tl-name');
   if (pwEl && pwEl.value !== window.TEACHER_PW) { window.showToast('❌ 密碼錯誤'); return; }
-
+  
   const tName = (nameEl && nameEl.value.trim() !== '') ? nameEl.value.trim() : '老師';
 
   window.state.perspective = 'teacher';
-
+  
   const rooms = window.getRooms();
   const now = Date.now();
 
@@ -3005,169 +2383,169 @@ function teacherLogin() {
       const isExpired = r.createdAt && (now - r.createdAt) > 2 * 60 * 60 * 1000;
       const isMyOldRoom = c === myLastCode;
       if (isExpired || isMyOldRoom) {
-        window.deleteRoom(c);
-        delete rooms[c];
+          window.deleteRoom(c);
+          delete rooms[c];
       }
-});
+  });
 
-// 動態產生 4 位數房間密碼
-let code = Math.floor(1000 + Math.random() * 9000).toString();
-while (rooms[code] && rooms[code].open) {
-  code = Math.floor(1000 + Math.random() * 9000).toString();
-}
+  // 動態產生 4 位數房間密碼
+  let code = Math.floor(1000 + Math.random() * 9000).toString();
+  while (rooms[code] && rooms[code].open) {
+      code = Math.floor(1000 + Math.random() * 9000).toString();
+  }
+  
+  // 記住這次的房間密碼，下次登入時自動清除
+  localStorage.setItem('my_last_room_code', code);
 
-// 記住這次的房間密碼，下次登入時自動清除
-localStorage.setItem('my_last_room_code', code);
+  // 取得房間編號
+  let roomNum = parseInt(localStorage.getItem('playroom_counter') || '0') + 1;
+  localStorage.setItem('playroom_counter', roomNum);
 
-// 取得房間編號
-let roomNum = parseInt(localStorage.getItem('playroom_counter') || '0') + 1;
-localStorage.setItem('playroom_counter', roomNum);
+  rooms[code] = { 
+      open: true, teacherName: tName, roomNum: roomNum, createdAt: Date.now(),
+      playerCount: 0, status: 'lobby', players: [],
+      finishedGroups: [], scores: {}, selectedGame: window.state.selectedGame 
+  };
 
-rooms[code] = {
-  open: true, teacherName: tName, roomNum: roomNum, createdAt: Date.now(),
-  playerCount: 0, status: 'lobby', players: [],
-  finishedGroups: [], scores: {}, selectedGame: window.state.selectedGame
-};
+  // 先設 roomCode，讓 saveRooms 知道要存哪個房間
+  window.state.roomCode = code;
+  window.state.players = []; window.state.takenSymbols = [];
+  localStorage.setItem('game_session', JSON.stringify({ perspective:'teacher', roomCode:code, _teacherToken: true }));
 
-// 先設 roomCode，讓 saveRooms 知道要存哪個房間
-window.state.roomCode = code;
-window.state.players = []; window.state.takenSymbols = [];
-localStorage.setItem('game_session', JSON.stringify({ perspective:'teacher', roomCode:code, _teacherToken: true }));
+  window.saveRooms(rooms);
+  // 直接寫入 Firebase（不管 auth 狀態，等連線後自動重試）
+  const writeToFirebase = () => {
+      if (isFirebase && db && fsDoc && fsSet) {
+          fsSet(fsDoc(db, 'rooms', code), rooms[code])
+              .then(() => console.log('✅ 房間已寫入 Firebase:', code))
+              .catch(e => console.error('Firebase write error:', e));
+      } else {
+          setTimeout(writeToFirebase, 500);
+      }
+  };
+  writeToFirebase();
+  startSyncListener(); // 老師建房後開始監聽 Firebase
+  
+  Object.keys(window.pStates).forEach(k => {
+      if (k !== 'teacher' && k !== 'guest') {
+          window.pStates[k].joined = false;
+          window.pStates[k].screen = 'screen-home';
+          window.pStates[k].joinStep = 1;
+      }
+  });
 
-window.saveRooms(rooms);
-// 直接寫入 Firebase（不管 auth 狀態，等連線後自動重試）
-const writeToFirebase = () => {
-  if (isFirebase && db && fsDoc && fsSet) {
-    fsSet(fsDoc(db, 'rooms', code), rooms[code])
-    .then(() => console.log('✅ 房間已寫入 Firebase:', code))
-    .catch(e => console.error('Firebase write error:', e));
-  } else {
-  setTimeout(writeToFirebase, 500);
-}
-};
-writeToFirebase();
-startSyncListener(); // 老師建房後開始監聽 Firebase
-
-Object.keys(window.pStates).forEach(k => {
-    if (k !== 'teacher' && k !== 'guest') {
-      window.pStates[k].joined = false;
-      window.pStates[k].screen = 'screen-home';
-      window.pStates[k].joinStep = 1;
-    }
-});
-
-const lobbyCode = document.getElementById('lobby-code');
-if (lobbyCode) lobbyCode.textContent = code;
-const lobbyRoomName = document.getElementById('lobby-room-name');
-if (lobbyRoomName) lobbyRoomName.textContent = `誰是遊戲王 — 房間 #${roomNum}`;
-window.renderLobby();
-window.goTo('screen-lobby');
-window.showToast(`🏠 房間 ${code} 已建立！`);
+  const lobbyCode = document.getElementById('lobby-code');
+  if (lobbyCode) lobbyCode.textContent = code;
+  const lobbyRoomName = document.getElementById('lobby-room-name');
+  if (lobbyRoomName) lobbyRoomName.textContent = `誰是遊戲王 — 房間 #${roomNum}`;
+  window.renderLobby();
+  window.goTo('screen-lobby');
+  window.showToast(`🏠 房間 ${code} 已建立！`);
 }
 
 function doCloseRoom() {
   const code = window.state.roomCode;
   if (code) {
-    const rooms = window.getRooms();
-    if (rooms[code]) { rooms[code].open = false; window.saveRooms(rooms); }
-    setTimeout(() => window.deleteRoom(code), 2000);
-    localStorage.removeItem('my_last_room_code');
-    localStorage.removeItem('game_session');
+      const rooms = window.getRooms();
+      if (rooms[code]) { rooms[code].open = false; window.saveRooms(rooms); }
+      setTimeout(() => window.deleteRoom(code), 2000);
+      localStorage.removeItem('my_last_room_code');
+  localStorage.removeItem('game_session');
   }
-stopSyncListener();
-window.state.roomCode = ''; window.state.players = []; window.state.takenSymbols = [];
-Object.keys(window.pStates).forEach(k => {
-    if (k !== 'teacher' && k !== 'guest') {
-      window.pStates[k].joined = false;
-      window.pStates[k].screen = 'screen-home';
-      window.pStates[k].joinStep = 1;
-    }
-});
-window.goTo('screen-home');
+  stopSyncListener();
+  window.state.roomCode = ''; window.state.players = []; window.state.takenSymbols = [];
+  Object.keys(window.pStates).forEach(k => {
+      if (k !== 'teacher' && k !== 'guest') {
+          window.pStates[k].joined = false;
+          window.pStates[k].screen = 'screen-home';
+          window.pStates[k].joinStep = 1;
+      }
+  });
+  window.goTo('screen-home');
 }
 
 function testResetToHome() {
-  // 真正清空所有狀態
-  Object.keys(window.pStates).forEach(k => {
-      window.pStates[k].screen = 'screen-home';
-      window.pStates[k].joined = false;
-      window.pStates[k].group = '';
-      window.pStates[k].symbol = '';
-      window.pStates[k].joinStep = 1;
-  });
+    // 真正清空所有狀態
+    Object.keys(window.pStates).forEach(k => {
+        window.pStates[k].screen = 'screen-home';
+        window.pStates[k].joined = false;
+        window.pStates[k].group = '';
+        window.pStates[k].symbol = '';
+        window.pStates[k].joinStep = 1;
+    });
 
-window.state.perspective = 'guest';
-window.state.roomCode = '';
-window.state.tempRoomCode = '';
-window.state.players = [];
-window.state.takenSymbols = [];
-window.state.selectedGame = 0;
+    window.state.perspective = 'guest';
+    window.state.roomCode = ''; 
+    window.state.tempRoomCode = '';
+    window.state.players = []; 
+    window.state.takenSymbols = [];
+    window.state.selectedGame = 0;
 
-// 清空 localStorage 房間資料
-localStorage.removeItem('playroom_rooms');
-localStorage.removeItem('playroom_counter');
+    // 清空 localStorage 房間資料
+    localStorage.removeItem('playroom_rooms');
+    localStorage.removeItem('playroom_counter');
 
-window.isSwitchingPerspective = true;
-window.syncJoinDOM();
-window.goTo('screen-home');
-window.isSwitchingPerspective = false;
-window.showToast('🔄 已重置所有測試數據');
+    window.isSwitchingPerspective = true;
+    window.syncJoinDOM();
+    window.goTo('screen-home');
+    window.isSwitchingPerspective = false;
+    window.showToast('🔄 已重置所有測試數據');
 }
 
 function testSetPerspective(p) {
-  window.state.perspective = p;
-  let pData = window.pStates[p];
+    window.state.perspective = p;
+    let pData = window.pStates[p];
 
-  const r = window.getRooms()[window.state.roomCode] || {};
-  const isGameRunning = r.status === 'playing';
+    const r = window.getRooms()[window.state.roomCode] || {};
+    const isGameRunning = r.status === 'playing';
 
-  if (p !== 'teacher' && p !== 'guest') {
-    if (pData.joined) {
-      const swCode = document.getElementById('sw-code');
-      if (swCode) swCode.textContent = window.state.roomCode || '0000';
-      const swMyGroupStatus = document.getElementById('sw-my-group-status');
-      const swCount = document.getElementById('sw-count');
-      if (swCount) swCount.textContent = `${window.state.players.length}/5`;
+    if (p !== 'teacher' && p !== 'guest') {
+        if (pData.joined) {
+            const swCode = document.getElementById('sw-code');
+            if (swCode) swCode.textContent = window.state.roomCode || '0000';
+            const swMyGroupStatus = document.getElementById('sw-my-group-status');
+            const swCount = document.getElementById('sw-count');
+            if (swCount) swCount.textContent = `${window.state.players.length}/5`;
+            
+            if (r.status === 'level_select') {
+                if (swMyGroupStatus) swMyGroupStatus.innerHTML = `✅ <b>${pData.group}</b> 已連線<br><span style="color:var(--yellow)">⏳ 等待老師宣布開始...</span>`;
+                pData.screen = 'screen-student-wait';
+            } else if (r.status === 'finished') {
+                if (swMyGroupStatus) swMyGroupStatus.innerHTML = `🏁 <b>遊戲結束</b><br><span style="color:var(--yellow)">請看大螢幕結算總分！</span>`;
+                pData.screen = 'screen-student-wait';
+            } else if (r.status === 'playing') {
+                // 需要真正載入遊戲 iframe
+                setTimeout(() => tcLaunchStudentIfNeeded(), 50);
+            } else {
+                if (swMyGroupStatus) swMyGroupStatus.innerHTML = `✅ <b>${pData.group}</b> 已連線，等待老師啟動...`;
+                pData.screen = 'screen-student-wait'; 
+            }
+        } else {
+            // 未加入 → 停在首頁
+            pData.screen = 'screen-home';
+        }
+    } else if (p === 'teacher') {
+        if (!window.state.roomCode) {
+            pData.screen = 'screen-home';
+        } else {
+            const lobbyCode = document.getElementById('lobby-code');
+            if (lobbyCode) lobbyCode.textContent = window.state.roomCode;
+            if (r.status === 'playing') pData.screen = 'screen-teacher-console';
+            else pData.screen = 'screen-lobby';
+        }
+    }
+    
+    if (window.state.roomCode && (!isGameRunning || p === 'teacher')) window.renderLobby();
 
-      if (r.status === 'level_select') {
-        if (swMyGroupStatus) swMyGroupStatus.innerHTML = `✅ <b>${pData.group}</b> 已連線<br><span style="color:var(--yellow)">⏳ 等待老師宣布開始...</span>`;
-        pData.screen = 'screen-student-wait';
-      } else if (r.status === 'finished') {
-      if (swMyGroupStatus) swMyGroupStatus.innerHTML = `🏁 <b>遊戲結束</b><br><span style="color:var(--yellow)">請看大螢幕結算總分！</span>`;
-      pData.screen = 'screen-student-wait';
-    } else if (r.status === 'playing') {
-    // 需要真正載入遊戲 iframe
-    setTimeout(() => tcLaunchStudentIfNeeded(), 50);
-  } else {
-  if (swMyGroupStatus) swMyGroupStatus.innerHTML = `✅ <b>${pData.group}</b> 已連線，等待老師啟動...`;
-  pData.screen = 'screen-student-wait';
-}
-} else {
-// 未加入 → 停在首頁
-pData.screen = 'screen-home';
-}
-} else if (p === 'teacher') {
-if (!window.state.roomCode) {
-  pData.screen = 'screen-home';
-} else {
-const lobbyCode = document.getElementById('lobby-code');
-if (lobbyCode) lobbyCode.textContent = window.state.roomCode;
-if (r.status === 'playing') pData.screen = 'screen-teacher-console';
-else pData.screen = 'screen-lobby';
-}
-}
-
-if (window.state.roomCode && (!isGameRunning || p === 'teacher')) window.renderLobby();
-
-window.isSwitchingPerspective = true;
-window.syncJoinDOM();
-window.goTo(pData.screen);
-if (p !== 'teacher') window.updateStudentWaitDisplay();
-window.isSwitchingPerspective = false;
-
-if (!window._initLoad) {
-  window.showToast(`👁️ 已切換：${p === 'teacher' ? '老師' : '學生 ' + (p.length > 1 ? p.charAt(1) : '')} 視角`);
-}
+    window.isSwitchingPerspective = true;
+    window.syncJoinDOM();
+    window.goTo(pData.screen);
+    if (p !== 'teacher') window.updateStudentWaitDisplay();
+    window.isSwitchingPerspective = false;
+    
+    if (!window._initLoad) {
+        window.showToast(`👁️ 已切換：${p === 'teacher' ? '老師' : '學生 ' + (p.length > 1 ? p.charAt(1) : '')} 視角`);
+    }
 }
 
 function setViewTeacher() { window.testSetPerspective('teacher'); }
@@ -3185,108 +2563,108 @@ document.addEventListener('DOMContentLoaded', () => {
     window._pendingRestore = JSON.parse(localStorage.getItem('game_session') || 'null');
     // 有 session 時先顯示 loading，避免閃回首頁
     if (window._pendingRestore && window._pendingRestore.roomCode) {
-      const loading = document.getElementById('restore-loading');
-      if (loading) loading.style.display = 'flex';
+        const loading = document.getElementById('restore-loading');
+        if (loading) loading.style.display = 'flex';
     }
 
-  // 防止雙擊縮放（iOS Safari）
-  let lastTap = 0;
-  document.addEventListener('touchend', (e) => {
-      const now = Date.now();
-      if (now - lastTap < 300) e.preventDefault();
-      lastTap = now;
+    // 防止雙擊縮放（iOS Safari）
+    let lastTap = 0;
+    document.addEventListener('touchend', (e) => {
+        const now = Date.now();
+        if (now - lastTap < 300) e.preventDefault();
+        lastTap = now;
     }, { passive: false });
 
-// 防止雙指縮放
-document.addEventListener('touchmove', (e) => {
-    if (e.touches.length > 1) e.preventDefault();
-  }, { passive: false });
+    // 防止雙指縮放
+    document.addEventListener('touchmove', (e) => {
+        if (e.touches.length > 1) e.preventDefault();
+    }, { passive: false });
 });
 
 // ── Firebase 連線後執行恢復 ──
 function tryRestoreSession() {
-  const saved = window._pendingRestore;
-  if (!saved || !saved.perspective || !saved.roomCode) return;
-  window._pendingRestore = null;
+    const saved = window._pendingRestore;
+    if (!saved || !saved.perspective || !saved.roomCode) return;
+    window._pendingRestore = null;
 
-  const hideLoading = () => {
-    const ld = document.getElementById('restore-loading');
-    if (ld) ld.style.display = 'none';
-  };
+    const hideLoading = () => {
+        const ld = document.getElementById('restore-loading');
+        if (ld) ld.style.display = 'none';
+    };
 
-// ── 安全性：學生 session 必須有 group 才有效 ──
-// 若 perspective=teacher 但沒有特殊 teacher token，視為無效（防止誤恢復老師端）
-if (saved.perspective === 'teacher' && !saved._teacherToken) {
-  localStorage.removeItem('game_session');
-  hideLoading(); return;
-}
-// 學生 session 必須有 group
-if (saved.perspective !== 'teacher' && !saved.group) {
-  localStorage.removeItem('game_session');
-  hideLoading(); return;
-}
+    // ── 安全性：學生 session 必須有 group 才有效 ──
+    // 若 perspective=teacher 但沒有特殊 teacher token，視為無效（防止誤恢復老師端）
+    if (saved.perspective === 'teacher' && !saved._teacherToken) {
+        localStorage.removeItem('game_session');
+        hideLoading(); return;
+    }
+    // 學生 session 必須有 group
+    if (saved.perspective !== 'teacher' && !saved.group) {
+        localStorage.removeItem('game_session');
+        hideLoading(); return;
+    }
 
-const rooms = window.getRooms();
-const room  = rooms[saved.roomCode];
-if (!room || !room.open) {
-  localStorage.removeItem('game_session');
-  hideLoading(); return;
-}
+    const rooms = window.getRooms();
+    const room  = rooms[saved.roomCode];
+    if (!room || !room.open) {
+        localStorage.removeItem('game_session');
+        hideLoading(); return;
+    }
 
-// 恢復共用狀態
-window.state.roomCode     = saved.roomCode;
-window.state.players      = room.players || [];
-window.state.takenSymbols = window.state.players.map(p => p.symbol);
-window.state.selectedGame = room.selectedGame || 0;
+    // 恢復共用狀態
+    window.state.roomCode     = saved.roomCode;
+    window.state.players      = room.players || [];
+    window.state.takenSymbols = window.state.players.map(p => p.symbol);
+    window.state.selectedGame = room.selectedGame || 0;
 
-if (saved.perspective === 'teacher') {
-  window.state.perspective = 'teacher';
-  const lobbyCode = document.getElementById('lobby-code');
-  if (lobbyCode) lobbyCode.textContent = saved.roomCode;
-  window.renderLobby();
-  startSyncListener();
-  if (room.status === 'playing' || room.status === 'settlement') {
-    window.pStates['teacher'].screen = 'screen-teacher-console';
-    window.goTo('screen-teacher-console');
-  } else {
-  window.pStates['teacher'].screen = 'screen-lobby';
-  window.goTo('screen-lobby');
-}
-} else {
-// 學生恢復：驗證 group 確實在房間的 players 裡
-const groupInRoom = (room.players || []).some(p => p.group === saved.group);
-if (!groupInRoom) {
-  // 組別不在房間裡（可能被清除），清除 session 回首頁
-  localStorage.removeItem('game_session');
-  hideLoading(); return;
-}
+    if (saved.perspective === 'teacher') {
+        window.state.perspective = 'teacher';
+        const lobbyCode = document.getElementById('lobby-code');
+        if (lobbyCode) lobbyCode.textContent = saved.roomCode;
+        window.renderLobby();
+        startSyncListener();
+        if (room.status === 'playing' || room.status === 'settlement') {
+            window.pStates['teacher'].screen = 'screen-teacher-console';
+            window.goTo('screen-teacher-console');
+        } else {
+            window.pStates['teacher'].screen = 'screen-lobby';
+            window.goTo('screen-lobby');
+        }
+    } else {
+        // 學生恢復：驗證 group 確實在房間的 players 裡
+        const groupInRoom = (room.players || []).some(p => p.group === saved.group);
+        if (!groupInRoom) {
+            // 組別不在房間裡（可能被清除），清除 session 回首頁
+            localStorage.removeItem('game_session');
+            hideLoading(); return;
+        }
 
-window.state.perspective = saved.perspective;
-const pData = window.pStates[saved.perspective];
-if (!pData) { localStorage.removeItem('game_session'); hideLoading(); return; }
+        window.state.perspective = saved.perspective;
+        const pData = window.pStates[saved.perspective];
+        if (!pData) { localStorage.removeItem('game_session'); hideLoading(); return; }
 
-pData.joined = true;
-pData.group  = saved.group;
-pData.symbol = saved.symbol || '';
+        pData.joined = true;
+        pData.group  = saved.group;
+        pData.symbol = saved.symbol || '';
 
-const swStatus = document.getElementById('sw-my-group-status');
-if (swStatus) swStatus.innerHTML = `✅ <b>${saved.group}</b> 已連線，等待老師啟動...`;
+        const swStatus = document.getElementById('sw-my-group-status');
+        if (swStatus) swStatus.innerHTML = `✅ <b>${saved.group}</b> 已連線，等待老師啟動...`;
 
-startSyncListener();
-window.updateStudentWaitDisplay();
+        startSyncListener();
+        window.updateStudentWaitDisplay();
 
-if (room.status === 'playing') {
-  tcLaunchStudentIfNeeded();
-} else if (room.status === 'settlement') {
-pData.screen = 'screen-settlement';
-window.goTo('screen-settlement');
-} else {
-pData.screen = 'screen-student-wait';
-window.goTo('screen-student-wait');
-}
-}
-showToast('🔄 已恢復上次連線');
-hideLoading();
+        if (room.status === 'playing') {
+            tcLaunchStudentIfNeeded();
+        } else if (room.status === 'settlement') {
+            pData.screen = 'screen-settlement';
+            window.goTo('screen-settlement');
+        } else {
+            pData.screen = 'screen-student-wait';
+            window.goTo('screen-student-wait');
+        }
+    }
+    showToast('🔄 已恢復上次連線');
+    hideLoading();
 }
 
 // ==========================================
