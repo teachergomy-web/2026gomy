@@ -2566,14 +2566,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ── 測試工具：URL 參數自動加入 ──
-    // 測試工具開啟視窗時會帶入 ?autoJoin=1&roomCode=1234&group=1
     (function tryAutoJoinFromUrl() {
         const p = new URLSearchParams(window.location.search);
         if (p.get('autoJoin') !== '1') return;
         const code  = p.get('roomCode');
         const group = p.get('group');
         if (!code || !group) return;
-        // 等 Firebase 連線後再執行（延遲確保 Firebase 就緒）
+
+        // 清掉舊 session，避免觸發恢復連線流程
+        localStorage.removeItem('game_session');
+        window._pendingRestore = null;
+
+        // 隱藏恢復連線的 loading 畫面
+        const loading = document.getElementById('restore-loading');
+        if (loading) loading.style.display = 'none';
+
         window._autoJoinParams = { code, group };
     })();
 
@@ -2596,6 +2603,15 @@ window.addEventListener('message', (e) => {
     if (!e.data || e.data.type !== 'AUTO_JOIN') return;
     const { roomCode, group } = e.data;
     if (!roomCode || !group) return;
+
+    // 清掉舊 session，避免觸發恢復連線流程
+    localStorage.removeItem('game_session');
+    window._pendingRestore = null;
+
+    // 隱藏恢復連線的 loading 畫面
+    const loading = document.getElementById('restore-loading');
+    if (loading) loading.style.display = 'none';
+
     window._autoJoinParams = { code: roomCode, group };
     // 如果 Firebase 已就緒就立即執行，否則等 tryRestoreSession 後觸發
     if (isFirebaseAuthComplete) triggerAutoJoin();
