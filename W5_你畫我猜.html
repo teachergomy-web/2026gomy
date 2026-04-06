@@ -147,7 +147,6 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
       <li>各組收到題目後限時作畫，可提早交卷</li>
       <li>時間到畫作自動傳給另一組猜</li>
       <li>猜對：猜題組 <strong>+20分</strong>，出題組 <strong>+10分</strong></li>
-      <li>空白交卷：<strong>-10分</strong></li>
       <li>老師按「隨機出題」開始每輪，並統一公布答案</li>
     </ul>
     <div style="margin-top:20px;display:flex;align-items:center;justify-content:center;gap:12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 20px;">
@@ -416,7 +415,7 @@ window.addEventListener('message',ev=>{
         }
         g.imgData=canvas.toDataURL('image/png');
         g.submitted=true;
-        // 空白由老師端 forceCollect fallback 統一扣分
+        // 空白不扣分
         push();
       } else if(g&&g.submitted&&g.imgData){
         // 已提早交卷的：imgData 已有，確保再 push 一次讓老師端收到
@@ -557,13 +556,10 @@ function forceCollect(){
   // 3s 後才切 GUESSING，確保 S 已有最新 imgData
   setTimeout(()=>{
     S.phase='GUESSING';
-    // 統一扣分：imgData 長度 < 5000 視為空白（全白 PNG base64 通常 < 3000）
+    // 空白不扣分，只標記 forcedBlank（供老師端 UI 顯示）
     S.groups.forEach(g=>{
       const isBlank=!g.imgData||g.imgData.length<5000;
-      if(isBlank){
-        g.imgData=EMPTY;
-        if(!g.forcedBlank){ g.score=Math.max(0,g.score-10); g.forcedBlank=true; }
-      }
+      if(isBlank){ g.imgData=EMPTY; g.forcedBlank=true; }
       g.submitted=true;
     });
     push(); renderT();
@@ -597,7 +593,7 @@ function studentSubmitDrawing(){
   if(canvas.width<10||canvas.height<10) resizeCanvas();
   g.imgData=canvas.toDataURL('image/png');
   g.submitted=true;
-  // 空白由老師端 forceCollect fallback 統一扣分，學生端不自行扣
+  // 空白不扣分
   push(); renderS();
 }
 
@@ -692,7 +688,7 @@ function renderT(){
     // Topic line
     let topicHtml='';
     if(S.phase==='REVEAL'){
-      topicHtml=`<div class="dc-topic-line">題目：<strong>${g.topic}</strong>${g.forcedBlank?'<span style="color:var(--red);font-size:11px;margin-left:6px">⚠️ 空白 -10分</span>':''}</div>`;
+      topicHtml=`<div class="dc-topic-line">題目：<strong>${g.topic}</strong>${g.forcedBlank?'<span style="color:var(--red);font-size:11px;margin-left:6px">⚠️ 空白</span>':''}</div>`;
     } else {
       topicHtml=`<div class="dc-topic-line">${g.submitted?'已交卷 ✓':'作畫中...'}</div>`;
     }
@@ -843,7 +839,7 @@ function renderS(){
       `${painter.name} 畫的是：<strong style="color:var(--accent)">${painter.topic}</strong><br>你猜的是：<strong>${g.guess||'(未作答)'}</strong>`;
     // 顯示得分（含空白扣分）
     const myG=S.groups[myIdx];
-    const blankPenalty=myG&&myG.forcedBlank?'<br><span style="color:var(--red);font-size:13px">⚠️ 空白交卷 -10分</span>':'';
+    const blankPenalty=myG&&myG.forcedBlank?'<br><span style="color:var(--red);font-size:13px">⚠️ 空白交卷</span>':'';
     document.getElementById('res-pts').innerHTML=(correct?'+20 分！':'+0 分')+blankPenalty;
     document.getElementById('res-pts').style.color=correct?'var(--green)':'var(--muted)';
   }
