@@ -241,6 +241,15 @@ if (START_LEVEL > 0) {
     setTimeout(() => startGame(START_LEVEL), 300);
 }
 
+// 機器人模式 UI 標示
+if (IS_ROBOT) {
+    const badge = document.getElementById('robot-badge');
+    if (badge) badge.style.display = 'inline';
+    // 等待畫面也標示
+    const wp = document.querySelector('#waiting-screen p');
+    if (wp) wp.textContent = '🤖 機器人模式 — 等待老師開始...';
+}
+
 // 機器人模式：顯示 badge
 if (IS_ROBOT) {
     document.getElementById('robot-badge').style.display = 'inline';

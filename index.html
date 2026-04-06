@@ -1659,7 +1659,9 @@ function tcLaunchStudentIfNeeded() {
         } else if (isW5) {
             url = gameFile + '?group=' + encodeURIComponent(myGroup);
         } else if (isW6) {
-            url = gameFile + '?autostart=' + level + '&group=' + encodeURIComponent(myGroup);
+            // 機器人視窗：URL 帶 robot=1，讓 W6 自動進入 AI 模式
+            const isRobotWindow = new URLSearchParams(location.search).get('robot') === '1';
+            url = gameFile + '?autostart=' + level + '&group=' + encodeURIComponent(myGroup) + (isRobotWindow ? '&robot=1' : '');
         } else {
             url = gameFile + '?autostart=' + level + '&group=' + encodeURIComponent(myGroup);
         }
@@ -2687,13 +2689,15 @@ function simulateJoin() {
 
   // W6：自動另開機器人觀測視窗
   if (window.state.selectedGame === 5 && window.state.roomCode) {
-    const baseUrl = window.location.href.split('?')[0];
-    const robotUrl = `${baseUrl}?autoJoin=1&roomCode=${window.state.roomCode}&group=${gNum}&robot=1`;
-    const win = window.open(robotUrl, `robot_w6_${gNum}`, 'width=500,height=760,menubar=no,toolbar=no,location=no,status=no');
+    const baseUrl  = window.location.href.split('?')[0];
+    const groupName = encodeURIComponent(`第 ${gNum} 組`);
+    const robotUrl  = `${baseUrl}?autoJoin=1&roomCode=${window.state.roomCode}&group=${gNum}&robot=1`;
+    const winName   = `robot_w6_${gNum}`;
+    const win = window.open(robotUrl, winName, 'width=520,height=760,menubar=no,toolbar=no,location=no,status=no,resizable=yes');
     if (!win) {
-      window.showToast(`✅ 第 ${gNum} 組加入！（請允許彈出視窗以開啟機器人）`);
+      window.showToast(`✅ 第 ${gNum} 組加入！請允許彈出視窗`);
     } else {
-      window.showToast(`🤖 第 ${gNum} 組機器人加入！`);
+      window.showToast(`🤖 第 ${gNum} 組機器人加入並開啟觀測視窗`);
     }
   } else {
     window.showToast(`✅ 第 ${gNum} 組加入！`);
