@@ -428,6 +428,33 @@ body::before {
     <button class="kr-btn kr-btn-start" style="font-size:1.1rem;padding:16px 50px;opacity:.4;cursor:not-allowed" id="ls-w2-start-btn" disabled onclick="tcStartGame()">▶ 全班開始！</button>
   </div>
 
+  <!-- W6 選關（1–30，滑桿風格） -->
+  <div id="ls-w6" style="display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:28px;padding:32px 20px">
+    <div style="text-align:center">
+      <div style="color:rgba(255,255,255,.4);font-family:'Nunito',sans-serif;font-weight:900;font-size:.8rem;letter-spacing:.1em;margin-bottom:8px">選擇關卡 (1–30)</div>
+      <div style="display:flex;align-items:center;gap:24px">
+        <button class="kr-btn kr-btn-ghost" style="font-size:1.4rem;padding:12px 20px;border-radius:50%" onclick="w6ChangeLevel(-1)">◀</button>
+        <div style="text-align:center">
+          <div id="ls-w6-level-num" style="font-family:'Nunito',sans-serif;font-weight:900;font-size:4.5rem;color:#f1c40f;line-height:1;text-shadow:0 0 30px rgba(241,196,15,.5)">1</div>
+          <div id="ls-w6-level-desc" style="font-family:'Nunito',sans-serif;font-weight:700;font-size:.82rem;color:rgba(255,255,255,.5);margin-top:6px">圈圈：70px ／ 速度：0.6</div>
+        </div>
+        <button class="kr-btn kr-btn-ghost" style="font-size:1.4rem;padding:12px 20px;border-radius:50%" onclick="w6ChangeLevel(1)">▶</button>
+      </div>
+    </div>
+    <!-- 快速跳段 -->
+    <div style="display:flex;gap:10px">
+      <button class="kr-btn kr-btn-ghost" style="font-size:.8rem;padding:8px 16px" onclick="w6JumpPhase(1)">🌿 1–10</button>
+      <button class="kr-btn kr-btn-ghost" style="font-size:.8rem;padding:8px 16px" onclick="w6JumpPhase(11)">⚡ 11–20</button>
+      <button class="kr-btn kr-btn-ghost" style="font-size:.8rem;padding:8px 16px" onclick="w6JumpPhase(21)">🔥 21–30</button>
+    </div>
+    <!-- 組別完成格子（遊戲進行中才出現） -->
+    <div id="ls-w6-groups" style="display:none;width:100%;max-width:640px">
+      <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:.75rem;color:rgba(245,200,0,.6);text-align:center;margin-bottom:10px;letter-spacing:.1em">各組進度</div>
+      <div id="ls-w6-groups-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px"></div>
+    </div>
+    <button class="kr-btn kr-btn-start" style="font-size:1.2rem;padding:18px 60px" id="ls-w6-start-btn" onclick="tcStartGame()">▶ 全班開始！</button>
+  </div>
+
   <!-- W4 選關（W4 遊戲同款風格：模式卡片 → 關卡網格） -->
   <div id="ls-w4" style="display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;padding:20px 16px;background:radial-gradient(ellipse at center,rgba(0,20,40,0.6),transparent 70%);position:relative;overflow:hidden">
 
@@ -963,14 +990,126 @@ function openTeacherConsole() {
     // 根據遊戲切換選關 UI
     const isW2 = window.state.selectedGame === 1;
     const isW4 = window.state.selectedGame === 3;
-    document.getElementById('ls-w1').style.display = (!isW2 && !isW4) ? 'flex' : 'none';
+    const isW6 = window.state.selectedGame === 5;
+    document.getElementById('ls-w1').style.display = (!isW2 && !isW4 && !isW6) ? 'flex' : 'none';
     document.getElementById('ls-w2').style.display = isW2 ? 'flex' : 'none';
     document.getElementById('ls-w4').style.display = isW4 ? 'flex' : 'none';
+    document.getElementById('ls-w6').style.display = isW6 ? 'flex' : 'none';
     if (isW2) { lsW2SelectedLevel = 0; TC.level = 1; lsW2Render(); }
     if (isW4) { lsW4Render(); }
+    if (isW6) { TC.level = 1; w6UpdateLevelDisplay(); w6RenderGroupCards(); }
     window.pStates['teacher'].screen = 'screen-level-select';
     window.goTo('screen-level-select');
 }
+
+// ── W6 關卡控制 ──
+let _w6GroupStatus = {}; // { groupName: { rounds, elapsed, done } }
+
+function w6ChangeLevel(delta) {
+    TC.level = Math.max(1, Math.min(30, TC.level + delta));
+    w6UpdateLevelDisplay();
+}
+function w6JumpPhase(start) {
+    TC.level = start;
+    w6UpdateLevelDisplay();
+}
+function w6UpdateLevelDisplay() {
+    const lvEl   = document.getElementById('ls-w6-level-num');
+    const descEl = document.getElementById('ls-w6-level-desc');
+    if (lvEl) lvEl.textContent = TC.level;
+    if (descEl) {
+        const radius = Math.max(35, 70 - (TC.level - 1) * 1.2).toFixed(0);
+        const speed  = (0.6 + (TC.level - 1) * 0.075).toFixed(1);
+        descEl.textContent = `圈圈：${radius}px ／ 速度：${speed}`;
+    }
+}
+function w6RenderGroupCards() {
+    const players = window.state.players;
+    const grid = document.getElementById('ls-w6-groups-grid');
+    const wrap = document.getElementById('ls-w6-groups');
+    if (!grid || !wrap) return;
+    if (!players.length) { wrap.style.display = 'none'; return; }
+    wrap.style.display = 'block';
+    grid.innerHTML = players.map(p => {
+        const st = _w6GroupStatus[p.group] || {};
+        const done    = st.done    || false;
+        const rounds  = st.rounds  || 0;
+        const elapsed = st.elapsed || null;
+        const dotHTML = Array.from({length:6}, (_,i) => {
+            let cls = 'w6-dot';
+            if (i < rounds) cls += ' done';
+            else if (i === rounds && !done) cls += ' active';
+            return `<span class="${cls}"></span>`;
+        }).join('');
+        return `
+        <div style="background:${done ? 'rgba(46,204,113,0.12)' : rounds > 0 ? 'rgba(241,196,15,0.08)' : 'rgba(255,255,255,0.05)'};
+            border:1px solid ${done ? 'rgba(46,204,113,0.5)' : rounds > 0 ? 'rgba(241,196,15,0.35)' : 'rgba(255,255,255,0.1)'};
+            border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:7px">
+            <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:.8rem;color:white">${p.symbol} ${p.group}</div>
+            <div style="display:flex;gap:5px;align-items:center">${dotHTML}</div>
+            <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:.85rem;
+                color:${done ? '#2ecc71' : rounds > 0 ? '#f1c40f' : 'rgba(255,255,255,.3)'}">
+                ${done ? `✔ ${elapsed}s` : rounds > 0 ? `${rounds}/6 進行中` : '等待中'}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// 樣式注入（W6 小點）
+(function(){
+    const s = document.createElement('style');
+    s.textContent = `.w6-dot{display:inline-block;width:8px;height:8px;border-radius:50%;border:1.5px solid rgba(226,177,106,0.5);background:transparent;transition:background .3s}
+    .w6-dot.done{background:#2ecc71;border-color:#2ecc71}
+    .w6-dot.active{background:#f1c40f;border-color:#f1c40f;animation:w6dotPulse .7s ease-in-out infinite alternate}
+    @keyframes w6dotPulse{from{transform:scale(1)}to{transform:scale(1.4)}}`;
+    document.head.appendChild(s);
+})();
+
+// ── W6 teacher console 組別格子渲染 ──
+function w6RenderTCCards() {
+    const grid = document.getElementById('tc-w6-grid');
+    if (!grid) return;
+    const players = window.state.players;
+    if (!players.length) { grid.innerHTML = '<div style="color:rgba(255,255,255,.3);font-family:Nunito,sans-serif">等待玩家加入...</div>'; return; }
+    grid.innerHTML = players.map(p => {
+        const st      = _w6GroupStatus[p.group] || {};
+        const done    = st.done    || false;
+        const rounds  = st.rounds  || 0;
+        const elapsed = st.elapsed != null ? st.elapsed + 's' : '—';
+        const dotHTML = Array.from({length:6}, (_,i) => {
+            let cls = 'w6-dot';
+            if (i < rounds)              cls += ' done';
+            else if (i === rounds && !done) cls += ' active';
+            return `<span class="${cls}"></span>`;
+        }).join('');
+        return `
+        <div style="
+            background:${done ? 'rgba(46,204,113,0.12)' : rounds > 0 ? 'rgba(241,196,15,0.08)' : 'rgba(255,255,255,0.05)'};
+            border:1px solid ${done ? 'rgba(46,204,113,0.5)' : rounds > 0 ? 'rgba(241,196,15,0.35)' : 'rgba(255,255,255,0.1)'};
+            border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:8px">
+            <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:.82rem;color:white">${p.symbol} ${p.group}</div>
+            <div style="display:flex;gap:5px;align-items:center">${dotHTML}</div>
+            <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:.9rem;
+                color:${done ? '#2ecc71' : rounds > 0 ? '#f1c40f' : 'rgba(255,255,255,.3)'}">
+                ${done ? `✔ 完成 ${elapsed}` : rounds > 0 ? `${rounds}/6 進行中` : '等待中'}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// ── W6_COMPLETE 接收處理（補充在 window.addEventListener message 中）──
+// 利用全域 message handler 已有的 isGameover 邏輯，
+// 另外在此監聽 W6_COMPLETE 以更新格子
+window.addEventListener('message', (e2) => {
+    if (!e2.data || e2.data.type !== 'W6_COMPLETE') return;
+    const { group, elapsed, level } = e2.data;
+    if (!group) return;
+    _w6GroupStatus[group] = { done: true, rounds: 6, elapsed };
+    w6RenderTCCards();
+    // 也更新選關畫面的格子（如果還在那個畫面）
+    w6RenderGroupCards();
+    showToast(`✔ ${group} 完成！用時 ${elapsed}s`);
+});
 
 // ── W2 格子選關（28關，無模式切換）──
 let lsW2SelectedLevel = 0;
@@ -1242,6 +1381,27 @@ function tcStartGame() {
                 }, 300);
             }
         }
+    } else if (window.state.selectedGame === 5) {
+        // W6：老師控制台顯示各組進度格子
+        const settleBtn     = document.getElementById('tc-btn-settle');
+        const levelBadge    = document.getElementById('tc-level-badge');
+        const pauseBtn      = document.getElementById('tc-btn-pause');
+        const resumeBtn     = document.getElementById('tc-btn-resume');
+        const nextContainer = document.getElementById('tc-next-level-container');
+        if (settleBtn)      settleBtn.style.display  = '';
+        if (levelBadge)   { levelBadge.style.display = ''; levelBadge.textContent = `LV.${TC.level}`; }
+        if (pauseBtn)       pauseBtn.style.display   = 'none';
+        if (resumeBtn)      resumeBtn.style.display  = 'none';
+        if (nextContainer)  nextContainer.style.display = 'none';
+        _w6GroupStatus = {};
+        const sa = document.getElementById('tc-scores-area');
+        if (sa) {
+            sa.style.padding = '16px';
+            sa.innerHTML = `
+              <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:.75rem;color:rgba(245,200,0,.6);letter-spacing:.1em;margin-bottom:12px;text-align:center">各組進度 — LV.${TC.level}</div>
+              <div id="tc-w6-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;width:100%;max-width:700px"></div>`;
+            w6RenderTCCards();
+        }
     } else if (window.state.selectedGame === 3) {
         // W4：老師控制台顯示即時分數排行，並顯示當前 mode/level badge
         const badge = document.getElementById('tc-level-badge');
@@ -1366,10 +1526,11 @@ function tcLaunchStudentIfNeeded() {
     const level = r.gameLevel || TC.level || 1;
     const selectedGame = r.selectedGame !== undefined ? r.selectedGame : (window.state.selectedGame || 0);
     const gameMode = r.gameMode || 'SINGLE';
-    const gameFiles = ['W1_消除方塊.html', 'W2_能源管線.html', 'W3_五子棋.html', 'W4_節奏合鳴.html', 'W5_你畫我猜.html'];
+    const gameFiles = ['W1_消除方塊.html', 'W2_能源管線.html', 'W3_五子棋.html', 'W4_節奏合鳴.html', 'W5_你畫我猜.html', 'W6_雙人圈圈.html'];
     const gameFile = gameFiles[selectedGame] || gameFiles[0];
     const isW2 = selectedGame === 1;
     const isW4 = selectedGame === 3;
+    const isW6 = selectedGame === 5;
 
     // 記錄目前載入的關卡狀態，防止輪詢重複觸發 iframe 重新載入
     pData.gameLevel = level;
@@ -1410,6 +1571,8 @@ function tcLaunchStudentIfNeeded() {
             url = gameFile + '?mode=' + w4mode + '&level=' + w4level + '&group=' + encodeURIComponent(myGroup) + '&student=1';
         } else if (isW5) {
             url = gameFile + '?group=' + encodeURIComponent(myGroup);
+        } else if (isW6) {
+            url = gameFile + '?autostart=' + level + '&group=' + encodeURIComponent(myGroup);
         } else {
             url = gameFile + '?autostart=' + level + '&group=' + encodeURIComponent(myGroup);
         }
@@ -1589,8 +1752,17 @@ function exitToLobby() {
 window.addEventListener('message', (e) => {
     if (!e.data || !e.data.type) return;
     const { type, score, group } = e.data;
-    const isScore   = type==='W1_SCORE' || type==='W2_SCORE' || type==='W3_SCORE' || type==='W4_SCORE' || type==='W5_SCORE';
-    const isGameover= type==='W1_GAMEOVER' || type==='W2_GAMEOVER' || type==='W4_GAMEOVER';
+    const isScore   = type==='W1_SCORE' || type==='W2_SCORE' || type==='W3_SCORE' || type==='W4_SCORE' || type==='W5_SCORE' || type==='W6_SCORE';
+    const isGameover= type==='W1_GAMEOVER' || type==='W2_GAMEOVER' || type==='W4_GAMEOVER' || type==='W6_COMPLETE';
+
+    // W6：環節進度即時更新
+    if (type === 'W6_ROUND_UPDATE' && e.data.group) {
+        const { group, rounds, elapsed } = e.data;
+        _w6GroupStatus[group] = { done: false, rounds: rounds || 0, elapsed: elapsed || null };
+        w6RenderTCCards();
+        w6RenderGroupCards();
+        return;
+    }
 
     // ── W4 學生端：直接寫入 Firebase (加上過往累積的 baseScores) ──
     if ((type === 'W4_SCORE' || type === 'W4_GAMEOVER') && group && window.state.perspective !== 'teacher') {
@@ -1940,7 +2112,7 @@ const GAMES = [
   {id:3, name:'五子棋對戰', icon:'⚫', desc:'經典組間對決',     available: true},
   {id:4, name:'節奏合鳴',   icon:'🎵', desc:'跟隨音樂律動',     available: true},
   {id:5, name:'你畫我猜',   icon:'🎨', desc:'繪畫聯想猜謎',     available: true},
-  {id:6, name:'雙人圓圈',   icon:'⭕', desc:'雙人協作平衡',     available: false},
+  {id:6, name:'雙人圈圈',   icon:'⭕', desc:'同步推入圈圈',     available: true},
   {id:7, name:'星際大富翁', icon:'🚀', desc:'擲骰冒險奪寶',     available: false},
   {id:8, name:'記憶大考驗', icon:'🧠', desc:'腦力連線挑戰',     available: false}
 ];
