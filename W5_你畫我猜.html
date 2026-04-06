@@ -535,25 +535,24 @@ function startTimer(){
 
 function forceCollect(){
   clearInterval(timer);
-  // 1) 通知學生立即 capture 並 push imgData
+  // 通知 index.html，由 index.html 透過 Firebase 廣播給所有學生
   try{ window.parent.postMessage({type:'W5_FORCE_COLLECT'},'*'); }catch(e){}
 
-  // 2) 等 2.5s 讓學生推送 imgData 到 index.html
-  //    然後請 index.html 把 merge 好的 w5state 傳回來
+  // 等待 3s：
+  //   - 學生收到 W5_FORCE_COLLECT → toDataURL → push W5_STUDENT_UPDATE
+  //   - 學生的 index.html 存入 Firebase
+  //   - 老師的 Firebase listener 收到 → 推 W5_STATE 給老師 iframe
+  //   - 老師 iframe 的 W5_STATE handler 更新 S（含 imgData）
+  // 3s 後才切 GUESSING，確保 S 已有最新 imgData
   setTimeout(()=>{
-    // 請 index.html 回傳目前 merge 後的最新 w5state
-    try{ window.parent.postMessage({type:'W5_REQUEST_STATE'},'*'); }catch(e){}
-    // 再等 300ms 給 index.html 回應時間
-    setTimeout(()=>{
-      // 把老師端 S 裡仍為空的 imgData 補白底圖（保險用）
-      S.phase='GUESSING';
-      S.groups.forEach(g=>{
-        if(!g.imgData||g.imgData.length<50) g.imgData=EMPTY;
-        g.submitted=true;
-      });
-      push(); renderT();
-    }, 300);
-  }, 2500);
+    S.phase='GUESSING';
+    // Fallback：仍為空的補白底圖
+    S.groups.forEach(g=>{
+      if(!g.imgData||g.imgData.length<100) g.imgData=EMPTY;
+      g.submitted=true;
+    });
+    push(); renderT();
+  }, 3000);
 }
 
 function revealAnswers(){
