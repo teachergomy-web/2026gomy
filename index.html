@@ -755,8 +755,8 @@ let isFirebaseAuthComplete = false;
                 startAllRoomsListener();
                 // 如果已有房間密碼，再開始監聽單一房間
                 if (window.state && window.state.roomCode) startSyncListener();
-                // Firebase 連線後嘗試恢復 session（延遲讓 allRoomsListener 先拿到資料）
-                setTimeout(tryRestoreSession, 800);
+                // Firebase 連線後嘗試恢復 session（allRoomsListener 第一次快照會優先觸發；這裡作備援）
+                setTimeout(() => { if (window._pendingRestore) tryRestoreSession(); }, 1500);
             } else {
                 isFirebaseAuthComplete = false;
             }
@@ -810,6 +810,7 @@ let roomSyncUnsubscribe = null;
 let allRoomsUnsubscribe = null;
 
 // ── 監聽所有房間（Firebase → 記憶體，Firebase 刪了就從快取移除）──
+let _allRoomsFirstSnap = false; // 是否已收到第一次快照
 function startAllRoomsListener() {
     if (!isFirebase || !db) return;
     if (allRoomsUnsubscribe) { allRoomsUnsubscribe(); allRoomsUnsubscribe = null; }
@@ -836,6 +837,12 @@ function startAllRoomsListener() {
             if (!newCache[id]) { delete local[id]; changed = true; }
         });
         if (changed) localStorage.setItem('playroom_rooms', JSON.stringify(local));
+
+        // ── 第一次快照到達後，立即嘗試恢復 session（比 setTimeout 更可靠）──
+        if (!_allRoomsFirstSnap) {
+            _allRoomsFirstSnap = true;
+            if (window._pendingRestore) tryRestoreSession();
+        }
 
         // 重新渲染房間列表
         const p = window.state && window.state.perspective;
@@ -1833,12 +1840,20 @@ window.addEventListener('message', (e) => {
     if (!e.data || !e.data.type) return;
     const { type, score, group } = e.data;
     const isScore   = type==='W1_SCORE' || type==='W2_SCORE' || type==='W3_SCORE' || type==='W4_SCORE' || type==='W5_SCORE' || type==='W6_SCORE';
-    const isGameover= type==='W1_GAMEOVER' || type==='W2_GAMEOVER' || type==='W4_GAMEOVER' || type==='W6_COMPLETE';
+    const isGameover= type==='W1_GAMEOVER' || type==='W2_GAMEOVER' || type==='W4_GAMEOVER';
+    // W6_COMPLETE 由獨立 listener 處理，不走 isGameover 流程
 
     // W6：環節進度即時更新
     if (type === 'W6_ROUND_UPDATE' && e.data.group) {
         const { group, rounds, elapsed } = e.data;
-        _w6GroupStatus[group] = { done: false, rounds: rounds || 0, elapsed: elapsed || null };
+        const prev = _w6GroupStatus[group] || {};
+        // 保留累積分數，只更新進度
+        _w6GroupStatus[group] = {
+            done: false,
+            rounds: rounds || 0,
+            elapsed: elapsed || null,
+            cumScore: prev.cumScore || 0
+        };
         w6RenderTCCards();
         w6RenderGroupCards();
         return;
@@ -2982,12 +2997,10 @@ function tryRestoreSession() {
     };
 
     // ── 安全性：學生 session 必須有 group 才有效 ──
-    // 若 perspective=teacher 但沒有特殊 teacher token，視為無效（防止誤恢復老師端）
     if (saved.perspective === 'teacher' && !saved._teacherToken) {
         localStorage.removeItem('game_session');
         hideLoading(); return;
     }
-    // 學生 session 必須有 group
     if (saved.perspective !== 'teacher' && !saved.group) {
         localStorage.removeItem('game_session');
         hideLoading(); return;
@@ -2995,6 +3008,15 @@ function tryRestoreSession() {
 
     const rooms = window.getRooms();
     const room  = rooms[saved.roomCode];
+
+    // ── Firebase 尚未就緒時，房間可能還沒同步到 localStorage ──
+    // 若 Firebase 已啟用但 room 找不到，等待一次 Firebase snapshot 後再重試
+    if (!room && isFirebase && db && !isFirebaseAuthComplete) {
+        // Firebase 還在初始化，稍後重試
+        window._pendingRestore = saved; // 還原，等 Firebase 就緒後再觸發
+        return;
+    }
+
     if (!room || !room.open) {
         localStorage.removeItem('game_session');
         hideLoading(); return;
@@ -3013,8 +3035,13 @@ function tryRestoreSession() {
         window.renderLobby();
         startSyncListener();
         if (room.status === 'playing' || room.status === 'settlement') {
+            // 恢復 TC 狀態
+            TC.level = room.gameLevel || 1;
+            TC.scores = room.scores || {};
             window.pStates['teacher'].screen = 'screen-teacher-console';
             window.goTo('screen-teacher-console');
+            // 若是 W6，重建 teacher console
+            if (room.selectedGame === 5) tcStartGame();
         } else {
             window.pStates['teacher'].screen = 'screen-lobby';
             window.goTo('screen-lobby');
@@ -3023,7 +3050,6 @@ function tryRestoreSession() {
         // 學生恢復：驗證 group 確實在房間的 players 裡
         const groupInRoom = (room.players || []).some(p => p.group === saved.group);
         if (!groupInRoom) {
-            // 組別不在房間裡（可能被清除），清除 session 回首頁
             localStorage.removeItem('game_session');
             hideLoading(); return;
         }

@@ -478,7 +478,7 @@ function triggerBurst() {
 // ══════════════════════════════════════════════════
 //  邏輯更新
 // ══════════════════════════════════════════════════
-const ACCEL = 0.6, FRICTION = 0.92;
+const ACCEL = 0.5, FRICTION = 0.78;  // 降低摩擦係數讓游標更快停止，降低加速讓操控更精準
 
 function update() {
     if (gameState !== 'PLAYING') return;
