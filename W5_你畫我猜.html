@@ -354,11 +354,13 @@ window.addEventListener('message',ev=>{
       });
     }
     // 學生端：保護本地狀態，避免 Firebase 覆蓋
+    // sameRound：同一輪才保護，新一輪時讓 submitted=false 正常生效
     if(!isTeacher&&myIdx>=0&&inc.groups){
       const mine=inc.groups[myIdx];
-      if(mine&&S.groups[myIdx]?.submitted) mine.submitted=true;
-      if(mine&&S.groups[myIdx]?.imgData&&!mine.imgData) mine.imgData=S.groups[myIdx].imgData;
-      if(mine&&!mine.guess&&S.groups[myIdx]?.guess) mine.guess=S.groups[myIdx].guess;
+      const sameRound=(inc.round===S.round);
+      if(mine&&sameRound&&S.groups[myIdx]?.submitted) mine.submitted=true;
+      if(mine&&sameRound&&S.groups[myIdx]?.imgData&&!mine.imgData) mine.imgData=S.groups[myIdx].imgData;
+      if(mine&&sameRound&&!mine.guess&&S.groups[myIdx]?.guess) mine.guess=S.groups[myIdx].guess;
     }
 
     const prevPhase=S.phase;
@@ -408,7 +410,7 @@ window.addEventListener('message',ev=>{
         g.imgData=canvas.toDataURL('image/png');
         g.submitted=true;
         const blank=isCanvasBlank();
-        if(blank){ g.score=Math.max(0,g.score-2); g.forcedBlank=true; }
+        if(blank){ g.score=Math.max(0,g.score-10); g.forcedBlank=true; }
         push();
       } else if(g&&g.submitted&&g.imgData){
         // 已提早交卷的：imgData 已有，確保再 push 一次讓老師端收到
@@ -561,7 +563,7 @@ function revealAnswers(){
     const painter=S.groups[g.guessFrom];
     if(!painter) return;
     const correct=g.guess.trim()!==''&&g.guess.trim()===painter.topic.trim();
-    if(correct){ g.score+=2; painter.score+=1; }
+    if(correct){ g.score+=20; painter.score+=10; }
   });
   try{ S.groups.forEach(g=>window.parent.postMessage({type:'W5_SCORE',group:g.name,score:g.score},'*')); }catch(e){}
   push(); renderT();
@@ -579,10 +581,11 @@ function studentSubmitDrawing(){
   const g=S.groups[myIdx];
   if(S.phase!=='DRAWING'||g.submitted) return;
   clearInterval(studentTimer); studentTimer=null;
-  // 若畫布尚未初始化（理論上不應發生，但保護一下）
   if(canvas.width<10||canvas.height<10) resizeCanvas();
   g.imgData=canvas.toDataURL('image/png');
   g.submitted=true;
+  // 提早交卷也檢查空白，空白扣 10 分
+  if(isCanvasBlank()){ g.score=Math.max(0,g.score-10); g.forcedBlank=true; }
   push(); renderS();
 }
 
@@ -672,7 +675,7 @@ function renderT(){
     // Topic line
     let topicHtml='';
     if(S.phase==='REVEAL'){
-      topicHtml=`<div class="dc-topic-line">題目：<strong>${g.topic}</strong>${g.forcedBlank?'<span style="color:var(--red);font-size:11px;margin-left:6px">⚠️ 空白 -2分</span>':''}</div>`;
+      topicHtml=`<div class="dc-topic-line">題目：<strong>${g.topic}</strong>${g.forcedBlank?'<span style="color:var(--red);font-size:11px;margin-left:6px">⚠️ 空白 -10分</span>':''}</div>`;
     } else {
       topicHtml=`<div class="dc-topic-line">${g.submitted?'已交卷 ✓':'作畫中...'}</div>`;
     }
@@ -818,8 +821,8 @@ function renderS(){
       `${painter.name} 畫的是：<strong style="color:var(--accent)">${painter.topic}</strong><br>你猜的是：<strong>${g.guess||'(未作答)'}</strong>`;
     // 顯示得分（含空白扣分）
     const myG=S.groups[myIdx];
-    const blankPenalty=myG&&myG.forcedBlank?'<br><span style="color:var(--red);font-size:13px">⚠️ 空白交卷 -2分</span>':'';
-    document.getElementById('res-pts').innerHTML=(correct?'+2 分！':'+0 分')+blankPenalty;
+    const blankPenalty=myG&&myG.forcedBlank?'<br><span style="color:var(--red);font-size:13px">⚠️ 空白交卷 -10分</span>':'';
+    document.getElementById('res-pts').innerHTML=(correct?'+20 分！':'+0 分')+blankPenalty;
     document.getElementById('res-pts').style.color=correct?'var(--green)':'var(--muted)';
   }
 }
