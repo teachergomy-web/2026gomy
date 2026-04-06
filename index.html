@@ -1161,6 +1161,7 @@ function w6NextLevel() {
     const rooms = window.getRooms();
     if (rooms[window.state.roomCode]) {
         rooms[window.state.roomCode].gameLevel = TC.level;
+        rooms[window.state.roomCode].w6status = _w6GroupStatus; // 【新增】同步清除後的狀態
         window.saveRooms(rooms);
     }
     // postMessage 給同頁學生 iframe
@@ -1182,9 +1183,28 @@ window.addEventListener('message', (e2) => {
     const newCum  = (prev.cumScore || 0) + levelScore;
     _w6GroupStatus[group] = { done: true, rounds: 6, elapsed, cumScore: newCum };
     TC.scores[group] = newCum;
+
+    // 【新增】寫入 Firebase 同步給老師端
+    const rooms = window.getRooms();
+    if (rooms[window.state.roomCode]) {
+        if (!rooms[window.state.roomCode].w6status) rooms[window.state.roomCode].w6status = {};
+        rooms[window.state.roomCode].w6status[group] = _w6GroupStatus[group];
+        
+        // 順便寫入總分，讓其他地方的計分板也能同步
+        if (!rooms[window.state.roomCode].scores) rooms[window.state.roomCode].scores = {};
+        rooms[window.state.roomCode].scores[group] = newCum;
+        window.saveRooms(rooms);
+    }
+
     w6RenderTCCards();
     w6RenderGroupCards();
-    showToast(`✔ ${group} 完成！+${levelScore}分（累積 ${newCum}分）`);
+    
+    // 區分老師與學生的提示文字
+    if (window.state.perspective === 'teacher') {
+        showToast(`✔ ${group} 完成！+${levelScore}分（累積 ${newCum}分）`);
+    } else {
+        showToast(`🏆 恭喜完成！`);
+    }
 });
 
 // ── W2 格子選關（28關，無模式切換）──
@@ -1478,6 +1498,13 @@ function tcStartGame() {
             _w6GroupStatus[g].rounds = 0;
             _w6GroupStatus[g].elapsed = null;
         });
+        
+        // 【新增】將初始或重置後的狀態同步到 Firebase
+        const roomsW6 = window.getRooms();
+        if (roomsW6[window.state.roomCode]) {
+            roomsW6[window.state.roomCode].w6status = _w6GroupStatus;
+            window.saveRooms(roomsW6);
+        }
 
         const sa = document.getElementById('tc-scores-area');
         if (sa) {
@@ -1867,6 +1894,15 @@ window.addEventListener('message', (e) => {
             elapsed: elapsed || null,
             cumScore: prev.cumScore || 0
         };
+        
+        // 【新增】寫入 Firebase 同步給老師端
+        const rooms = window.getRooms();
+        if (rooms[window.state.roomCode]) {
+            if (!rooms[window.state.roomCode].w6status) rooms[window.state.roomCode].w6status = {};
+            rooms[window.state.roomCode].w6status[group] = _w6GroupStatus[group];
+            window.saveRooms(rooms);
+        }
+
         w6RenderTCCards();
         w6RenderGroupCards();
         return;
@@ -2066,6 +2102,26 @@ setInterval(() => {
         // 如果分數有變且是老師端，重新排序並渲染
         if (scoreChanged && window.state.perspective === 'teacher' && window.pStates['teacher'].screen === 'screen-teacher-console') {
             tcRenderScores();
+        }
+    }
+
+    // 【新增】同步 W6 的各組進度與完成狀態
+    if (r.w6status) {
+        let w6Changed = false;
+        for (let g in r.w6status) {
+            const local = _w6GroupStatus[g] || {};
+            const remote = r.w6status[g];
+            if (local.rounds !== remote.rounds || local.done !== remote.done) {
+                _w6GroupStatus[g] = remote;
+                w6Changed = true;
+            }
+        }
+        if (w6Changed && window.state.perspective === 'teacher') {
+            if (window.pStates['teacher'].screen === 'screen-teacher-console') {
+                w6RenderTCCards();
+            } else if (window.pStates['teacher'].screen === 'screen-level-select') {
+                w6RenderGroupCards();
+            }
         }
     }
 
