@@ -193,10 +193,14 @@ function lighten(hex) {
 //  關卡參數（1–30）
 // ══════════════════════════════════════════════════
 function getLevelParams(level) {
-    return {
-        radius: Math.max(35, 70 - (level - 1) * 1.2),
-        speed:  0.6 + (level - 1) * 0.075
-    };
+    // level 1→30：速度 0.5→1.5，圈圈 35→90（同向，越快越大）
+    const t      = (level - 1) / 29;           // 0.0 ~ 1.0
+    const speed  = 0.5 + t * 1.0;              // 0.5 ~ 1.5
+    // 圈圈以畫面短邊比例，再 clamp 到 35–90 px
+    const shortSide  = Math.min(cw, ch);
+    const radiusPct  = 0.09 + t * 0.13;        // 9% ~ 22% of shortSide
+    const radius     = Math.max(35, Math.min(90, shortSide * radiusPct));
+    return { radius, speed };
 }
 
 // ══════════════════════════════════════════════════
@@ -263,33 +267,35 @@ function initRound() {
     cursors   = [];
     circles   = [];
 
-    // 隨機挑選 count 個角落
+    // 隨機挑選 count 個不重複角落放搖桿
     const allCorners = getCorners();
     const shuffled   = [...allCorners].sort(() => Math.random() - 0.5).slice(0, count);
 
-    // 把畫面水平切成 count 個區域供圈圈遊走
-    const zoneW = cw / count;
-    const topBound = 90 + radius + 10;
-    const botBound = ch * 0.68 - radius;
+    // 全畫面可用邊界（所有圈圈共用，不分區）
+    const pad = radius + 12;
+    const fullBounds = {
+        minX: pad,
+        maxX: cw - pad,
+        minY: 90 + pad,
+        maxY: ch * 0.72 - pad
+    };
 
     for (let i = 0; i < count; i++) {
         const color = COLORS[i % COLORS.length];
-        const sm    = speed;
+
+        // 初始位置：平均散佈，避免重疊
+        const startX = (cw / (count + 1)) * (i + 1);
+        const startY = ch * 0.38;
 
         circles.push({
-            x: zoneW * i + zoneW / 2, y: ch * 0.38,
+            x: startX, y: startY,
             tx: 0, ty: 0,
             radius,
-            bounds: {
-                minX: zoneW * i + radius + 10,
-                maxX: zoneW * (i + 1) - radius - 10,
-                minY: topBound,
-                maxY: botBound
-            },
-            speeds:    [sm * 2.2, sm * 1.0, sm * 0.3],
+            bounds: fullBounds,   // ← 全畫面，不分區
+            speeds:    [speed * 2.2, speed * 1.0, speed * 0.3],
             durations: [100, 140, 170],
             cycleIndex: i % 3, cycleTimer: 0,
-            currentSpeed: sm,
+            currentSpeed: speed,
             dashOffset: 0, glowPulse: 0,
             breathScale: 1.0, color
         });
@@ -304,7 +310,7 @@ function initRound() {
         });
 
         cursors.push({
-            x: zoneW * i + zoneW / 2, y: ch * 0.38,
+            x: startX, y: startY,
             vx: 0, vy: 0, color
         });
     }
@@ -543,22 +549,6 @@ function draw() {
     const stars = [[.12,.15],[.33,.08],[.55,.22],[.78,.11],[.9,.33],
                    [.05,.5],[.22,.72],[.45,.85],[.68,.7],[.88,.55],[.15,.4],[.6,.45]];
     for (const [sx,sy] of stars) { ctx.beginPath(); ctx.arc(sx*cw,sy*ch,1.2,0,Math.PI*2); ctx.fill(); }
-
-    // 區域分隔細線（只有多個圈圈時）
-    if (circles.length > 1) {
-        const zoneW = cw / circles.length;
-        ctx.save();
-        for (let i = 1; i < circles.length; i++) {
-            const x = zoneW * i;
-            const g = ctx.createLinearGradient(x, 56, x, ch);
-            g.addColorStop(0,   'rgba(226,177,106,0.3)');
-            g.addColorStop(0.5, 'rgba(226,177,106,0.08)');
-            g.addColorStop(1,   'rgba(226,177,106,0)');
-            ctx.beginPath(); ctx.moveTo(x, 56); ctx.lineTo(x, ch);
-            ctx.lineWidth = 1; ctx.strokeStyle = g; ctx.stroke();
-        }
-        ctx.restore();
-    }
 
     if (gameState === 'PLAYING' || gameState === 'TRANSITIONING') {
         for (let i = 0; i < circles.length; i++) {

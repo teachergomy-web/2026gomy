@@ -1018,8 +1018,9 @@ function w6UpdateLevelDisplay() {
     const descEl = document.getElementById('ls-w6-level-desc');
     if (lvEl) lvEl.textContent = TC.level;
     if (descEl) {
-        const radius = Math.max(35, 70 - (TC.level - 1) * 1.2).toFixed(0);
-        const speed  = (0.6 + (TC.level - 1) * 0.075).toFixed(1);
+        const t      = (TC.level - 1) / 29;
+        const speed  = (0.5 + t * 1.0).toFixed(2);
+        const radius = Math.round(35 + t * 55);  // 35→90
         descEl.textContent = `圈圈：${radius}px ／ 速度：${speed}`;
     }
 }
@@ -1071,44 +1072,101 @@ function w6RenderTCCards() {
     if (!grid) return;
     const players = window.state.players;
     if (!players.length) { grid.innerHTML = '<div style="color:rgba(255,255,255,.3);font-family:Nunito,sans-serif">等待玩家加入...</div>'; return; }
+
     grid.innerHTML = players.map(p => {
-        const st      = _w6GroupStatus[p.group] || {};
-        const done    = st.done    || false;
-        const rounds  = st.rounds  || 0;
-        const elapsed = st.elapsed != null ? st.elapsed + 's' : '—';
-        const dotHTML = Array.from({length:6}, (_,i) => {
+        const st       = _w6GroupStatus[p.group] || {};
+        const done     = st.done    || false;
+        const rounds   = st.rounds  || 0;
+        const elapsed  = st.elapsed != null ? st.elapsed + 's' : '—';
+        const cumScore = st.cumScore || 0;
+        const dotHTML  = Array.from({length:6}, (_,i) => {
             let cls = 'w6-dot';
-            if (i < rounds)              cls += ' done';
+            if (i < rounds)                 cls += ' done';
             else if (i === rounds && !done) cls += ' active';
             return `<span class="${cls}"></span>`;
         }).join('');
+
+        const borderColor = done ? 'rgba(46,204,113,0.55)' : rounds > 0 ? 'rgba(241,196,15,0.4)' : 'rgba(255,255,255,0.1)';
+        const bgColor     = done ? 'rgba(46,204,113,0.1)'  : rounds > 0 ? 'rgba(241,196,15,0.06)' : 'rgba(255,255,255,0.04)';
+        const statusColor = done ? '#2ecc71' : rounds > 0 ? '#f1c40f' : 'rgba(255,255,255,.3)';
+        const statusText  = done ? `✔ ${elapsed}` : rounds > 0 ? `${rounds}/6 進行中` : '等待中';
+
         return `
-        <div style="
-            background:${done ? 'rgba(46,204,113,0.12)' : rounds > 0 ? 'rgba(241,196,15,0.08)' : 'rgba(255,255,255,0.05)'};
-            border:1px solid ${done ? 'rgba(46,204,113,0.5)' : rounds > 0 ? 'rgba(241,196,15,0.35)' : 'rgba(255,255,255,0.1)'};
-            border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:8px">
+        <div style="background:${bgColor};border:1px solid ${borderColor};border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:7px">
             <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:.82rem;color:white">${p.symbol} ${p.group}</div>
             <div style="display:flex;gap:5px;align-items:center">${dotHTML}</div>
-            <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:.9rem;
-                color:${done ? '#2ecc71' : rounds > 0 ? '#f1c40f' : 'rgba(255,255,255,.3)'}">
-                ${done ? `✔ 完成 ${elapsed}` : rounds > 0 ? `${rounds}/6 進行中` : '等待中'}
+            <div style="display:flex;justify-content:space-between;align-items:center">
+                <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:.82rem;color:${statusColor}">${statusText}</div>
+                ${cumScore > 0 ? `<div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:.85rem;color:#f1c40f">${cumScore}分</div>` : ''}
             </div>
         </div>`;
     }).join('');
+
+    // 更新完成計數
+    const doneCount = players.filter(p => (_w6GroupStatus[p.group] || {}).done).length;
+    const doneEl = document.getElementById('tc-w6-done-count');
+    if (doneEl) doneEl.textContent = doneCount;
+
+    // 所有組都完成 → 顯示下一關按鈕
+    const nextWrap = document.getElementById('tc-w6-next-wrap');
+    if (nextWrap && players.length > 0 && doneCount >= players.length) {
+        nextWrap.style.display = 'block';
+        const nextLvEl = document.getElementById('tc-w6-next-lv');
+        if (nextLvEl) nextLvEl.textContent = TC.level < 30 ? TC.level + 1 : '—';
+    }
 }
 
-// ── W6_COMPLETE 接收處理（補充在 window.addEventListener message 中）──
-// 利用全域 message handler 已有的 isGameover 邏輯，
-// 另外在此監聽 W6_COMPLETE 以更新格子
+// ── W6 下一關 ──
+function w6NextLevel() {
+    if (TC.level >= 30) { showToast('已是最高關卡！'); return; }
+    TC.level++;
+    TC.isNextLevel = true;
+    // 更新 header badge
+    const levelBadge = document.getElementById('tc-level-badge');
+    if (levelBadge) levelBadge.textContent = `LV.${TC.level}`;
+    // 更新 tc-scores-area 標題
+    const lvEl = document.getElementById('tc-w6-lv');
+    if (lvEl) lvEl.textContent = TC.level;
+    // 清除每組的 done/rounds，保留 cumScore
+    Object.keys(_w6GroupStatus).forEach(g => {
+        _w6GroupStatus[g].done    = false;
+        _w6GroupStatus[g].rounds  = 0;
+        _w6GroupStatus[g].elapsed = null;
+    });
+    // 隱藏下一關按鈕，重置完成計數
+    const nextWrap = document.getElementById('tc-w6-next-wrap');
+    if (nextWrap) nextWrap.style.display = 'none';
+    const doneEl = document.getElementById('tc-w6-done-count');
+    if (doneEl) doneEl.textContent = '0';
+    w6RenderTCCards();
+    // 更新 rooms，觸發學生端 tcLaunchStudentIfNeeded
+    const rooms = window.getRooms();
+    if (rooms[window.state.roomCode]) {
+        rooms[window.state.roomCode].gameLevel = TC.level;
+        window.saveRooms(rooms);
+    }
+    // postMessage 給同頁學生 iframe
+    const sgIframe = document.getElementById('sg-iframe');
+    if (sgIframe?.contentWindow) {
+        try { sgIframe.contentWindow.postMessage({ type: 'PLATFORM_START', level: TC.level, group: '' }, '*'); } catch(e) {}
+    }
+    showToast(`▶ LV.${TC.level} 開始！`);
+}
+
+// ── W6_COMPLETE 接收處理 ──
 window.addEventListener('message', (e2) => {
     if (!e2.data || e2.data.type !== 'W6_COMPLETE') return;
-    const { group, elapsed, level } = e2.data;
+    const { group, elapsed } = e2.data;
     if (!group) return;
-    _w6GroupStatus[group] = { done: true, rounds: 6, elapsed };
+    // 計算本關得分
+    const levelScore = Math.max(100, Math.floor(1000 - parseFloat(elapsed) * 8));
+    const prev    = _w6GroupStatus[group] || {};
+    const newCum  = (prev.cumScore || 0) + levelScore;
+    _w6GroupStatus[group] = { done: true, rounds: 6, elapsed, cumScore: newCum };
+    TC.scores[group] = newCum;
     w6RenderTCCards();
-    // 也更新選關畫面的格子（如果還在那個畫面）
     w6RenderGroupCards();
-    showToast(`✔ ${group} 完成！用時 ${elapsed}s`);
+    showToast(`✔ ${group} 完成！+${levelScore}分（累積 ${newCum}分）`);
 });
 
 // ── W2 格子選關（28關，無模式切換）──
@@ -1382,7 +1440,7 @@ function tcStartGame() {
             }
         }
     } else if (window.state.selectedGame === 5) {
-        // W6：老師控制台顯示各組進度格子
+        // W6：老師控制台 — 整關期間持續顯示各組進度格子
         const settleBtn     = document.getElementById('tc-btn-settle');
         const levelBadge    = document.getElementById('tc-level-badge');
         const pauseBtn      = document.getElementById('tc-btn-pause');
@@ -1393,13 +1451,35 @@ function tcStartGame() {
         if (pauseBtn)       pauseBtn.style.display   = 'none';
         if (resumeBtn)      resumeBtn.style.display  = 'none';
         if (nextContainer)  nextContainer.style.display = 'none';
-        _w6GroupStatus = {};
+
+        // 若是新遊戲（不是下一關），重置狀態
+        if (!TC.isNextLevel) _w6GroupStatus = {};
+        // 每關開始時清除上一關的 done 標記，保留累積分數
+        Object.keys(_w6GroupStatus).forEach(g => {
+            _w6GroupStatus[g].done   = false;
+            _w6GroupStatus[g].rounds = 0;
+            _w6GroupStatus[g].elapsed = null;
+        });
+
         const sa = document.getElementById('tc-scores-area');
         if (sa) {
-            sa.style.padding = '16px';
+            sa.style.padding = '12px 16px';
             sa.innerHTML = `
-              <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:.75rem;color:rgba(245,200,0,.6);letter-spacing:.1em;margin-bottom:12px;text-align:center">各組進度 — LV.${TC.level}</div>
-              <div id="tc-w6-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;width:100%;max-width:700px"></div>`;
+              <div style="display:flex;align-items:center;justify-content:space-between;width:100%;max-width:760px;margin-bottom:10px">
+                <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:.8rem;color:rgba(245,200,0,.7);letter-spacing:.1em">
+                  ⭕ 雙人圈圈 — LV.<span id="tc-w6-lv">${TC.level}</span>
+                </div>
+                <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:.75rem;color:rgba(255,255,255,.35)">
+                  完成: <span id="tc-w6-done-count">0</span> / ${window.state.players.length} 組
+                </div>
+              </div>
+              <div id="tc-w6-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:10px;width:100%;max-width:760px"></div>
+              <div id="tc-w6-next-wrap" style="display:none;margin-top:16px;text-align:center">
+                <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:.8rem;color:#2ecc71;margin-bottom:10px">✅ 全組完成！</div>
+                <button onclick="w6NextLevel()" style="font-family:'Nunito',sans-serif;font-weight:900;font-size:1rem;padding:12px 36px;background:linear-gradient(135deg,#f5c800,#e09000);color:#1a1200;border:none;border-radius:12px;cursor:pointer;box-shadow:0 4px 0 rgba(0,0,0,.4)">
+                  ▶ 下一關 (LV.<span id="tc-w6-next-lv">${TC.level + 1}</span>)
+                </button>
+              </div>`;
             w6RenderTCCards();
         }
     } else if (window.state.selectedGame === 3) {
@@ -2626,9 +2706,9 @@ function teacherLogin() {
   // 記住這次的房間密碼，下次登入時自動清除
   localStorage.setItem('my_last_room_code', code);
 
-  // 取得房間編號
-  let roomNum = parseInt(localStorage.getItem('playroom_counter') || '0') + 1;
-  localStorage.setItem('playroom_counter', roomNum);
+  // 取得房間編號 — 只計算目前存在的開放房間數量，不累加已關閉的
+  const openRoomCount = Object.values(rooms).filter(r => r.open).length;
+  const roomNum = openRoomCount + 1;
 
   rooms[code] = { 
       open: true, teacherName: tName, roomNum: roomNum, createdAt: Date.now(),
@@ -2988,7 +3068,8 @@ Object.assign(window, {
     showToast, setViewTeacher, setViewStudent,
     syncJoinDOM, renderLobby, renderSymbolPicker, renderGroupSelect, renderGroupPicker, renderGroupPicker, updateStudentWaitDisplay,
     getRooms, saveRooms,
-    lsW4BackToMode
+    lsW4BackToMode,
+    w6ChangeLevel, w6JumpPhase, w6UpdateLevelDisplay, w6RenderGroupCards, w6NextLevel, w6RenderTCCards
 });
 </script>
 </body>
