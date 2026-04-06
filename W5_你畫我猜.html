@@ -558,9 +558,12 @@ function forceCollect(){
   // 3s 後才切 GUESSING，確保 S 已有最新 imgData
   setTimeout(()=>{
     S.phase='GUESSING';
-    // Fallback：仍為空的補白底圖
+    // Fallback：仍為空的補白底圖，並標記空白扣分
     S.groups.forEach(g=>{
-      if(!g.imgData||g.imgData.length<100) g.imgData=EMPTY;
+      if(!g.imgData||g.imgData.length<100){
+        g.imgData=EMPTY;
+        if(!g.forcedBlank){ g.score=Math.max(0,g.score-10); g.forcedBlank=true; }
+      }
       g.submitted=true;
     });
     push(); renderT();
@@ -642,10 +645,15 @@ function renderT(){
 
   // Main button
   const btn=document.getElementById('t-main-btn');
-  if(S.phase==='IDLE')         { btn.textContent=`隨機出題 · 開始第 ${S.round+1} 輪`; btn.className='btn btn-yellow'; }
-  else if(S.phase==='DRAWING') { btn.textContent=`⏱ 強制收卷 (${S.time}s)`; btn.className='btn btn-red'; }
-  else if(S.phase==='GUESSING'){ btn.textContent='🎯 公布答案'; btn.className='btn btn-purple'; }
-  else if(S.phase==='REVEAL')  { btn.textContent='—'; btn.className='btn btn-ghost'; btn.disabled=true; }
+  // REVEAL 時隱藏主按鈕，其餘階段顯示
+  if(S.phase==='REVEAL'){
+    btn.style.display='none'; btn.disabled=true;
+  } else {
+    btn.style.display='';
+    if(S.phase==='IDLE')    { btn.textContent=`隨機出題 · 開始第 ${S.round+1} 輪`; btn.className='btn btn-yellow'; btn.disabled=false; }
+    else if(S.phase==='DRAWING') { btn.textContent=`⏱ 強制收卷 (${S.time}s)`; btn.className='btn btn-red'; btn.disabled=false; }
+    else if(S.phase==='GUESSING'){ btn.textContent='🎯 公布答案'; btn.className='btn btn-purple'; btn.disabled=false; }
+  }
 
   // Round badge
   const rb=document.getElementById('round-badge');
@@ -658,7 +666,7 @@ function renderT(){
   const rules=document.getElementById('t-rules-card');
   const scEl=document.getElementById('t-scores');
   const grid=document.getElementById('t-canvas-grid');
-  btn.disabled=false;
+  // btn.disabled 已在上方各 phase 分支裡個別設定
 
   if(S.phase==='IDLE'){
     rules.style.display='block'; scEl.style.display='none'; grid.style.display='none';
