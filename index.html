@@ -946,6 +946,21 @@ function startSyncListener() {
                 try { tcW5.contentWindow.postMessage({ type: 'W5_STATE', data: data.w5state }, '*'); } catch(e2) {}
             }
         }
+        // 老師端：W6 各組進度即時更新（Firebase 推送，比輪詢快）
+        if (p === 'teacher' && data.w6status && window.state.selectedGame === 5) {
+            let changed = false;
+            for (const g in data.w6status) {
+                const remote = data.w6status[g];
+                const local  = _w6GroupStatus[g] || {};
+                if (local.rounds !== remote.rounds || local.done !== remote.done || local.cumScore !== remote.cumScore) {
+                    _w6GroupStatus[g] = remote;
+                    changed = true;
+                }
+            }
+            if (changed && window.pStates['teacher'].screen === 'screen-teacher-console') {
+                w6RenderTCCards();
+            }
+        }
     }, err => console.error('Room sync error:', err));
     console.log('✅ 監聽房間:', roomCode);
 }
@@ -1180,33 +1195,29 @@ window.addEventListener('message', (e2) => {
     if (!e2.data || e2.data.type !== 'W6_COMPLETE') return;
     const { group, elapsed } = e2.data;
     if (!group) return;
+
     // 計算本關得分
     const levelScore = Math.max(100, Math.floor(1000 - parseFloat(elapsed) * 8));
-    const prev    = _w6GroupStatus[group] || {};
-    const newCum  = (prev.cumScore || 0) + levelScore;
+    const prev   = _w6GroupStatus[group] || {};
+    const newCum = (prev.cumScore || 0) + levelScore;
     _w6GroupStatus[group] = { done: true, rounds: 6, elapsed, cumScore: newCum };
     TC.scores[group] = newCum;
 
-    // 【新增】寫入 Firebase 同步給老師端
+    // 寫入 Firebase — 老師端的 startSyncListener 會即時收到並更新格子
     const rooms = window.getRooms();
     if (rooms[window.state.roomCode]) {
         if (!rooms[window.state.roomCode].w6status) rooms[window.state.roomCode].w6status = {};
-        rooms[window.state.roomCode].w6status[group] = _w6GroupStatus[group];
-        
-        // 順便寫入總分，讓其他地方的計分板也能同步
+        rooms[window.state.roomCode].w6status[group] = { done: true, rounds: 6, elapsed, cumScore: newCum };
         if (!rooms[window.state.roomCode].scores) rooms[window.state.roomCode].scores = {};
         rooms[window.state.roomCode].scores[group] = newCum;
         window.saveRooms(rooms);
     }
 
-    w6RenderTCCards();
-    w6RenderGroupCards();
-    
-    // 區分老師與學生的提示文字
+    // 只有老師端才直接更新格子（學生端靠 Firebase 同步即可）
     if (window.state.perspective === 'teacher') {
+        w6RenderTCCards();
+        w6RenderGroupCards();
         showToast(`✔ ${group} 完成！+${levelScore}分（累積 ${newCum}分）`);
-    } else {
-        showToast(`🏆 恭喜完成！`);
     }
 });
 
@@ -1481,31 +1492,32 @@ function tcStartGame() {
             }
         }
     } else if (window.state.selectedGame === 5) {
-        // W6：老師控制台 — 整關期間持續顯示各組進度格子
+        // W6：老師控制台
         const settleBtn     = document.getElementById('tc-btn-settle');
         const levelBadge    = document.getElementById('tc-level-badge');
         const pauseBtn      = document.getElementById('tc-btn-pause');
         const resumeBtn     = document.getElementById('tc-btn-resume');
         const nextContainer = document.getElementById('tc-next-level-container');
-        if (settleBtn)      settleBtn.style.display  = 'none'; // W6 不顯示手動結算，由全組完成後才出現
+        if (settleBtn)      settleBtn.style.display  = 'none';
         if (levelBadge)   { levelBadge.style.display = ''; levelBadge.textContent = `LV.${TC.level}`; }
         if (pauseBtn)       pauseBtn.style.display   = 'none';
         if (resumeBtn)      resumeBtn.style.display  = 'none';
         if (nextContainer)  nextContainer.style.display = 'none';
 
-        // 若是新遊戲（不是下一關），重置狀態
-        if (!TC.isNextLevel) _w6GroupStatus = {};
-        // 每關開始時清除上一關的 done 標記，保留累積分數
-        Object.keys(_w6GroupStatus).forEach(g => {
-            _w6GroupStatus[g].done   = false;
-            _w6GroupStatus[g].rounds = 0;
-            _w6GroupStatus[g].elapsed = null;
-        });
-        
-        // 【新增】將初始或重置後的狀態同步到 Firebase
+        // 新遊戲：完全重置所有組的進度（cumScore 也清零）
+        if (!TC.isNextLevel) {
+            _w6GroupStatus = {};
+        } else {
+            // 下一關：只清 done/rounds，保留 cumScore
+            Object.keys(_w6GroupStatus).forEach(g => {
+                _w6GroupStatus[g] = { done: false, rounds: 0, elapsed: null, cumScore: _w6GroupStatus[g].cumScore || 0 };
+            });
+        }
+
+        // 強制把清空後的狀態寫回 Firebase，防止輪詢把舊資料拉回來
         const roomsW6 = window.getRooms();
         if (roomsW6[window.state.roomCode]) {
-            roomsW6[window.state.roomCode].w6status = _w6GroupStatus;
+            roomsW6[window.state.roomCode].w6status = {};  // 清空，讓學生端重新填入
             window.saveRooms(roomsW6);
         }
 
@@ -1895,24 +1907,22 @@ window.addEventListener('message', (e) => {
     if (type === 'W6_ROUND_UPDATE' && e.data.group) {
         const { group, rounds, elapsed } = e.data;
         const prev = _w6GroupStatus[group] || {};
-        // 保留累積分數，只更新進度
-        _w6GroupStatus[group] = {
-            done: false,
-            rounds: rounds || 0,
-            elapsed: elapsed || null,
-            cumScore: prev.cumScore || 0
-        };
-        
-        // 【新增】寫入 Firebase 同步給老師端
+        const updated = { done: false, rounds: rounds || 0, elapsed: elapsed || null, cumScore: prev.cumScore || 0 };
+        _w6GroupStatus[group] = updated;
+
+        // 寫入 Firebase
         const rooms = window.getRooms();
         if (rooms[window.state.roomCode]) {
             if (!rooms[window.state.roomCode].w6status) rooms[window.state.roomCode].w6status = {};
-            rooms[window.state.roomCode].w6status[group] = _w6GroupStatus[group];
+            rooms[window.state.roomCode].w6status[group] = updated;
             window.saveRooms(rooms);
         }
 
-        w6RenderTCCards();
-        w6RenderGroupCards();
+        // 老師端直接更新，學生端靠 Firebase
+        if (window.state.perspective === 'teacher') {
+            w6RenderTCCards();
+            w6RenderGroupCards();
+        }
         return;
     }
 
@@ -2117,23 +2127,21 @@ setInterval(() => {
         }
     }
 
-    // 【新增】同步 W6 的各組進度與完成狀態
-    if (r.w6status) {
+    // W6 各組進度：輪詢作為備援（Firebase snapshot 是主要路徑）
+    if (r.w6status && window.state.perspective === 'teacher' && window.state.selectedGame === 5) {
         let w6Changed = false;
-        for (let g in r.w6status) {
-            const local = _w6GroupStatus[g] || {};
+        for (const g in r.w6status) {
+            const local  = _w6GroupStatus[g] || {};
             const remote = r.w6status[g];
-            if (local.rounds !== remote.rounds || local.done !== remote.done) {
+            if (local.rounds !== remote.rounds || local.done !== remote.done || local.cumScore !== remote.cumScore) {
                 _w6GroupStatus[g] = remote;
                 w6Changed = true;
             }
         }
-        if (w6Changed && window.state.perspective === 'teacher') {
-            if (window.pStates['teacher'].screen === 'screen-teacher-console') {
-                w6RenderTCCards();
-            } else if (window.pStates['teacher'].screen === 'screen-level-select') {
-                w6RenderGroupCards();
-            }
+        if (w6Changed && window.pStates['teacher'].screen === 'screen-teacher-console') {
+            w6RenderTCCards();
+        } else if (w6Changed && window.pStates['teacher'].screen === 'screen-level-select') {
+            w6RenderGroupCards();
         }
     }
 
