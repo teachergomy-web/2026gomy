@@ -767,8 +767,23 @@ let isFirebaseAuthComplete = false;
                 startAllRoomsListener();
                 // 如果已有房間密碼，再開始監聽單一房間
                 if (window.state && window.state.roomCode) startSyncListener();
-                // Firebase 連線後嘗試恢復 session（allRoomsListener 第一次快照會優先觸發；這裡作備援）
-                setTimeout(() => { if (window._pendingRestore) tryRestoreSession(); }, 1500);
+                // Firebase 連線後備援恢復：每 800ms 重試一次，最多 5 次
+                let _restoreAttempts = 0;
+                const _restoreInterval = setInterval(() => {
+                    _restoreAttempts++;
+                    if (!window._pendingRestore || _restoreAttempts > 5) {
+                        clearInterval(_restoreInterval);
+                        if (window._pendingRestore) {
+                            // 超過次數仍找不到房間，清掉 session
+                            localStorage.removeItem('game_session');
+                            window._pendingRestore = null;
+                            const ld = document.getElementById('restore-loading');
+                            if (ld) ld.style.display = 'none';
+                        }
+                        return;
+                    }
+                    tryRestoreSession();
+                }, 800);
             } else {
                 isFirebaseAuthComplete = false;
             }
@@ -869,11 +884,8 @@ function startAllRoomsListener() {
         });
         if (changed) localStorage.setItem('playroom_rooms', JSON.stringify(local));
 
-        // ── 第一次快照到達後，立即嘗試恢復 session（比 setTimeout 更可靠）──
-        if (!_allRoomsFirstSnap) {
-            _allRoomsFirstSnap = true;
-            if (window._pendingRestore) tryRestoreSession();
-        }
+        // ── 每次收到快照都嘗試恢復（直到 _pendingRestore 被消費）──
+        if (window._pendingRestore) tryRestoreSession();
 
         // 重新渲染房間列表
         const p = window.state && window.state.perspective;
@@ -3118,14 +3130,13 @@ function tryRestoreSession() {
 
     const saved = window._pendingRestore;
     if (!saved || !saved.perspective || !saved.roomCode) return;
-    window._pendingRestore = null;
 
     const hideLoading = () => {
         const ld = document.getElementById('restore-loading');
         if (ld) ld.style.display = 'none';
     };
 
-    // ── 安全性：學生 session 必須有 group 才有效 ──
+    // ── 安全性：老師 session 必須有 _teacherToken ──
     if (saved.perspective === 'teacher' && !saved._teacherToken) {
         localStorage.removeItem('game_session');
         hideLoading(); return;
@@ -3138,20 +3149,23 @@ function tryRestoreSession() {
     const rooms = window.getRooms();
     const room  = rooms[saved.roomCode];
 
-    // ── Firebase 尚未就緒時，房間可能還沒同步到 localStorage ──
-    // 若 Firebase 已啟用但 room 找不到，等待一次 Firebase snapshot 後再重試
-    if (!room && isFirebase && db && !isFirebaseAuthComplete) {
-        // Firebase 還在初始化，稍後重試
-        window._pendingRestore = saved; // 還原，等 Firebase 就緒後再觸發
+    // ── 房間找不到：可能 Firebase 快照還沒到，不要急著清 session ──
+    if (!room) {
+        // 還沒收到 Firebase 資料，等 allRoomsListener 快照後再試
+        // （_pendingRestore 保留，讓 startAllRoomsListener 的第一次快照觸發）
+        window._pendingRestore = saved;
         return;
     }
 
-    if (!room || !room.open) {
+    // 房間確實已關閉才清 session
+    if (!room.open) {
         localStorage.removeItem('game_session');
         hideLoading(); return;
     }
 
-    // 恢復共用狀態
+    // ── 房間找到了，正式恢復 ──
+    window._pendingRestore = null;
+
     window.state.roomCode     = saved.roomCode;
     window.state.players      = room.players || [];
     window.state.takenSymbols = window.state.players.map(p => p.symbol);
@@ -3164,23 +3178,22 @@ function tryRestoreSession() {
         window.renderLobby();
         startSyncListener();
         if (room.status === 'playing' || room.status === 'settlement') {
-            // 恢復 TC 狀態
-            TC.level = room.gameLevel || 1;
-            TC.scores = room.scores || {};
+            TC.level  = room.gameLevel || 1;
+            TC.scores = room.scores    || {};
             window.pStates['teacher'].screen = 'screen-teacher-console';
             window.goTo('screen-teacher-console');
-            // 若是 W6，重建 teacher console
             if (room.selectedGame === 5) tcStartGame();
         } else {
             window.pStates['teacher'].screen = 'screen-lobby';
             window.goTo('screen-lobby');
         }
     } else {
-        // 學生恢復：驗證 group 確實在房間的 players 裡
+        // 學生恢復：驗證 group 在房間的 players 裡
         const groupInRoom = (room.players || []).some(p => p.group === saved.group);
         if (!groupInRoom) {
-            localStorage.removeItem('game_session');
-            hideLoading(); return;
+            // players 可能還沒同步完，保留 session 等下次快照
+            window._pendingRestore = saved;
+            return;
         }
 
         window.state.perspective = saved.perspective;
