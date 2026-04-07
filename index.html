@@ -3164,7 +3164,7 @@ function tryRestoreSession() {
     }
 
     // ── 房間找到了，正式恢復 ──
-    window._pendingRestore = null;
+    window._pendingRestore = null;  // 立即清除，防止重複執行
 
     window.state.roomCode     = saved.roomCode;
     window.state.players      = room.players || [];
@@ -3191,7 +3191,14 @@ function tryRestoreSession() {
         // 學生恢復：驗證 group 在房間的 players 裡
         const groupInRoom = (room.players || []).some(p => p.group === saved.group);
         if (!groupInRoom) {
-            // players 可能還沒同步完，保留 session 等下次快照
+            // players 可能還沒同步完，保留 session 等下次快照重試
+            // 用 _restoreRetry 計次，超過 3 次才放棄
+            saved._restoreRetry = (saved._restoreRetry || 0) + 1;
+            if (saved._restoreRetry >= 3) {
+                localStorage.removeItem('game_session');
+                hideLoading();
+                return;
+            }
             window._pendingRestore = saved;
             return;
         }
