@@ -1330,7 +1330,7 @@ function jumpToPhase(phase) {
 
 // ── 即時分數渲染 ──
 function tcRenderScores() {
-    if (window.state.selectedGame === 2 || window.state.selectedGame === 4) return;
+    if (window.state.selectedGame === 2 || window.state.selectedGame === 4 || window.state.selectedGame === 5) return;
     const area = document.getElementById('tc-scores-area');
     if (!area) return;
     const players = window.state.players;
@@ -2109,7 +2109,11 @@ setInterval(() => {
         }
         // 如果分數有變且是老師端，重新排序並渲染
         if (scoreChanged && window.state.perspective === 'teacher' && window.pStates['teacher'].screen === 'screen-teacher-console') {
-            tcRenderScores();
+            if (window.state.selectedGame === 5) {
+                w6RenderTCCards(); // W6 用格子顯示，不用排行榜
+            } else {
+                tcRenderScores();
+            }
         }
     }
 
