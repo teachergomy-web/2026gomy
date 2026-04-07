@@ -3102,15 +3102,31 @@ function tryRestoreSession() {
     const rooms = window.getRooms();
     const room  = rooms[saved.roomCode];
 
-    // 房間找不到 → Firebase 快照還沒到，等待（不清 session）
+    // 房間找不到 → 可能是跨裝置，_allRoomsCache 還沒資料
+    // 主動從 Firebase 拉取，不只等快照
     if (!room) {
         saved._waitCount = (saved._waitCount || 0) + 1;
-        if (saved._waitCount > 8) {
-            // 等太久了，房間真的不存在
-            sessionStorage.removeItem('game_session'); hideLoading();
+        if (saved._waitCount > 10) {
+            // 等太久，放棄
+            sessionStorage.removeItem('game_session');
             window._pendingRestore = null;
+            hideLoading();
+        } else if (isFirebase && db && isFirebaseAuthComplete && fsGetDoc) {
+            // 主動拉取這個房間的資料
+            fsGetDoc(fsDoc(db, 'rooms', saved.roomCode)).then(snap => {
+                if (snap.exists()) {
+                    window._allRoomsCache[saved.roomCode] = snap.data();
+                    const local = JSON.parse(localStorage.getItem('playroom_rooms') || '{}');
+                    local[saved.roomCode] = snap.data();
+                    localStorage.setItem('playroom_rooms', JSON.stringify(local));
+                }
+                // 資料拉回來後再嘗試一次
+                if (window._pendingRestore) tryRestoreSession();
+            }).catch(() => {
+                // 拉取失敗，等下次快照
+            });
         }
-        // 保留 _pendingRestore，下次快照再試
+        // 保留 _pendingRestore，等快照或主動拉取後再試
         return;
     }
 
@@ -3156,12 +3172,23 @@ function tryRestoreSession() {
         // 學生端：驗證 group 在 players 裡
         const groupInRoom = (room.players || []).some(p => p.group === saved.group);
         if (!groupInRoom) {
-            // players 可能還沒同步，最多重試 5 次
             saved._retryCount = (saved._retryCount || 0) + 1;
-            if (saved._retryCount > 5) {
+            if (saved._retryCount > 8) {
                 sessionStorage.removeItem('game_session'); hideLoading();
+                window._pendingRestore = null;
+            } else if (isFirebase && db && isFirebaseAuthComplete && fsGetDoc) {
+                // 主動拉取最新 players，不等快照
+                fsGetDoc(fsDoc(db, 'rooms', saved.roomCode)).then(snap => {
+                    if (snap.exists()) {
+                        window._allRoomsCache[saved.roomCode] = snap.data();
+                        const local = JSON.parse(localStorage.getItem('playroom_rooms') || '{}');
+                        local[saved.roomCode] = snap.data();
+                        localStorage.setItem('playroom_rooms', JSON.stringify(local));
+                    }
+                    if (window._pendingRestore) tryRestoreSession();
+                }).catch(() => { window._pendingRestore = saved; });
             } else {
-                window._pendingRestore = saved; // 下次快照再試
+                window._pendingRestore = saved;
             }
             return;
         }
