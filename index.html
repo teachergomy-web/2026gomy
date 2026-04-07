@@ -258,7 +258,7 @@ body::before {
   <div class="hero-block">
     <span class="hero-icon">🎲</span>
     <span class="mp-title">誰是遊戲王</span>
-    <div style="margin-top:10px"><span class="mp-subtitle">CLASSROOM PARTY GAMES</span></div>
+    <div style="margin-top:10px"><span class="mp-subtitle">WHO IS THE GAME KING</span></div>
   </div>
   <div class="home-btn-grid">
     <div class="home-btn-card teacher" onclick="goToTeacherLogin()">
@@ -369,7 +369,6 @@ body::before {
 
   <div class="kr-footer">
     <div style="display:flex;gap:8px;align-items:center">
-      <button class="kr-btn kr-btn-ghost" onclick="simulateJoin()">➕ 模擬加入</button>
       <button class="kr-btn kr-btn-ghost" onclick="toggleQR()">📱 QR</button>
       <button class="kr-btn kr-btn-danger" onclick="doCloseRoom()">🚪 關閉</button>
     </div>
@@ -649,17 +648,6 @@ body::before {
   </div>
   <iframe id="sg-iframe" style="flex:1;border:none;width:100%;height:calc(100% - 42px)" allow="autoplay"></iframe>
 </div>
-<script>
-// 機器人視窗：隱藏頂部 bar，讓 iframe 全螢幕，方便觀測
-if (new URLSearchParams(location.search).get('robot') === '1') {
-    document.addEventListener('DOMContentLoaded', () => {
-        const bar = document.getElementById('sg-bar');
-        const iframe = document.getElementById('sg-iframe');
-        if (bar) bar.style.display = 'none';
-        if (iframe) iframe.style.height = '100%';
-    });
-}
-</script>
 
 <div id="screen-student-wait" class="screen" style="padding:0;background:#0d0f1a;overflow:hidden">
     <div class="kr-header">
@@ -1708,9 +1696,7 @@ function tcLaunchStudentIfNeeded() {
         } else if (isW5) {
             url = gameFile + '?group=' + encodeURIComponent(myGroup);
         } else if (isW6) {
-            // 機器人視窗：URL 帶 robot=1，讓 W6 自動進入 AI 模式
-            const isRobotWindow = new URLSearchParams(location.search).get('robot') === '1';
-            url = gameFile + '?autostart=' + level + '&group=' + encodeURIComponent(myGroup) + (isRobotWindow ? '&robot=1' : '');
+            url = gameFile + '?autostart=' + level + '&group=' + encodeURIComponent(myGroup);
         } else {
             url = gameFile + '?autostart=' + level + '&group=' + encodeURIComponent(myGroup);
         }
@@ -2248,7 +2234,7 @@ setInterval(() => {
     d.style.cssText=`width:${w}px;height:${h}px;top:${Math.random()*38+5}%;animation-duration:${dur}s;animation-delay:-${Math.random()*dur}s`;
     clouds.appendChild(d);
   }
-  const COIN_EMOJI=['⭐','💎','🎮','🏆','✨'];
+  const COIN_EMOJI=['⭐','💫','🎮','🏆','✨'];
   for(let i=0;i<10;i++){
     const d=document.createElement('div');d.className='coin';
     d.textContent=COIN_EMOJI[i%COIN_EMOJI.length];
@@ -2275,16 +2261,16 @@ window.pStates = {
   's5': { screen: 'screen-home', joined: false, group: '', symbol: '', joinStep: 1 }
 };
 
-window.SYMBOLS = ['🐉', '🦁', '🐸', '🌟', '🚀', '🔮', '🦊', '🌊', '🔥', '🌍'];
+window.SYMBOLS = ['🐶', '🐱', '🦊', '🐸', '🐰', '🐻', '🐼', '🐨', '🐯', '🦁'];
 window.TEACHER_PW = '3758';
 
 // ════════════════════════════════════════════
 // 完整嵌入的遊戲 HTML 字串：消除方塊
 // ════════════════════════════════════════════
 const GAMES = [
-  {id:1, name:'星際採礦',   icon:'⭐', desc:'點擊礦石得分',     available: true},
+  {id:1, name:'消除方塊',   icon:'⭐', desc:'點擊礦石得分',     available: true},
   {id:2, name:'能源管線',   icon:'⚡', desc:'接通電力線路',     available: true},
-  {id:3, name:'五子棋對戰', icon:'⚫', desc:'經典組間對決',     available: true},
+  {id:3, name:'五子棋對戰', icon:'⚫', desc:'經典五子棋對決',     available: true},
   {id:4, name:'節奏合鳴',   icon:'🎵', desc:'跟隨音樂律動',     available: true},
   {id:5, name:'你畫我猜',   icon:'🎨', desc:'繪畫聯想猜謎',     available: true},
   {id:6, name:'雙人圈圈',   icon:'⭕', desc:'同步推入圈圈',     available: true},
@@ -2531,7 +2517,7 @@ function joinRoom() {
               throw new Error('組別已被佔用');
           }
           if (players.some(p => p.symbol === symbol)) {
-              throw new Error('符號已被使用');
+              throw new Error('頭像已被使用');
           }
           if (players.length >= 5) throw new Error('房間已滿');
 
@@ -2736,55 +2722,6 @@ function updateStudentWaitDisplay() {
               <div style="color:rgba(255,255,255,.6);font-size:.8rem;margin-top:5px">${g.desc}</div>`;
       }
   }
-}
-
-function simulateJoin() {
-  if (window.state.players.length >= 5) { window.showToast('房間已滿'); return; }
-
-  // W6：不在老師端本地加入，改由機器人視窗自己走 Firebase joinRoom 流程
-  if (window.state.selectedGame === 5 && window.state.roomCode) {
-    // 算出下一個可用組號
-    let gNum = 1;
-    while (window.state.players.some(p => p.group === `第 ${gNum} 組`) && gNum <= 5) gNum++;
-    if (gNum > 5) { window.showToast('房間已滿'); return; }
-
-    const baseUrl  = window.location.href.split('?')[0];
-    const robotUrl = `${baseUrl}?autoJoin=1&roomCode=${window.state.roomCode}&group=${gNum}&robot=1`;
-    const win = window.open(robotUrl, `robot_w6_${gNum}`, 'width=520,height=760,menubar=no,toolbar=no,location=no,status=no,resizable=yes');
-    if (!win) {
-      window.showToast(`⚠️ 請允許彈出視窗（瀏覽器封鎖）`);
-    } else {
-      window.showToast(`🤖 機器人視窗已開啟，正在加入第 ${gNum} 組...`);
-    }
-    return; // ← 不做本地加入，讓機器人視窗自己處理
-  }
-
-  // 非 W6：原本的本地模擬加入邏輯
-  let gNum = 1;
-  while (window.state.players.some(p => p.group === `第 ${gNum} 組`) && gNum <= 5) gNum++;
-  if (gNum > 5) return;
-
-  const sym = window.SYMBOLS[(gNum - 1) % window.SYMBOLS.length];
-  window.state.players.push({ group: `第 ${gNum} 組`, symbol: sym });
-  window.state.takenSymbols.push(sym);
-
-  let pKey = 's' + gNum;
-  if (window.pStates[pKey] && !window.pStates[pKey].joined) {
-    window.pStates[pKey].joined = true;
-    window.pStates[pKey].group  = `第 ${gNum} 組`;
-    window.pStates[pKey].symbol = sym;
-    window.pStates[pKey].screen = 'screen-student-wait';
-  }
-
-  const rooms = window.getRooms();
-  if (rooms[window.state.roomCode]) {
-    rooms[window.state.roomCode].players = window.state.players;
-    rooms[window.state.roomCode].playerCount = window.state.players.length;
-    window.saveRooms(rooms);
-  }
-  window.renderLobby();
-  updateStudentWaitDisplay();
-  window.showToast(`✅ 第 ${gNum} 組加入！`);
 }
 
 function teacherLogin() {
@@ -3202,7 +3139,7 @@ function tryRestoreSession() {
         pData.symbol = saved.symbol || '';
 
         const swStatus = document.getElementById('sw-my-group-status');
-        if (swStatus) swStatus.innerHTML = `✅ <b>${saved.group}</b> 已連線，等待老師啟動...`;
+        if (swStatus) swStatus.innerHTML = `✅ <b>${saved.group}</b> 已連線，等待老師開始...`;
 
         startSyncListener();
         window.updateStudentWaitDisplay();
@@ -3227,7 +3164,7 @@ function tryRestoreSession() {
 Object.assign(window, {
     testResetToHome, testSetPerspective, toggleQR, goToTeacherLogin, goToJoin, goTo,
     backToStep1, verifyRoomPassword, backToPassword, onGroupSelect, pickGroup, joinRoom,
-    simulateJoin, doCloseRoom, selectGame, leaveRoomStudent, teacherLogin, _finishJoin,
+    doCloseRoom, selectGame, leaveRoomStudent, teacherLogin, _finishJoin,
     openTeacherConsole, changeLevel, jumpToPhase, updateLevelDisplay,
     tcStartGame, tcPauseGame, tcResumeGame, tcSettleGame, tcEndGame, tcW4NextLevel, exitToLobby, studentLeaveGame, tryRestoreSession,
     showToast, setViewTeacher, setViewStudent,
