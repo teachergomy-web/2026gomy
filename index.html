@@ -1332,14 +1332,15 @@ function w8RenderTCCards() {
 // W8_COMPLETE 接收
 window.addEventListener('message', (e3) => {
     if (!e3.data || e3.data.type !== 'W8_COMPLETE') return;
-    const { group, score, elapsed } = e3.data;
+    const { group, score, elapsed, part } = e3.data;
     if (!group) return;
-    // 【修復 Bug 4】同一組已完成則忽略重複訊息（防止學生重整頁面重送）
-    if (_w8GroupStatus[group]?.done) return;
-    const pts = parseInt(score) || 0;
+    // 同一 Part 同一組已完成則忽略重複訊息
     const prev = _w8GroupStatus[group] || {};
+    if (prev.done && prev.part === (part || TC.level)) return;
+    const pts = parseInt(score) || 0;
+    // 累加跨 Part 分數
     const newCum = (prev.cumScore || 0) + pts;
-    _w8GroupStatus[group] = { done: true, score: pts, elapsed, cumScore: newCum };
+    _w8GroupStatus[group] = { done: true, score: pts, elapsed, cumScore: newCum, part: part || TC.level };
     TC.scores[group] = newCum;
 
     // 寫入 Firebase
@@ -1354,12 +1355,18 @@ window.addEventListener('message', (e3) => {
     w8RenderGroupCards();
 
     if (window.state.perspective === 'teacher') {
-        showToast(`✔ ${group} 完成！+${pts}分`);
+        showToast(`✔ ${group} Part${part||TC.level} 完成！+${pts}分（累計 ${newCum}分）`);
     }
 });
 
+function w8NextPart() {
+    // 老師按「開始下一關」→ TC.level+1，重進 tcStartGame W8 分支，廣播給學生
+    TC.level = Math.min(3, TC.level + 1);
+    TC.isNextLevel = true;
+    tcStartGame();
+}
+
 function w8GoSettle() {
-    // 觸發結算畫面（和其他遊戲一樣，透過 tcSettle）
     const settleBtn = document.getElementById('tc-btn-settle');
     if (settleBtn) settleBtn.click();
 }
@@ -1697,7 +1704,11 @@ function tcStartGame() {
         if (resumeBtn)    resumeBtn.style.display    = 'none';
         if (nextContainer) nextContainer.style.display = 'none';
 
-        _w8GroupStatus = {};
+        // 新 Part 開始：重置本 Part 的完成狀態（但保留累計分數）
+        const players = window.state.players || [];
+        players.forEach(p => {
+            if (_w8GroupStatus[p.group]) _w8GroupStatus[p.group].done = false;
+        });
         const partNames = ['','🃏 記憶翻牌','🎪 動果大遊行','🔐 金庫解碼'];
         const sa = document.getElementById('tc-scores-area');
         if (sa) {
@@ -1708,15 +1719,20 @@ function tcStartGame() {
                   🧠 記憶力大考驗 — ${partNames[TC.level]||''}
                 </div>
                 <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:.75rem;color:rgba(255,255,255,.35)">
-                  完成: <span id="tc-w8-done-count">0</span> / ${window.state.players.length} 組
+                  完成: <span id="tc-w8-done-count">0</span> / ${players.length} 組
                 </div>
               </div>
               <div id="tc-w8-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:10px;width:100%;max-width:760px"></div>
               <div id="tc-w8-next-wrap" style="display:none;margin-top:16px;text-align:center">
                 <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:.8rem;color:#2ecc71;margin-bottom:10px">✅ 全組完成！</div>
-                <button onclick="w8GoSettle()" style="font-family:'Nunito',sans-serif;font-weight:900;font-size:1rem;padding:12px 36px;background:linear-gradient(135deg,#f7c948,#e0a800);color:#1a1200;border:none;border-radius:12px;cursor:pointer;box-shadow:0 4px 0 rgba(0,0,0,.4)">
-                  🏆 公布結果
-                </button>
+                ${TC.level < 3
+                  ? `<button onclick="w8NextPart()" style="font-family:'Nunito',sans-serif;font-weight:900;font-size:1rem;padding:12px 36px;background:linear-gradient(135deg,#f7c948,#e0a800);color:#1a1200;border:none;border-radius:12px;cursor:pointer;box-shadow:0 4px 0 rgba(0,0,0,.4)">
+                       ▶ 開始 ${partNames[TC.level+1]||'下一關'}
+                     </button>`
+                  : `<button onclick="w8GoSettle()" style="font-family:'Nunito',sans-serif;font-weight:900;font-size:1rem;padding:12px 36px;background:linear-gradient(135deg,#2ecc71,#1a9955);color:#fff;border:none;border-radius:12px;cursor:pointer;box-shadow:0 4px 0 rgba(0,0,0,.4)">
+                       🏆 公布最終結果
+                     </button>`
+                }
               </div>`;
             w8RenderTCCards();
         }
@@ -1893,7 +1909,21 @@ function tcLaunchStudentIfNeeded() {
         } else if (isW6) {
             url = gameFile + '?autostart=' + level + '&group=' + encodeURIComponent(myGroup);
         } else if (isW8) {
-            url = gameFile + '?group=' + encodeURIComponent(myGroup);
+            // W8：首次載入才設 src；下一 Part 時 iframe 已存在，直接 postMessage 不重載
+            const alreadyLoaded = iframe.src && iframe.src.includes('W8');
+            if (!alreadyLoaded) {
+                url = gameFile + '?group=' + encodeURIComponent(myGroup);
+            } else {
+                // 已載入，直接發 PLATFORM_START，不走 onload
+                try {
+                    iframe.contentWindow.postMessage({
+                        type: 'PLATFORM_START', level, group: myGroup
+                    }, '*');
+                } catch(e) {}
+                pData.screen = 'screen-student-game';
+                window.goTo('screen-student-game');
+                return; // 提早結束，不設 iframe.src
+            }
         } else {
             url = gameFile + '?autostart=' + level + '&group=' + encodeURIComponent(myGroup);
         }

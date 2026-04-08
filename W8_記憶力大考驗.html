@@ -448,6 +448,18 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
   </div>
 </div>
 
+<!-- ═══ 等待老師畫面（Part完成後）═══ -->
+<div id="wait-teacher-overlay" class="hidden" style="
+  position:fixed;inset:0;background:rgba(14,14,20,.96);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:20px;z-index:400;text-align:center;padding:32px;">
+  <div style="font-size:56px" id="wt-icon">🏆</div>
+  <div style="font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:var(--accent)" id="wt-title">關卡完成！</div>
+  <div style="font-family:'Space Mono',monospace;font-size:13px;color:var(--muted)" id="wt-desc">等待老師進入下一關...</div>
+  <div style="font-family:'Space Mono',monospace;font-size:22px;color:var(--green)" id="wt-score"></div>
+  <div class="pill wait" style="animation:pulse 1.2s infinite alternate;">⏳ 請稍候</div>
+</div>
+
 <script>
 // ════════════════════════════════════
 // 背景星星
@@ -493,17 +505,23 @@ window.addEventListener('message', e=>{
   platformMode=true;
   platformGroup=group||'';
   const part=Math.max(1,Math.min(3,parseInt(level)||1));
+  // 隱藏等待畫面（如果上一個 Part 完成後在等待）
+  document.getElementById('wait-teacher-overlay').classList.add('hidden');
   // 隱藏選單、直接啟動指定 Part
   document.getElementById('main-menu').classList.add('hidden');
   document.getElementById('ui-header').classList.add('on');
   // 平台模式下「離開」按鈕隱藏，不讓學生自行退出
   const leaveBtn=document.querySelector('#ui-header .btn-ghost');
   if(leaveBtn) leaveBtn.style.display='none';
-  startPart(part);
+  // 平台模式：分數跨 Part 累加，不歸零
+  startPart(part, /*keepScore=*/platformMode && curPart>0);
 });
 
-function startPart(part){
-  curPart=part; curLvl=1; score=0; currentRetryCount=0;
+function startPart(part, keepScore=false){
+  curPart=part;
+  curLvl=1;
+  if(!keepScore) score=0; // 獨立模式才歸零；平台模式跨 Part 累加
+  currentRetryCount=0;
   document.getElementById('main-menu').classList.add('hidden');
   document.getElementById('ui-header').classList.add('on');
   document.getElementById('header-part').textContent=`PART ${part}`;
@@ -543,6 +561,40 @@ function loadLevel(isRetry=false){
 function nextLevel(){
   if(curLvl<10){ curLvl++; currentRetryCount=0; loadLevel(); }
   else showFinalResult();
+}
+
+function showStatus(icon, title, desc, isWin, pts){
+  const modal=document.getElementById('status-modal');
+  modal.classList.remove('hidden');
+  document.getElementById('modal-icon').textContent=icon;
+  document.getElementById('status-title').textContent=title;
+  document.getElementById('status-title').style.color=isWin?'var(--green)':'var(--red)';
+  document.getElementById('status-desc').textContent=desc;
+
+  const badge=document.getElementById('modal-score-badge');
+  if(isWin&&pts>0){ badge.textContent=`+${pts} 分`; badge.style.display=''; }
+  else badge.style.display='none';
+
+  const nextBtn=document.getElementById('modal-next-btn');
+  const retryBtn=document.getElementById('modal-retry-btn');
+  if(isWin){
+    if(platformMode){
+      // 平台模式：成功後短暫顯示得分，1.5 秒後自動進下一關（學生不需要點按鈕）
+      nextBtn.style.display='none';
+      retryBtn.style.display='none';
+      setTimeout(()=>{
+        modal.classList.add('hidden');
+        nextLevel();
+      },1500);
+    } else {
+      nextBtn.textContent=curLvl<10?'前進下一關 →':'完成挑戰！';
+      nextBtn.onclick=nextLevel; nextBtn.style.display='';
+      retryBtn.style.display='none';
+    }
+  } else {
+    nextBtn.style.display='none';
+    retryBtn.style.display=''; retryBtn.onclick=()=>loadLevel(true);
+  }
 }
 
 // ── 分數浮字動畫 ──
@@ -1372,52 +1424,32 @@ function triggerSafeError(){
 
 function updateGearUI(){ /* canvas 版不需要這個，保留避免殘留呼叫 */ }
 
-// ════════════════════════════════════
-// 共用：顯示結果 Modal
-// ════════════════════════════════════
-function showStatus(icon, title, desc, isWin, pts){
-  const modal=document.getElementById('status-modal');
-  modal.classList.remove('hidden');
-  document.getElementById('modal-icon').textContent=icon;
-  document.getElementById('status-title').textContent=title;
-  document.getElementById('status-title').style.color=isWin?'var(--green)':'var(--red)';
-  document.getElementById('status-desc').textContent=desc;
-
-  const badge=document.getElementById('modal-score-badge');
-  if(isWin&&pts>0){ badge.textContent=`+${pts} 分`; badge.style.display=''; }
-  else badge.style.display='none';
-
-  const nextBtn=document.getElementById('modal-next-btn');
-  const retryBtn=document.getElementById('modal-retry-btn');
-  if(isWin){
-    nextBtn.textContent=curLvl<10?'前進下一關 →':'完成挑戰！';
-    nextBtn.onclick=nextLevel; nextBtn.style.display='';
-    retryBtn.style.display='none';
-  } else {
-    nextBtn.style.display='none';
-    retryBtn.style.display=''; retryBtn.onclick=()=>loadLevel(true);
-  }
-}
-
 function showFinalResult(){
   stopGameTimer();
-  const elapsed=getElapsed();
-  showStatus('👑','記憶大師！',`恭喜完成所有挑戰！\n最終得分：${score}`,true,0);
-  document.getElementById('modal-score-badge').textContent=`總分 ${score}`;
-  document.getElementById('modal-score-badge').style.display='';
   if(platformMode){
-    // 平台模式：回報給 index.html
+    // 平台模式：隱藏遊戲畫面，顯示等待老師畫面，並發 W8_COMPLETE
+    document.getElementById('status-modal').classList.add('hidden');
+    const ov=document.getElementById('wait-teacher-overlay');
+    ov.classList.remove('hidden');
+    document.getElementById('wt-icon').textContent='🏆';
+    document.getElementById('wt-title').textContent='本關完成！';
+    const partNames=['','🃏 翻牌','🎪 遊行','🔐 解碼'];
+    document.getElementById('wt-desc').textContent=`${partNames[curPart]||''} 所有關卡完成\n等待老師進入下一關...`;
+    document.getElementById('wt-score').textContent=`本關總分：${score} 分`;
     try{
       window.parent.postMessage({
         type:'W8_COMPLETE',
         group: platformGroup,
         part: curPart,
         score,
-        elapsed: elapsed.toFixed(1)
+        elapsed: getElapsed().toFixed(1)
       },'*');
     }catch(e){}
-    document.getElementById('modal-next-btn').style.display='none';
   } else {
+    // 獨立模式
+    showStatus('👑','記憶大師！',`恭喜完成所有挑戰！\n最終得分：${score}`,true,0);
+    document.getElementById('modal-score-badge').textContent=`總分 ${score}`;
+    document.getElementById('modal-score-badge').style.display='';
     document.getElementById('modal-next-btn').textContent='回到大廳';
     document.getElementById('modal-next-btn').onclick=backToMenu;
   }
