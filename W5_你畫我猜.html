@@ -175,10 +175,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
     <div class="rule-title">你畫我猜 🎨</div>
     <div class="rule-group" id="s-group-label">第 ? 組</div>
     <ul class="rules-list">
-      <li>收到題目後限時 <strong>30 秒</strong>畫出來</li>
+      <li>收到題目後限時畫出來</li>
       <li>可以提早交卷，等待倒數結束</li>
       <li>時間到畫作自動傳給另一組猜</li>
-      <li>猜對：猜題組 +2 分，出題組 +1 分</li>
+      <li>猜對：猜題組 +20 分，出題組 +10 分</li>
       <li>老師統一公布答案後進入下一輪</li>
     </ul>
     <div class="pill wait" style="margin-top:16px;">等待老師出題...</div>
@@ -318,17 +318,20 @@ window.addEventListener('message',ev=>{
 
   // ── 暫停 / 繼續 ──
   if(d.type==='PLATFORM_PAUSE'){
-    let po=document.getElementById('w5-pause-overlay');
-    if(!po){
-      po=document.createElement('div');
-      po.id='w5-pause-overlay';
-      po.style.cssText='position:fixed;inset:0;background:rgba(14,14,20,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:999;text-align:center;';
-      po.innerHTML='<div style="font-size:52px">⏸</div><div style="font-family:Space Mono,monospace;font-size:20px;font-weight:700;color:#f7c948;">遊戲暫停中</div><div style="font-size:13px;color:#6b6b8a;">等待老師繼續...</div>';
-      document.body.appendChild(po);
+    // 學生端：顯示暫停覆蓋層
+    if(!isTeacher){
+      let po=document.getElementById('w5-pause-overlay');
+      if(!po){
+        po=document.createElement('div');
+        po.id='w5-pause-overlay';
+        po.style.cssText='position:fixed;inset:0;background:rgba(14,14,20,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:999;text-align:center;';
+        po.innerHTML='<div style="font-size:52px">⏸</div><div style="font-family:Space Mono,monospace;font-size:20px;font-weight:700;color:#f7c948;">遊戲暫停中</div><div style="font-size:13px;color:#6b6b8a;">等待老師繼續...</div>';
+        document.body.appendChild(po);
+      }
+      po.style.display='flex';
     }
-    po.style.display='flex';
-    // 老師端停計時器；學生端不自己倒數，不需要處理
-    if(isTeacher && timer){ clearInterval(timer); timer=null; }
+    // 老師端：停計時器（避免繼續 push S.time 給學生）
+    if(timer){ clearInterval(timer); timer=null; }
     return;
   }
   if(d.type==='PLATFORM_RESUME'){
