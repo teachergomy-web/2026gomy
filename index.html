@@ -1047,7 +1047,7 @@ function openTeacherConsole() {
     const isW2 = window.state.selectedGame === 1;
     const isW4 = window.state.selectedGame === 3;
     const isW6 = window.state.selectedGame === 5;
-    const isW7 = window.state.selectedGame === 7;
+    const isW7 = window.state.selectedGame === 6;
     document.getElementById('ls-w1').style.display = (!isW2 && !isW4 && !isW6 && !isW7) ? 'flex' : 'none';
     document.getElementById('ls-w2').style.display = isW2 ? 'flex' : 'none';
     document.getElementById('ls-w4').style.display = isW4 ? 'flex' : 'none';
@@ -1703,7 +1703,7 @@ function tcStartGame() {
               </div>`;
             w6RenderTCCards();
         }
-    } else if (window.state.selectedGame === 7) {
+    } else if (window.state.selectedGame === 6) {
         // W7：老師控制台顯示各組完成狀態
         const levelBadge    = document.getElementById('tc-level-badge');
         const nextContainer = document.getElementById('tc-next-level-container');
@@ -1877,12 +1877,12 @@ function tcLaunchStudentIfNeeded() {
         return;
     }
     const gameMode = r.gameMode || 'SINGLE';
-    const gameFiles = ['W1_消除方塊.html', 'W2_能源管線.html', 'W3_五子棋.html', 'W4_節奏合鳴.html', 'W5_你畫我猜.html', 'W6_雙人圈圈.html', 'W9_星際大富翁.html', 'W7_記憶力大考驗.html'];
+    const gameFiles = ['W1_消除方塊.html', 'W2_能源管線.html', 'W3_五子棋.html', 'W4_節奏合鳴.html', 'W5_你畫我猜.html', 'W6_雙人圈圈.html', 'W7_記憶力大考驗.html','W8_星際大富翁.html' ];
     const gameFile = gameFiles[selectedGame] || gameFiles[0];
     const isW2 = selectedGame === 1;
     const isW4 = selectedGame === 3;
     const isW6 = selectedGame === 5;
-    const isW7 = selectedGame === 7;
+    const isW7 = selectedGame === 6;
 
     // 記錄目前載入的關卡狀態，防止輪詢重複觸發 iframe 重新載入
     pData.gameLevel = level;
@@ -2033,7 +2033,7 @@ function tcSettleGame() {
     const players = window.state.players;
     const isW3 = window.state.selectedGame === 2;
     const isW6 = window.state.selectedGame === 5;
-    const isW7 = window.state.selectedGame === 7;
+    const isW7 = window.state.selectedGame === 6;
     const rooms = window.getRooms();
     const room  = rooms[window.state.roomCode] || {};
 
@@ -2060,10 +2060,10 @@ function tcSettleGame() {
             mergedScores[g] = Math.max(mergedScores[g] || 0, cum);
         }
     }
-    // W7：從 _W7GroupStatus 取累計分數
+    // W7：從 _w7GroupStatus 取累計分數
     if (isW7) {
-        for (const g in _W7GroupStatus) {
-            const cum = _W7GroupStatus[g]?.cumScore || 0;
+        for (const g in _w7GroupStatus) {
+            const cum = _w7GroupStatus[g]?.cumScore || 0;
             mergedScores[g] = Math.max(mergedScores[g] || 0, cum);
         }
     }
