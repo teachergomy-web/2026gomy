@@ -917,12 +917,21 @@ function initState() {
   }
 }
 
-// 接收平台轉發的 W8_STATE（學生端）
+// 接收平台轉發的訊息
 window.addEventListener('message', (e) => {
   if (!e.data) return;
+  // 學生端：接收老師廣播的遊戲狀態
   if (e.data.type === 'W8_STATE' && myRole === 'student') {
     gameState = e.data.state;
     render();
+  }
+  // 老師端：接收學生擲骰結果
+  if (e.data.type === 'W8_ROLL' && myRole === 'teacher') {
+    const { teamId, diceResult } = e.data;
+    if (gameState && parseInt(teamId) === gameState.currentTurn) {
+      updateState({ phase: 'rolled', diceResult });
+      showToast(`🎲 第${teamId}組擲出 ${diceResult.total} 步！`);
+    }
   }
 });
 
@@ -1191,6 +1200,11 @@ function renderRevealPanel() {
 
 function renderStudent() {
   const gs = gameState;
+  if (!gs || !gs.teams) {
+    const sa = document.getElementById('student-action');
+    if (sa) sa.innerHTML = '<div class="waiting-msg"><div class="pulse-dot"></div><span>等待遊戲開始...</span></div>';
+    return;
+  }
   const myTeam = TEAMS[myTeamId - 1];
   if (myTeam) {
     document.getElementById('s-my-icon').textContent = myTeam.icon;
@@ -1235,7 +1249,7 @@ function renderStudent() {
     if (dice) {
       const diceFaces = ['⚀','⚁','⚂','⚃','⚄','⚅'];
       sa.innerHTML = `
-        <div style="margin-bottom:0.5rem;color:#555;font-weight:700;">${isMyTurn?'你們':'${currentT?.icon}'} 擲出了：</div>
+        <div style="margin-bottom:0.5rem;color:#555;font-weight:700;">${isMyTurn ? '你們' : (currentT?.icon || '')} 擲出了：</div>
         <div class="dice-result">
           <div class="dice-face">${diceFaces[(dice.d1||1)-1]}</div>
           ${dice.d2 ? `<div class="dice-face">${diceFaces[(dice.d2||1)-1]}</div>` : ''}
@@ -1275,18 +1289,29 @@ function renderStudent() {
 
 // ===== DICE =====
 function rollDice() {
+  // 防護：只有輪到自己才能擲
+  if (!gameState || gameState.currentTurn !== myTeamId) return;
   const team = gameState.teams[myTeamId];
-  if (!team) return;
+  if (!team || team.skipTurn) return;
 
   const d1 = Math.ceil(Math.random() * 6);
   let d2 = null;
   if (team.extraDice) d2 = Math.ceil(Math.random() * 6);
   const total = d1 + (d2 || 0);
 
-  updateState({
-    phase: 'rolled',
-    diceResult: { d1, d2, total }
-  });
+  // 學生端：通知老師端（老師端再廣播給所有學生）
+  if (myRole === 'student') {
+    try {
+      window.parent.postMessage({
+        type: 'W8_ROLL',
+        teamId: myTeamId,
+        diceResult: { d1, d2, total }
+      }, '*');
+    } catch(e) {}
+  } else {
+    // 老師端（獨立模式）直接更新
+    updateState({ phase: 'rolled', diceResult: { d1, d2, total } });
+  }
   showToast(`🎲 ${TEAMS[myTeamId-1]?.icon} 擲出 ${total} 步！`);
 }
 
@@ -1395,31 +1420,47 @@ async function fetchQuestion(isSpecial) {
   "explanation": "解釋說明"
 }`;
 
+  // 先用備用題庫（瀏覽器直接呼叫 Anthropic API 會被 CORS 擋住）
+  // 若平台有提供 AI proxy 可在此替換
   try {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': '',          // 平台代理不需填；獨立部署時填入自己的 key
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
+        max_tokens: 500,
         messages: [{ role: 'user', content: prompt }]
       })
     });
+    if (!resp.ok) throw new Error('API error');
     const data = await resp.json();
     const text = data.content?.[0]?.text || '';
-    const clean = text.replace(/```json|```/g, '').trim();
+    const clean = text.replace(/```json[\s\S]*?```|```/g, '').trim();
     const q = JSON.parse(clean);
     currentQuestion = q;
-    updateState({ question: q, phase: isSpecial ? 'answering' : 'answering' });
+    updateState({ question: q, phase: 'answering' });
   } catch(e) {
-    // Fallback question
-    const fallback = {
-      question: '「一石二鳥」這個成語的意思是？',
-      optionA: '做一件事同時達成兩個目的',
-      optionB: '用石頭打兩隻鳥',
-      answer: 'A',
-      explanation: '一石二鳥比喻做一件事情，同時達到兩個目的，是常用的成語。'
-    };
+    // 備用題庫（AI 無法連線時使用）
+    const fallbackPool = [
+      { question: '「一石二鳥」這個成語的意思是？', optionA: '做一件事同時達成兩個目的', optionB: '用石頭打兩隻鳥', answer: 'A', explanation: '一石二鳥比喻做一件事，同時達到兩個目的。' },
+      { question: '地球上最大的海洋是？', optionA: '大西洋', optionB: '太平洋', answer: 'B', explanation: '太平洋是地球上面積最大的海洋，約佔地球表面積的三分之一。' },
+      { question: '植物行光合作用需要什麼？', optionA: '陽光和二氧化碳', optionB: '陽光和氧氣', answer: 'A', explanation: '植物利用陽光、水和二氧化碳進行光合作用，製造養分並釋放氧氣。' },
+      { question: '「半途而廢」的意思是？', optionA: '做事做到一半就放棄', optionB: '做事非常努力', answer: 'A', explanation: '半途而廢形容事情做到一半就放棄，沒有堅持到底。' },
+      { question: '台灣最高的山是？', optionA: '雪山', optionB: '玉山', answer: 'B', explanation: '玉山海拔3952公尺，是台灣最高峰，也是東北亞最高山。' },
+      { question: '水在幾度時會結冰？', optionA: '0°C', optionB: '100°C', answer: 'A', explanation: '水在攝氏0度時結冰，在攝氏100度時沸騰變成水蒸氣。' },
+      { question: '「亡羊補牢」的意思是？', optionA: '羊跑掉後才修羊圈，比喻事後補救', optionB: '提早準備，防患未然', answer: 'A', explanation: '亡羊補牢比喻出了問題後趕快補救，還不算太晚。' },
+      { question: '蝙蝠用什麼方式在黑暗中辨別方向？', optionA: '超聲波回聲定位', optionB: '靠眼睛看', answer: 'A', explanation: '蝙蝠發出超聲波，利用聲波反射來判斷物體位置，稱為回聲定位。' },
+      { question: '「囫圇吞棗」比喻什麼？', optionA: '學習時不求甚解', optionB: '吃東西很快', answer: 'A', explanation: '囫圇吞棗比喻學習時不加思考，全部死記硬背，不求真正理解。' },
+      { question: '彩虹有幾種顏色？', optionA: '五種', optionB: '七種', answer: 'B', explanation: '彩虹有紅、橙、黃、綠、藍、靛、紫七種顏色，是光線折射形成的。' },
+    ];
+    const fallback = isSpecial
+      ? fallbackPool.filter((_, i) => i % 2 === 0)[Math.floor(Math.random() * 5)]
+      : fallbackPool[Math.floor(Math.random() * fallbackPool.length)];
     updateState({ question: fallback, phase: 'answering' });
   }
 }
@@ -1454,13 +1495,19 @@ function nextTurn() {
   const gs = gameState;
   const tc = parseInt(gs.teamCount) || teamCount;
   let next = (gs.currentTurn % tc) + 1;
+  let safetyCount = 0;
 
-  // Check if next team needs to skip
-  const nextTeam = gs.teams[next];
-  if (nextTeam?.skipTurn) {
-    updateTeam(next, { skipTurn: false });
-    showToast(`⏸ ${TEAMS[next-1]?.icon} 停一回合，跳過！`);
-    next = (next % tc) + 1;
+  // while 迴圈：跳過所有停止中的組
+  while (safetyCount < tc) {
+    const nextTeam = gs.teams[next];
+    if (nextTeam?.skipTurn) {
+      updateTeam(next, { skipTurn: false });
+      showToast(`⏸ ${TEAMS[next-1]?.icon} 停一回合，跳過！`);
+      next = (next % tc) + 1;
+      safetyCount++;
+    } else {
+      break;
+    }
   }
 
   updateState({
