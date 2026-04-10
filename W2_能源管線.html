@@ -890,6 +890,18 @@
             }
         }
         
+
+// 防止螢幕自動關閉
+let wakeLock = null;
+async function requestWakeLock() {
+    try {
+        wakeLock = await navigator.wakeLock.request('screen');
+    } catch (e) {}
+}
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') requestWakeLock();
+});
+requestWakeLock();
         // ── 星星背景 ──
         (function(){
             const stars = document.getElementById('stars');

@@ -1021,6 +1021,18 @@ window.addEventListener('message',(e)=>{
     }
 });
 
+// 防止螢幕自動關閉
+let wakeLock = null;
+async function requestWakeLock() {
+    try {
+        wakeLock = await navigator.wakeLock.request('screen');
+    } catch (e) {}
+}
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') requestWakeLock();
+});
+requestWakeLock();
+
 // Auto-start
 (function(){
     // 隱藏外層 index.html 的抽籤列

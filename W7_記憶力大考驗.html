@@ -1445,6 +1445,18 @@ async function startSafe(){
 
   if(currentRetryCount>0) document.getElementById('safe-skip-btn').classList.remove('hidden');
 
+// 防止螢幕自動關閉
+let wakeLock = null;
+async function requestWakeLock() {
+    try {
+        wakeLock = await navigator.wakeLock.request('screen');
+    } catch (e) {}
+}
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') requestWakeLock();
+});
+requestWakeLock();
+
   // 逐一顯示指令（同時動畫轉動轉盤示意）
   for(const cmd of safeCmds){
     if(skipRequested) break;
@@ -1565,6 +1577,8 @@ function showFinalResult(){
     document.getElementById('modal-next-btn').onclick=backToMenu;
   }
 }
+
+
 </script>
 </body>
 </html>

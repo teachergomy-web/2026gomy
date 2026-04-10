@@ -584,8 +584,20 @@ function update() {
     const elapsed = (Date.now() - gameStartTime) / 1000;
     hudTime.innerText = elapsed.toFixed(1) + 's';
 
-    // 圈圈移動
-    for (const c of circles) updateCircle(c);
+    // 圈圈移動（傳入是否有游標在圈圈內）
+    for (let i = 0; i < circles.length; i++) {
+        const c = circles[i];
+        let anyIn = false;
+        if (roundMode === 'TOGETHER') {
+            // 合體回合：任一游標進入就算
+            anyIn = cursors.some(cur => Math.hypot(cur.x - c.x, cur.y - c.y) < c.radius * c.breathScale);
+        } else {
+            // 普通回合：對應游標進入就算
+            const cur = cursors[i];
+            if (cur) anyIn = Math.hypot(cur.x - c.x, cur.y - c.y) < c.radius * c.breathScale;
+        }
+        updateCircle(c, anyIn);
+    }
 
     // 游標移動
     const n = cursors.length;
@@ -643,12 +655,14 @@ function update() {
     if (sharedProgress >= PROGRESS_NEED) roundComplete();
 }
 
-function updateCircle(c) {
+function updateCircle(c, isIn) {
     c.cycleTimer++;
     if (c.cycleTimer >= c.durations[c.cycleIndex]) {
         c.cycleTimer = 0; c.cycleIndex = (c.cycleIndex + 1) % c.speeds.length;
     }
-    c.currentSpeed += (c.speeds[c.cycleIndex] - c.currentSpeed) * 0.02;
+    // 游標在圈圈內時，目標速度減慢為原本的 35%
+    const targetSpeed = isIn ? c.speeds[c.cycleIndex] * 0.35 : c.speeds[c.cycleIndex];
+    c.currentSpeed += (targetSpeed - c.currentSpeed) * 0.04;
     const dx = c.tx - c.x, dy = c.ty - c.y;
     const d  = Math.hypot(dx, dy);
     if (d <= c.currentSpeed + 1) pickWaypoint(c);
@@ -845,6 +859,18 @@ function updateFlash() {
         flashEl.style.background = 'rgba(46,204,113,0)';
     }
 }
+
+// 防止螢幕自動關閉
+let wakeLock = null;
+async function requestWakeLock() {
+    try {
+        wakeLock = await navigator.wakeLock.request('screen');
+    } catch (e) {}
+}
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') requestWakeLock();
+});
+requestWakeLock();
 
 // ══════════════════════════════════════════════════
 //  主迴圈

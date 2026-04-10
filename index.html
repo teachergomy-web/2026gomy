@@ -2143,10 +2143,21 @@ function tcEndGame() {
     if (lp)  lp.style.display  = 'none';
     if (lr)  lr.style.display  = 'none';
     if (lsl) lsl.textContent   = '🔴 遊戲中';
+
+    // ── 重置所有分數與進度，退回大廳後乾淨歸零 ──
+    TC.scores = {};
+    TC.level  = 1;
+    TC.isNextLevel = false;
+    _w6GroupStatus = {};
+    _w7GroupStatus = {};
+
     const rooms = window.getRooms();
     if (rooms[window.state.roomCode]) {
-        rooms[window.state.roomCode].status = 'lobby';
-        rooms[window.state.roomCode].paused = false;
+        rooms[window.state.roomCode].status    = 'lobby';
+        rooms[window.state.roomCode].paused    = false;
+        rooms[window.state.roomCode].scores    = {};
+        rooms[window.state.roomCode].gameLevel = 1;
+        rooms[window.state.roomCode].w6status  = {};
         window.saveRooms(rooms);
     }
     // 不強制改學生 pState，讓學生 poll 偵測到 status='lobby' 自然跳回
@@ -3472,6 +3483,18 @@ function tryRestoreSession() {
         hideLoading();
     }
 }
+
+// 防止螢幕自動關閉
+let wakeLock = null;
+async function requestWakeLock() {
+    try {
+        wakeLock = await navigator.wakeLock.request('screen');
+    } catch (e) {}
+}
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') requestWakeLock();
+});
+requestWakeLock();
 
 // ==========================================
 // 綁定全域函數
