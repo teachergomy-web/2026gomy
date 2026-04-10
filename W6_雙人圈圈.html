@@ -95,6 +95,17 @@
 
         /* ── 閃光 ── */
         #flash { position:absolute; inset:0; pointer-events:none; z-index:25; background:rgba(46,204,113,0); transition:background 0.05s; }
+
+        /* ── 暫停覆蓋層 ── */
+        #pause-overlay {
+            display:none; position:absolute; inset:0;
+            background:rgba(8,12,24,0.92); backdrop-filter:blur(4px);
+            flex-direction:column; align-items:center; justify-content:center;
+            gap:18px; z-index:40;
+        }
+        #pause-overlay .p-icon { font-size:52px; }
+        #pause-overlay .p-title { font-size:14px; color:var(--gold); text-shadow:0 0 16px var(--gold-glow); letter-spacing:3px; }
+        #pause-overlay .p-sub   { font-size:8px;  color:var(--text-dim); letter-spacing:2px; animation:blink 1.2s ease-in-out infinite; }
     </style>
 </head>
 <body>
@@ -140,6 +151,12 @@
         <p class="c-sub" id="complete-time">用時 0.0s</p>
         <p class="c-sub">等待老師進入下一關...</p>
     </div>
+</div>
+
+<div id="pause-overlay">
+    <div class="p-icon">⏸</div>
+    <div class="p-title">遊戲暫停中</div>
+    <div class="p-sub">等待老師繼續...</div>
 </div>
 
 <div id="flash"></div>
@@ -232,8 +249,16 @@ window.addEventListener('message', e => {
         if (d.group) MY_GROUP = d.group;
         startGame(d.level || 1);
     }
-    if (d.type === 'PLATFORM_PAUSE')  gameState = 'PAUSED';
-    if (d.type === 'PLATFORM_RESUME' && gameState === 'PAUSED') gameState = 'PLAYING';
+    if (d.type === 'PLATFORM_PAUSE') {
+        gameState = 'PAUSED';
+        const po = document.getElementById('pause-overlay');
+        if (po) po.style.display = 'flex';
+    }
+    if (d.type === 'PLATFORM_RESUME' && gameState === 'PAUSED') {
+        gameState = 'PLAYING';
+        const po = document.getElementById('pause-overlay');
+        if (po) po.style.display = 'none';
+    }
 });
 
 // URL 自動啟動（測試沙盒用）
@@ -314,9 +339,11 @@ function initRound() {
     };
 
     for (let i = 0; i < count; i++) {
-        const color  = COLORS[i % COLORS.length];
+        const color = COLORS[i % COLORS.length];
         const startX = (cw / (count + 1)) * (i + 1);
         const startY = ch * 0.38;
+        // 多色框線：每個圓圈都包含本輪所有游標顏色
+        const allColors = COLORS.slice(0, count);
 
         circles.push({
             x: startX, y: startY,
@@ -328,7 +355,9 @@ function initRound() {
             cycleIndex: i % 3, cycleTimer: 0,
             currentSpeed: speed,
             dashOffset: 0, glowPulse: 0,
-            breathScale: 1.0, color
+            breathScale: 1.0,
+            color,          // 自身顏色（游標 / 效果用）
+            colors: allColors // 框線多色用
         });
         pickWaypoint(circles[i]);
 
@@ -341,7 +370,7 @@ function initRound() {
         });
 
         cursors.push({
-            x: startX, y: startY,
+            x: jPos.x, y: jPos.y,
             vx: 0, vy: 0, color
         });
     }
@@ -513,7 +542,7 @@ function triggerBurst() {
 // ══════════════════════════════════════════════════
 //  邏輯更新
 // ══════════════════════════════════════════════════
-const ACCEL = 0.5, FRICTION = 0.78;  // 降低摩擦係數讓游標更快停止，降低加速讓操控更精準
+const CURSOR_SPEED = 5.5;  // 直接套用搖桿輸入的最大速度（無慣性）
 
 function update() {
     if (gameState !== 'PLAYING') return;
@@ -545,16 +574,15 @@ function update() {
             cur.vx += (Math.random() - 0.5) * 0.3;
             cur.vy += (Math.random() - 0.5) * 0.3;
         } else {
-            // 人工搖桿輸入
+            // 人工搖桿輸入（無慣性：直接設速度）
             const js = joysticks[i];
-            cur.vx += js.dx * ACCEL;
-            cur.vy += js.dy * ACCEL;
+            cur.vx = js.dx * CURSOR_SPEED;
+            cur.vy = js.dy * CURSOR_SPEED;
         }
 
-        cur.vx *= FRICTION;
-        cur.vy *= FRICTION;
-        cur.x  += cur.vx;
-        cur.y  += cur.vy;
+        // 無慣性：不套 FRICTION，直接移動
+        cur.x += cur.vx;
+        cur.y += cur.vy;
         cur.x = Math.max(15, Math.min(cw - 15, cur.x));
         cur.y = Math.max(90, Math.min(ch - 15, cur.y));
     }
@@ -629,30 +657,43 @@ function draw() {
     updateFlash();
 }
 
-// ── 圈圈 ──
+// ── 圈圈（多色框線 + 白色半透明底）──
 function drawCircle(c, isIn) {
     const r = c.radius * c.breathScale;
+    const colors = c.colors || [c.color];
+    const n = colors.length;
 
+    // 進入時外發光
     if (isIn) {
         const g = ctx.createRadialGradient(c.x, c.y, r*0.4, c.x, c.y, r*1.6);
-        g.addColorStop(0, hexAlpha(c.color, 0.2)); g.addColorStop(1, 'transparent');
+        g.addColorStop(0, 'rgba(255,255,255,0.12)'); g.addColorStop(1, 'transparent');
         ctx.beginPath(); ctx.arc(c.x, c.y, r*1.6, 0, Math.PI*2);
         ctx.fillStyle = g; ctx.fill();
     }
 
-    ctx.save();
+    // ── 白色半透明底色 ──
     ctx.beginPath(); ctx.arc(c.x, c.y, r, 0, Math.PI*2);
-    ctx.lineWidth = isIn ? 3 : 2.5;
-    ctx.strokeStyle = isIn ? lighten(c.color) : c.color;
-    ctx.setLineDash([12,8]); ctx.lineDashOffset = c.dashOffset;
-    ctx.shadowBlur = isIn ? 20 : 8; ctx.shadowColor = c.color;
-    ctx.globalAlpha = isIn ? 1.0 : 0.75; ctx.stroke(); ctx.restore();
+    ctx.fillStyle = isIn ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.09)';
+    ctx.fill();
 
-    ctx.beginPath(); ctx.arc(c.x, c.y, r-8, 0, Math.PI*2);
-    ctx.fillStyle = c.color; ctx.globalAlpha = isIn ? 0.15 : 0.07; ctx.fill(); ctx.globalAlpha = 1;
+    // ── 多色框線（平分弧段，實線）──
+    const segAngle = (Math.PI * 2) / n;
+    const startOffset = -Math.PI / 2; // 從頂部開始
+    ctx.lineWidth = isIn ? 4 : 3;
+    ctx.setLineDash([]); // 實線（多色時不用虛線）
+    for (let j = 0; j < n; j++) {
+        const a1 = startOffset + j * segAngle + 0.04; // 小間距
+        const a2 = startOffset + (j + 1) * segAngle - 0.04;
+        ctx.beginPath(); ctx.arc(c.x, c.y, r, a1, a2);
+        ctx.strokeStyle = isIn ? lighten(colors[j]) : colors[j];
+        ctx.shadowBlur = isIn ? 20 : 8; ctx.shadowColor = colors[j];
+        ctx.globalAlpha = isIn ? 1.0 : 0.85; ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    ctx.shadowBlur = 0; ctx.globalAlpha = 1;
 
     // 準星
-    ctx.save(); ctx.globalAlpha=0.35; ctx.strokeStyle=c.color; ctx.lineWidth=1; ctx.setLineDash([3,4]);
+    ctx.save(); ctx.globalAlpha=0.3; ctx.strokeStyle='rgba(255,255,255,0.6)'; ctx.lineWidth=1; ctx.setLineDash([3,4]);
     ctx.beginPath(); ctx.moveTo(c.x-16,c.y); ctx.lineTo(c.x+16,c.y); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(c.x,c.y-16); ctx.lineTo(c.x,c.y+16); ctx.stroke();
     ctx.restore();
@@ -661,8 +702,8 @@ function drawCircle(c, isIn) {
     if (isIn) {
         const rs = 0.5 + 0.5 * Math.abs(Math.sin(c.glowPulse));
         ctx.beginPath(); ctx.arc(c.x, c.y, r*rs, 0, Math.PI*2);
-        ctx.lineWidth=1.5; ctx.strokeStyle=c.color;
-        ctx.globalAlpha = 0.3*(1-rs); ctx.shadowBlur=8; ctx.shadowColor=c.color;
+        ctx.lineWidth=1.5; ctx.strokeStyle='rgba(255,255,255,0.5)';
+        ctx.globalAlpha = 0.3*(1-rs); ctx.shadowBlur=8; ctx.shadowColor='#fff';
         ctx.stroke(); ctx.shadowBlur=0; ctx.globalAlpha=1;
     }
 }

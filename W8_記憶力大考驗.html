@@ -699,22 +699,37 @@ function calcTimeBonus(elapsed, base, penalty){
 // ════════════════════════════════════
 
 const FLIP_TOTALS=[12,14,16,18,20,24,24,28,30,30];
-// 每個關卡的列數（固定比例卡片，rows 由高度自動算）
-const FLIP_COLS=[4,7,4,6,5,6,6,7,6,6];
-// rows 對應（用於格子配置驗證）
-const FLIP_ROWS=[3,2,4,3,4,4,4,4,5,5];
+// 直向撲克牌（2:3）格子配置，空格≤2
+const FLIP_COLS=[3,4,4,4,4,4,4,4,5,5];
+const FLIP_ROWS=[4,4,4,5,5,6,6,7,6,6];
 
-// ── Emoji 池：同類別、相似外形，讓玩家需要仔細辨認 ──
-// 分 3 大組，每組 5 個視覺相近：
-//   組A：各種笑臉（輪廓都是黃色圓臉）
-//   組B：各種心形（形狀都是心）
-//   組C：各種花（形狀圓形花朵）
-// 共 15 種，對應最多 15 對（30 張）
-const CARD_EMOJIS=[
-  '😀','😃','😄','😁','😆',   // A 笑臉系
-  '❤️','🧡','💛','💚','💙',   // B 愛心系（同形狀不同顏色）
-  '🌸','🌺','🌼','🌻','🌹',   // C 花朵系（圓形花，顏色和形態相近）
+// ── Emoji 池：由易到難，各關指定使用的 emoji 集合 ──
+//
+// 難度軸：
+//   易：形狀顏色差異大，一眼就認得出來
+//   中：同大類但顏色或形狀有明顯差異
+//   難：形狀顏色高度相似，需要仔細辨認
+//
+// 全域 emoji 清單（15種，對應最多 15 對）
+const CARD_EMOJIS = [
+  // 【易識別】形狀、顏色完全不同
+  '🍎','🍌','⭐','🐶','🏀',   // 0–4：紅蘋果、黃香蕉、星星、狗臉、橘球
+  // 【中識別】同大類，顏色接近但形狀有別
+  '🌸','🌻','🌊','🍇','🦋',   // 5–9：粉花、黃花、藍波、紫葡、蝴蝶
+  // 【難識別】形狀顏色高度相近
+  '😀','😄','😁','❤️','🧡',   // 10–14：笑臉系＋心形系（最難）
 ];
+
+// 各關使用的 emoji 索引範圍（數字越大越難）
+// LV1：6對，只用 0–5（最易識別的前6種）
+// LV2：7對，用 0–6
+// LV3：8對，用 0–7
+// LV4：9對，用 0–8（開始混入中等難度）
+// LV5：10對，用 0–9（全部中等難度以上）
+// LV6–10：12–15對，逐步引入 10–14（難識別）
+const LEVEL_EMOJI_COUNT = [6,7,8,9,10,12,12,14,15,15];
+// 每關從前 N 種 emoji 裡選（N = LEVEL_EMOJI_COUNT[lvIdx]）
+// pairCount 張牌對，從這 N 種循環取
 
 // 卡背 canvas：菱形格紋 + 紫青漸層邊框 + 中心圓
 function drawCardBack(canvas,w,h){
@@ -744,25 +759,33 @@ function drawCardBack(canvas,w,h){
   ctx.beginPath(); ctx.moveTo(r,0); ctx.lineTo(w-r,0); ctx.arcTo(w,0,w,r,r);
   ctx.lineTo(w,h-r); ctx.arcTo(w,h,w-r,h,r); ctx.lineTo(r,h); ctx.arcTo(0,h,0,h-r,r);
   ctx.lineTo(0,r); ctx.arcTo(0,0,r,0,r); ctx.closePath(); ctx.stroke();
-  // 中心裝飾
-  const cx=w/2, cy=h/2, ir=Math.min(w,h)*.17;
-  ctx.strokeStyle='rgba(167,139,250,.3)'; ctx.lineWidth=.8;
+  // 中心裝飾（用短邊計算半徑）
+  const cx=w/2, cy=h/2, ir=Math.min(w,h)*.2;
+  ctx.strokeStyle='rgba(167,139,250,.3)'; ctx.lineWidth=1;
   ctx.beginPath(); ctx.arc(cx,cy,ir,0,Math.PI*2); ctx.stroke();
   ctx.fillStyle='rgba(167,139,250,.18)';
   ctx.beginPath(); ctx.arc(cx,cy,ir*.5,0,Math.PI*2); ctx.fill();
+  // 四角小花紋
+  [[w*.18,h*.18],[w*.82,h*.18],[w*.18,h*.82],[w*.82,h*.82]].forEach(([px,py])=>{
+    ctx.strokeStyle='rgba(167,139,250,.2)'; ctx.lineWidth=.6;
+    ctx.beginPath(); ctx.arc(px,py,ir*.22,0,Math.PI*2); ctx.stroke();
+  });
 }
 
 // 卡面：用 canvas 畫 emoji（確保清晰不失真）
 function drawCardFront(canvas,w,h,emoji){
   const ctx=canvas.getContext('2d');
   canvas.width=w; canvas.height=h;
+  // 背景
   const bg=ctx.createLinearGradient(0,0,w,h);
   bg.addColorStop(0,'#1e1e2e'); bg.addColorStop(1,'#16161f');
   ctx.fillStyle=bg; ctx.fillRect(0,0,w,h);
-  // 基於短邊（高度）決定 emoji 大小，長方形卡片視覺更飽滿
-  const fs=Math.floor(h*.62);
-  ctx.font=`${fs}px serif`;
-  ctx.textAlign='center'; ctx.textBaseline='middle';
+  // emoji：用 sans-serif 確保系統 emoji 字型被使用，不指定 serif
+  // 字型大小基於寬度（短邊，因為現在是直向卡片），約佔 55%
+  const fs=Math.floor(w*.55);
+  ctx.font=`${fs}px sans-serif`;
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
   ctx.fillText(emoji, w/2, h/2);
 }
 
@@ -784,9 +807,13 @@ function startFlip(){
   const rows=FLIP_ROWS[lvIdx];
   const slotCount=cols*rows;
 
-  // 建牌池並 shuffle（此處消耗 seededRandom，必須只做一次）
+  // 建牌池：各關從前 N 種 emoji 取（N = LEVEL_EMOJI_COUNT[lvIdx]），由易到難
+  const availCount = LEVEL_EMOJI_COUNT[lvIdx]; // 本關可用的 emoji 種數
   const emojiPool=[];
-  for(let i=0;i<pairCount;i++) emojiPool.push(i%CARD_EMOJIS.length, i%CARD_EMOJIS.length);
+  for(let i=0;i<pairCount;i++){
+    const eidx = i % availCount; // 在可用範圍內循環
+    emojiPool.push(eidx, eidx);
+  }
   for(let i=emojiPool.length-1;i>0;i--){
     const j=Math.floor(seededRandom()*(i+1));
     [emojiPool[i],emojiPool[j]]=[emojiPool[j],emojiPool[i]];
@@ -807,15 +834,18 @@ function _buildFlipGrid(cols, rows, slotCount, emojiPool, pairCount, lvIdx){
   const availW=wrap.clientWidth-padW*2;
   const availH=wrap.clientHeight-padH*2;
 
-  // ── 固定 3:2 長方形（寬:高 = 3:2）──
-  // 先由寬度算出卡片寬
+  // ── 強制直向撲克牌（高 > 寬，比例 2:3）──
+  // 先由寬度算 cellW（限制列數）
   let cellW=Math.floor((availW-(cols-1)*gapPx)/cols);
-  let cellH=Math.round(cellW*2/3);
-  // 如果高度超出可用空間，改由高度反推
+  let cellH=Math.round(cellW*3/2); // 高 = 寬 × 1.5（直向）
+  // 若高度超出可用空間，由高度反推
   if(cellH*rows+(rows-1)*gapPx > availH){
     cellH=Math.floor((availH-(rows-1)*gapPx)/rows);
-    cellW=Math.round(cellH*3/2);
+    cellW=Math.round(cellH*2/3);
   }
+  // 安全防線：cellH 至少等於 cellW（確保直向），最小寬 28px
+  cellW=Math.max(cellW, 28);
+  if(cellH<=cellW) cellH=Math.round(cellW*3/2);
   // canvas 用 2x 解析度確保清晰
   const cvW=cellW*2, cvH=cellH*2;
 
