@@ -633,20 +633,13 @@ body::before {
 
 <div id="screen-teacher-console" class="screen" style="padding:0;background:#0d0f1a;flex-direction:column;overflow:hidden">
 
+  <!-- Header：遊戲名稱 + 密碼 + 返回 -->
   <div class="kr-header" style="border-bottom:3px solid var(--red);flex-shrink:0;padding:8px 14px;gap:8px">
-    <!-- 左：遊戲名稱 -->
     <div style="display:flex;flex-direction:column;gap:1px;min-width:0;flex:1">
       <div style="color:var(--red);font-size:.6rem;font-weight:900;letter-spacing:.08em">🔴 LIVE</div>
       <div class="kr-room-name" id="tc-game-name" style="font-size:clamp(.82rem,2.5vw,1rem);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">⭐ 星際採礦</div>
     </div>
-    <!-- 中：回合 badge + 操作按鈕 (移除了原本的下一關按鈕) -->
-    <div style="display:flex;gap:5px;align-items:center;flex-shrink:0">
-      <span id="tc-level-badge" style="background:rgba(245,200,0,.2);border:2px solid #f5c800;border-radius:8px;padding:3px 8px;font-family:'Nunito',sans-serif;font-weight:900;font-size:.75rem;color:#f5c800;white-space:nowrap">第 1 回合</span>
-      <button id="tc-btn-pause"  class="kr-btn kr-btn-ghost"  onclick="tcPauseGame()"  style="font-size:.8rem;padding:7px 10px">⏸</button>
-      <button id="tc-btn-resume" class="kr-btn kr-btn-ghost"  onclick="tcResumeGame()" style="display:none;font-size:.8rem;padding:7px 10px">▶</button>
-      <button id="tc-btn-settle" class="kr-btn kr-btn-start"  onclick="tcSettleGame()" style="font-size:.8rem;padding:7px 10px">🏆 結算</button>
-    </div>
-    <!-- 右：房間密碼 + 返回大廳 -->
+    <span id="tc-level-badge" style="background:rgba(245,200,0,.2);border:2px solid #f5c800;border-radius:8px;padding:3px 8px;font-family:'Nunito',sans-serif;font-weight:900;font-size:.75rem;color:#f5c800;white-space:nowrap;flex-shrink:0">第 1 回合</span>
     <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
       <div style="background:rgba(245,200,0,.12);border:2px solid rgba(245,200,0,.4);border-radius:8px;padding:3px 8px;text-align:center">
         <div style="color:rgba(245,200,0,.6);font-size:7px;font-weight:900;font-family:'Nunito',sans-serif;white-space:nowrap">密碼</div>
@@ -656,13 +649,21 @@ body::before {
     </div>
   </div>
 
+  <!-- 分數/組別狀態區 -->
   <div id="tc-scores-area" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:20px;overflow:hidden">
     <div style="color:rgba(255,255,255,.25);font-family:'Nunito',sans-serif;font-size:.9rem">按「全班開始」後顯示即時分數</div>
   </div>
 
-  <!-- 新增: 移到分數區下方的直接進行下一關按鈕容器 -->
-  <div id="tc-next-level-container" style="display:none; padding-bottom: 24px; text-align: center; flex-shrink:0;">
-      <button class="kr-btn kr-btn-blue" onclick="tcW4NextLevel()" style="font-size:1.1rem;padding:14px 40px;box-shadow:0 4px 0 var(--blue2);border-radius:16px;font-weight:900;">🎵 直接進行下一關 (M<span id="nl-mode"></span>-LV<span id="nl-level"></span>)</button>
+  <!-- 下一關按鈕（W4 專用）-->
+  <div id="tc-next-level-container" style="display:none;padding-bottom:8px;text-align:center;flex-shrink:0;">
+    <button class="kr-btn kr-btn-blue" onclick="tcW4NextLevel()" style="font-size:1rem;padding:12px 36px;box-shadow:0 4px 0 var(--blue2);border-radius:16px;font-weight:900;">🎵 直接進行下一關 (M<span id="nl-mode"></span>-LV<span id="nl-level"></span>)</button>
+  </div>
+
+  <!-- 底部操作列：暫停 / 繼續 / 結算（統一放這裡，永遠看得到）-->
+  <div id="tc-action-bar" style="display:none;flex-shrink:0;padding:10px 16px;border-top:1px solid rgba(255,255,255,.1);background:rgba(13,15,26,.95);display:flex;align-items:center;justify-content:center;gap:12px;">
+    <button id="tc-btn-pause"  class="kr-btn" onclick="tcPauseGame()"  style="background:rgba(255,255,255,.12);color:#fff;font-size:.9rem;padding:10px 28px;border-radius:12px;font-weight:900;">⏸ 暫停</button>
+    <button id="tc-btn-resume" class="kr-btn" onclick="tcResumeGame()" style="display:none;background:rgba(52,211,153,.2);color:#34d399;border:2px solid #34d399;font-size:.9rem;padding:10px 28px;border-radius:12px;font-weight:900;">▶ 繼續</button>
+    <button id="tc-btn-settle" class="kr-btn kr-btn-start"  onclick="tcSettleGame()" style="font-size:.9rem;padding:10px 28px;">🏆 結算</button>
   </div>
 
 </div>
@@ -1559,14 +1560,19 @@ function tcStartGame() {
     // 更新房間密碼顯示
     const tcCode = document.getElementById('tc-room-code-badge');
     if (tcCode) tcCode.textContent = window.state.roomCode || '0000';
+    // 顯示底部操作列，統一設定按鈕初始狀態
+    const actionBar = document.getElementById('tc-action-bar');
+    if (actionBar) actionBar.style.display = 'flex';
     document.getElementById('tc-btn-pause').style.display  = '';
     document.getElementById('tc-btn-resume').style.display = 'none';
+    document.getElementById('tc-btn-settle').style.display = '';
 
     // 更新 rooms
     if (r) {
-        r.status    = 'playing';
-        r.gameLevel = TC.level;
-        r.gameMode  = 'SINGLE'; 
+        r.status       = 'playing';
+        r.gameLevel    = TC.level;
+        r.gameMode     = 'SINGLE';
+        r.selectedGame = window.state.selectedGame; // 確保寫入，讓學生端 snapshot 拿到正確值
         // W4 額外存 mode / level
         if (window.state.selectedGame === 3) {
             r.w4mode  = lsW4SelectedMode;
@@ -1583,16 +1589,10 @@ function tcStartGame() {
             window.saveRooms(rooms0);
         }
         // W3：老師控制台嵌入 W3 iframe
-        const settleBtn = document.getElementById('tc-btn-settle');
         const levelBadge = document.getElementById('tc-level-badge');
-        const pauseBtn = document.getElementById('tc-btn-pause');
-        const resumeBtn = document.getElementById('tc-btn-resume');
         const nextContainer = document.getElementById('tc-next-level-container');
-        if (settleBtn) { settleBtn.style.display = ''; }
         if (levelBadge) levelBadge.style.display = 'none';
-        if (pauseBtn) pauseBtn.style.display = 'none';
-        if (resumeBtn) resumeBtn.style.display = 'none';
-        if (nextContainer) nextContainer.style.display = 'none'; // W3 隱藏
+        if (nextContainer) nextContainer.style.display = 'none';
         const sa = document.getElementById('tc-scores-area');
         if (sa) {
             sa.style.padding = '0';
@@ -1614,16 +1614,10 @@ function tcStartGame() {
             }
         }
     } else if (window.state.selectedGame === 4) {
-        // W5：老師控制台嵌入 W5 iframe（老師視角），並傳入參加人數
-        const settleBtn = document.getElementById('tc-btn-settle');
+        // W5：老師控制台嵌入 W5 iframe（老師視角）
         const levelBadge = document.getElementById('tc-level-badge');
-        const pauseBtn = document.getElementById('tc-btn-pause');
-        const resumeBtn = document.getElementById('tc-btn-resume');
         const nextContainer = document.getElementById('tc-next-level-container');
-        if (settleBtn) settleBtn.style.display = '';
         if (levelBadge) levelBadge.style.display = 'none';
-        if (pauseBtn) pauseBtn.style.display = 'none';
-        if (resumeBtn) resumeBtn.style.display = 'none';
         if (nextContainer) nextContainer.style.display = 'none';
         const sa = document.getElementById('tc-scores-area');
         if (sa) {
@@ -1643,15 +1637,9 @@ function tcStartGame() {
         }
     } else if (window.state.selectedGame === 5) {
         // W6：老師控制台 — 整關期間持續顯示各組進度格子
-        const settleBtn     = document.getElementById('tc-btn-settle');
         const levelBadge    = document.getElementById('tc-level-badge');
-        const pauseBtn      = document.getElementById('tc-btn-pause');
-        const resumeBtn     = document.getElementById('tc-btn-resume');
         const nextContainer = document.getElementById('tc-next-level-container');
-        if (settleBtn)      settleBtn.style.display  = '';
         if (levelBadge)   { levelBadge.style.display = ''; levelBadge.textContent = `LV.${TC.level}`; }
-        if (pauseBtn)       pauseBtn.style.display   = 'none';
-        if (resumeBtn)      resumeBtn.style.display  = 'none';
         if (nextContainer)  nextContainer.style.display = 'none';
 
         // 若是新遊戲（不是下一關），重置狀態
@@ -1693,15 +1681,9 @@ function tcStartGame() {
         }
     } else if (window.state.selectedGame === 7) {
         // W8：老師控制台顯示各組完成狀態
-        const settleBtn     = document.getElementById('tc-btn-settle');
         const levelBadge    = document.getElementById('tc-level-badge');
-        const pauseBtn      = document.getElementById('tc-btn-pause');
-        const resumeBtn     = document.getElementById('tc-btn-resume');
         const nextContainer = document.getElementById('tc-next-level-container');
-        if (settleBtn)    settleBtn.style.display    = '';
-        if (levelBadge) { levelBadge.style.display   = ''; levelBadge.textContent = `PART ${TC.level}`; }
-        if (pauseBtn)     pauseBtn.style.display     = 'none';
-        if (resumeBtn)    resumeBtn.style.display    = 'none';
+        if (levelBadge) { levelBadge.style.display = ''; levelBadge.textContent = `PART ${TC.level}`; }
         if (nextContainer) nextContainer.style.display = 'none';
 
         // 新 Part 開始：重置本 Part 的完成狀態（但保留累計分數）
@@ -1773,8 +1755,6 @@ function tcStartGame() {
         tcRenderScores();
         const sa = document.getElementById('tc-scores-area');
         if (sa) sa.style.padding = '';
-        const settleBtn = document.getElementById('tc-btn-settle');
-        if (settleBtn) settleBtn.style.display = '';
     } else {
         const nextContainer = document.getElementById('tc-next-level-container');
         if (nextContainer) nextContainer.style.display = 'none';
@@ -1858,7 +1838,20 @@ function tcLaunchStudentIfNeeded() {
 
     const r = window.getRooms()[window.state.roomCode] || {};
     const level = r.gameLevel || TC.level || 1;
-    const selectedGame = r.selectedGame !== undefined ? r.selectedGame : (window.state.selectedGame || 0);
+    // selectedGame：優先從 Firebase rooms 取（老師 tcStartGame 時已寫入）
+    // r.selectedGame = 0 代表 W1（真正的 W1），不是「未設定」
+    // 若 r.selectedGame 缺失（undefined/null），則用 window.state 備援
+    let selectedGame = (r.selectedGame !== undefined && r.selectedGame !== null)
+        ? r.selectedGame
+        : window.state.selectedGame;
+    // 最後防線：若兩者都拿不到，不要啟動，等下次 Firebase 同步
+    if (selectedGame === undefined || selectedGame === null) return;
+    selectedGame = parseInt(selectedGame, 10) || 0;
+    // 若 selectedGame 仍是 0 但 iframe 已載入非 W1，代表 Firebase 延遲，不重載
+    const currentIframeSrc = (document.getElementById('sg-iframe') || {}).src || '';
+    if (selectedGame === 0 && currentIframeSrc && !currentIframeSrc.includes('about:blank') && !currentIframeSrc.includes('W1')) {
+        return;
+    }
     const gameMode = r.gameMode || 'SINGLE';
     const gameFiles = ['W1_消除方塊.html', 'W2_能源管線.html', 'W3_五子棋.html', 'W4_節奏合鳴.html', 'W5_你畫我猜.html', 'W6_雙人圈圈.html', 'W7_星際大富翁.html', 'W8_記憶力大考驗.html'];
     const gameFile = gameFiles[selectedGame] || gameFiles[0];
@@ -2074,6 +2067,8 @@ function tcEndGame() {
     if (sgIframe) { sgIframe.src = 'about:blank'; }
     document.getElementById('tc-btn-pause').style.display  = '';
     document.getElementById('tc-btn-resume').style.display = 'none';
+    const actionBar = document.getElementById('tc-action-bar');
+    if (actionBar) actionBar.style.display = 'none';
     // 大廳：隱藏遊戲控制區，顯示開始按鈕
     const lgs = document.getElementById('lobby-game-status');
     const lsb = document.getElementById('lobby-start-btn');
