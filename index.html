@@ -1398,6 +1398,17 @@ window.addEventListener('message', (e3) => {
     }
 });
 
+// ── W8_ROLL 接收：學生擲骰後通知老師，老師 iframe 更新狀態再廣播 ──
+window.addEventListener('message', (e9) => {
+    if (!e9.data || e9.data.type !== 'W8_ROLL') return;
+    if (window.state.perspective !== 'teacher') return;
+    // 轉發給老師的 tc-w8-iframe，由老師 iframe 處理移動邏輯
+    const tcW8 = document.getElementById('tc-w8-iframe');
+    if (tcW8 && tcW8.contentWindow) {
+        try { tcW8.contentWindow.postMessage(e9.data, '*'); } catch(e) {}
+    }
+});
+
 // ── W8_STATE 轉發：老師端 tc-w8-iframe 廣播給學生 sg-iframe ──
 window.addEventListener('message', (e8) => {
     if (!e8.data || e8.data.type !== 'W8_STATE') return;
@@ -1783,7 +1794,7 @@ function tcStartGame() {
         // W8：老師控制台 — 顯示各組分數和當前事件
         const levelBadge    = document.getElementById('tc-level-badge');
         const nextContainer = document.getElementById('tc-next-level-container');
-        if (levelBadge)   { levelBadge.style.display = '\; levelBadge.textContent = '🚀 大富翁'; }
+        if (levelBadge)   { levelBadge.style.display = ''; levelBadge.textContent = '🚀 大富翁'; }
         if (nextContainer) nextContainer.style.display = 'none';
         const sa = document.getElementById('tc-scores-area');
         if (sa) {
