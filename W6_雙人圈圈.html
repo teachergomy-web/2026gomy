@@ -115,7 +115,7 @@
         <span class="hud-label">LEVEL</span>
         <span class="hud-value" id="hud-level">—</span>
     </div>
-    <div class="hud-title">雙人圈圈<span id="robot-badge" style="display:none;font-size:9px;margin-left:8px;color:#2ecc71;text-shadow:0 0 8px rgba(46,204,113,0.6)">🤖 AI</span></div>
+    <div class="hud-title">雙人圈圈</div>
     <div class="hud-block" style="flex-direction:row;gap:20px;">
         <div class="hud-block">
             <span class="hud-label">ROUND</span>
@@ -169,7 +169,6 @@
 const params    = new URLSearchParams(location.search);
 let MY_GROUP    = params.get('group') ? `第 ${params.get('group')} 組` : '';
 let START_LEVEL = parseInt(params.get('autostart') || '0') || 0;
-const IS_ROBOT  = params.get('robot') === '1';
 
 // ══════════════════════════════════════════════════
 //  Canvas & DOM
@@ -266,19 +265,6 @@ if (START_LEVEL > 0) {
     setTimeout(() => startGame(START_LEVEL), 300);
 }
 
-// 機器人模式 UI 標示
-if (IS_ROBOT) {
-    const badge = document.getElementById('robot-badge');
-    if (badge) badge.style.display = 'inline';
-    // 等待畫面也標示
-    const wp = document.querySelector('#waiting-screen p');
-    if (wp) wp.textContent = '🤖 機器人模式 — 等待老師開始...';
-}
-
-// 機器人模式：顯示 badge
-if (IS_ROBOT) {
-    document.getElementById('robot-badge').style.display = 'inline';
-}
 
 // ══════════════════════════════════════════════════
 //  四個角落（動態）
@@ -311,13 +297,24 @@ function seededRandom(seed) {
 // ══════════════════════════════════════════════════
 //  環節初始化
 // ══════════════════════════════════════════════════
+let roundMode = 'NORMAL'; // 'NORMAL' | 'TOGETHER'
+// 第6回合（index 5）是合體回合
+const TOGETHER_ROUNDS = new Set([5]);
+
+// 前3輪固定人數：round 0→1人, round 1→2人, round 2→3人
+function getRoundCount(rng, roundIndex) {
+    if (roundIndex === 0) return 1;
+    if (roundIndex === 1) return 2;
+    if (roundIndex === 2) return 3;
+    // round 3-4：rng 1-4（最少2人讓遊戲有趣）
+    return Math.floor(rng() * 3) + 2;
+}
+
 function initRound() {
     const { radius, speed } = getLevelParams(currentLevel);
+    const rng = seededRandom(currentLevel * 10 + roundsDone);
 
-    // ── Seeded random：seed = level * 10 + roundIndex ──
-    // 確保同一關同一環節所有組拿到完全相同的圈圈數量與搖桿位置
-    const rng   = seededRandom(currentLevel * 10 + roundsDone);
-    const count = Math.floor(rng() * 4) + 1; // 1~4，固定結果
+    roundMode = TOGETHER_ROUNDS.has(roundsDone) ? 'TOGETHER' : 'NORMAL';
 
     sharedProgress = 0;
     particles = [];
@@ -325,56 +322,93 @@ function initRound() {
     cursors   = [];
     circles   = [];
 
-    // 用 seeded rng 決定角落順序
     const allCorners = getCorners();
-    const shuffled   = [...allCorners].sort(() => rng() - 0.5).slice(0, count);
+    // seeded shuffle 角落順序
+    const shuffled = [...allCorners].sort(() => rng() - 0.5);
 
-    // 全畫面可用邊界（所有圈圈共用，不分區）
     const pad = radius + 12;
     const fullBounds = {
-        minX: pad,
-        maxX: cw - pad,
-        minY: 90 + pad,
-        maxY: ch * 0.72 - pad
+        minX: pad, maxX: cw - pad,
+        minY: 90 + pad, maxY: ch * 0.72 - pad
     };
 
-    for (let i = 0; i < count; i++) {
-        const color = COLORS[i % COLORS.length];
-        const startX = (cw / (count + 1)) * (i + 1);
-        const startY = ch * 0.38;
-        // 多色框線：每個圓圈都包含本輪所有游標顏色
+    if (roundMode === 'TOGETHER') {
+        // ── 合體回合：1個大圈圈，所有人一起進去 ──
+        // 合體回合用 round 3-4 的最大人數（4人），讓最後一關最熱鬧
+        const count = 4;
+        const togetherRadius = Math.min(radius * (1.2 + count * 0.25), cw * 0.22);
+        const cx2 = cw / 2, cy2 = (fullBounds.minY + fullBounds.maxY) / 2;
         const allColors = COLORS.slice(0, count);
 
         circles.push({
-            x: startX, y: startY,
-            tx: 0, ty: 0,
-            radius,
+            x: cx2, y: cy2, tx: 0, ty: 0,
+            radius: togetherRadius,
             bounds: fullBounds,
-            speeds:    [speed * 2.2, speed * 1.0, speed * 0.3],
-            durations: [100, 140, 170],
-            cycleIndex: i % 3, cycleTimer: 0,
+            speeds:    [speed * 1.8, speed * 0.8, speed * 0.25],
+            durations: [110, 150, 180],
+            cycleIndex: 0, cycleTimer: 0,
             currentSpeed: speed,
             dashOffset: 0, glowPulse: 0,
             breathScale: 1.0,
-            color,          // 自身顏色（游標 / 效果用）
-            colors: allColors // 框線多色用
+            color: COL_GOLD, colors: allColors, isTogether: true
         });
-        pickWaypoint(circles[i]);
+        pickWaypoint(circles[0]);
 
-        const jPos = shuffled[i];
-        joysticks.push({
-            id: null,
-            bx: jPos.x, by: jPos.y,
-            x:  jPos.x, y:  jPos.y,
-            dx: 0, dy: 0, active: false, color
-        });
+        for (let i = 0; i < count; i++) {
+            const jPos = shuffled[i % shuffled.length];
+            joysticks.push({
+                id: null,
+                bx: jPos.x, by: jPos.y,
+                x: jPos.x, y: jPos.y,
+                dx: 0, dy: 0, active: false,
+                color: COLORS[i % COLORS.length]
+            });
+            // 游標初始位置：搖桿旁邊（隨機角落），不在正中間
+            cursors.push({
+                x: jPos.x, y: jPos.y,
+                vx: 0, vy: 0,
+                color: COLORS[i % COLORS.length]
+            });
+        }
+    } else {
+        // ── 普通回合：各游標對應各自圈圈 ──
+        const count = getRoundCount(rng, roundsDone);
+        const slicedCorners = shuffled.slice(0, Math.min(count, 4));
 
-        cursors.push({
-            x: jPos.x, y: jPos.y,
-            vx: 0, vy: 0, color
-        });
+        for (let i = 0; i < count; i++) {
+            const color = COLORS[i % COLORS.length];
+            // 圈圈初始位置隨機（在可用區域內）
+            const startX = fullBounds.minX + rng() * (fullBounds.maxX - fullBounds.minX);
+            const startY = fullBounds.minY + rng() * (fullBounds.maxY - fullBounds.minY);
+
+            circles.push({
+                x: startX, y: startY, tx: 0, ty: 0,
+                radius,
+                bounds: fullBounds,
+                speeds:    [speed * 2.2, speed * 1.0, speed * 0.3],
+                durations: [100, 140, 170],
+                cycleIndex: i % 3, cycleTimer: 0,
+                currentSpeed: speed,
+                dashOffset: 0, glowPulse: 0,
+                breathScale: 1.0,
+                color, colors: [color], isTogether: false
+            });
+            pickWaypoint(circles[i]);
+
+            const jPos = slicedCorners[i % slicedCorners.length];
+            joysticks.push({
+                id: null,
+                bx: jPos.x, by: jPos.y,
+                x: jPos.x, y: jPos.y,
+                dx: 0, dy: 0, active: false, color
+            });
+            // 游標初始位置在搖桿旁（各角落），不在正中間
+            cursors.push({
+                x: jPos.x, y: jPos.y,
+                vx: 0, vy: 0, color
+            });
+        }
     }
-    // 注意：updateDots() 不在這裡呼叫，由 roundComplete() / startGame() 負責
 }
 
 function pickWaypoint(c) {
@@ -558,27 +592,10 @@ function update() {
     for (let i = 0; i < n; i++) {
         const cur = cursors[i];
 
-        if (IS_ROBOT) {
-            // ── 機器人 AI：直接追蹤對應圈圈，加一點抖動模擬人味 ──
-            const target = circles[i];
-            const dx = target.x - cur.x;
-            const dy = target.y - cur.y;
-            const dist = Math.hypot(dx, dy);
-            // 距離越遠加速越快，靠近時放慢
-            const force = Math.min(dist * 0.08, 4.5);
-            if (dist > 2) {
-                cur.vx += (dx / dist) * force;
-                cur.vy += (dy / dist) * force;
-            }
-            // 輕微隨機抖動（模擬人手不穩）
-            cur.vx += (Math.random() - 0.5) * 0.3;
-            cur.vy += (Math.random() - 0.5) * 0.3;
-        } else {
-            // 人工搖桿輸入（無慣性：直接設速度）
-            const js = joysticks[i];
-            cur.vx = js.dx * CURSOR_SPEED;
-            cur.vy = js.dy * CURSOR_SPEED;
-        }
+        // 人工搖桿輸入（無慣性：直接設速度）
+        const js = joysticks[i];
+        cur.vx = js.dx * CURSOR_SPEED;
+        cur.vy = js.dy * CURSOR_SPEED;
 
         // 無慣性：不套 FRICTION，直接移動
         cur.x += cur.vx;
@@ -589,18 +606,35 @@ function update() {
 
     // 判定
     let allIn = true;
-    for (let i = 0; i < n; i++) {
-        const d = Math.hypot(cursors[i].x - circles[i].x, cursors[i].y - circles[i].y);
-        const inRange = d < circles[i].radius * circles[i].breathScale;
-        circles[i].breathScale += ((inRange ? 1.08 : 1.0) - circles[i].breathScale) * 0.08;
-        if (!inRange) allIn = false;
+    if (roundMode === 'TOGETHER') {
+        // 合體回合：所有游標都要進同一個圈圈
+        const c = circles[0];
+        for (let i = 0; i < n; i++) {
+            const d = Math.hypot(cursors[i].x - c.x, cursors[i].y - c.y);
+            const inRange = d < c.radius * c.breathScale;
+            if (!inRange) allIn = false;
+        }
+        c.breathScale += ((allIn ? 1.08 : 1.0) - c.breathScale) * 0.08;
+    } else {
+        // 普通回合：各游標對各自圈圈判定
+        for (let i = 0; i < n; i++) {
+            const d = Math.hypot(cursors[i].x - circles[i].x, cursors[i].y - circles[i].y);
+            const inRange = d < circles[i].radius * circles[i].breathScale;
+            circles[i].breathScale += ((inRange ? 1.08 : 1.0) - circles[i].breathScale) * 0.08;
+            if (!inRange) allIn = false;
+        }
     }
 
     if (allIn) {
         sharedProgress = Math.min(PROGRESS_NEED, sharedProgress + 0.55);
         syncTick++;
-        if (syncTick % 8 === 0)
-            for (const c of circles) spawnParticles(c.x, c.y, c.color, 3, false);
+        if (syncTick % 8 === 0) {
+            if (roundMode === 'TOGETHER') {
+                spawnParticles(circles[0].x, circles[0].y, COL_GOLD, 5, false);
+            } else {
+                for (const c of circles) spawnParticles(c.x, c.y, c.color, 3, false);
+            }
+        }
     } else {
         sharedProgress = Math.max(0, sharedProgress - 0.2);
         syncTick = 0;
@@ -638,19 +672,37 @@ function draw() {
     for (const [sx,sy] of stars) { ctx.beginPath(); ctx.arc(sx*cw,sy*ch,1.2,0,Math.PI*2); ctx.fill(); }
 
     if (gameState === 'PLAYING' || gameState === 'TRANSITIONING') {
-        for (let i = 0; i < circles.length; i++) {
-            const c = circles[i], cur = cursors[i];
-            const d = Math.hypot(cur.x - c.x, cur.y - c.y);
-            const isIn = d < c.radius * c.breathScale;
-            drawCircle(c, isIn);
+        if (roundMode === 'TOGETHER') {
+            // 合體回合：1 個圈圈，所有游標都在才算 isIn
+            const c = circles[0];
+            const allInNow = cursors.every(cur =>
+                Math.hypot(cur.x - c.x, cur.y - c.y) < c.radius * c.breathScale
+            );
+            drawCircle(c, allInNow);
+            // 合體標題
+            ctx.save();
+            ctx.font = '900 14px "Press Start 2P", monospace';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillStyle = COL_GOLD;
+            ctx.shadowBlur = 14; ctx.shadowColor = COL_GOLD;
+            ctx.fillText('★ 全員集合！', cw / 2, c.y - c.radius * c.breathScale - 26);
+            ctx.restore();
+        } else {
+            for (let i = 0; i < circles.length; i++) {
+                const c = circles[i], cur = cursors[i];
+                const d = Math.hypot(cur.x - c.x, cur.y - c.y);
+                const isIn = d < c.radius * c.breathScale;
+                drawCircle(c, isIn);
+            }
         }
         for (let i = 0; i < cursors.length; i++) {
-            const c = circles[i], cur = cursors[i];
+            const c = (roundMode === 'TOGETHER') ? circles[0] : circles[i];
+            const cur = cursors[i];
             const d = Math.hypot(cur.x - c.x, cur.y - c.y);
             const isIn = d < c.radius * c.breathScale;
             drawCursorWithRing(cur, cur.color, isIn);
         }
-        for (const js of joysticks) { if (!IS_ROBOT) drawJoystick(js); }
+        for (const js of joysticks) { drawJoystick(js); }
     }
 
     drawParticles();

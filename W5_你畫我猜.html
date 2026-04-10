@@ -327,15 +327,15 @@ window.addEventListener('message',ev=>{
       document.body.appendChild(po);
     }
     po.style.display='flex';
-    // 暫停計時器
-    if(timer){clearInterval(timer);timer=null;}
+    // 老師端停計時器；學生端不自己倒數，不需要處理
+    if(isTeacher && timer){ clearInterval(timer); timer=null; }
     return;
   }
   if(d.type==='PLATFORM_RESUME'){
     const po=document.getElementById('w5-pause-overlay');
     if(po) po.style.display='none';
-    // 若在 DRAWING 且時間還剩，恢復計時
-    if(!isTeacher && S.phase==='DRAWING' && S.time>0) startTimer();
+    // 老師端恢復計時（若在 DRAWING 且還有時間）
+    if(isTeacher && S.phase==='DRAWING' && S.time>0) startTimer();
     return;
   }
 
@@ -788,35 +788,14 @@ function renderS(){
       updateTimerUI();
       if(!_canvasReady){
         _canvasReady=true;
-        // 輪詢直到 canvas-wrap 有真實尺寸（offsetWidth 不需 layout 完成）
-        // resize 成功後才啟動計時器，確保順序正確
         (function tryResize(){
           const wrap=document.getElementById('canvas-wrap');
           if(wrap&&wrap.offsetWidth>10&&wrap.offsetHeight>10){
             resizeCanvas();
-            // resize 完成後才啟動學生計時器
-            if(!studentTimer){
-              studentTimer=setInterval(()=>{
-                if(S.phase!=='DRAWING'||myIdx<0){ clearInterval(studentTimer); studentTimer=null; return; }
-                const g2=S.groups[myIdx];
-                if(!g2||g2.submitted){ clearInterval(studentTimer); studentTimer=null; return; }
-                S.time=Math.max(0,S.time-1);
-                updateTimerUI();
-              },1000);
-            }
           } else {
             requestAnimationFrame(tryResize);
           }
         })();
-      } else if(!studentTimer){
-        // 畫布已就緒（_canvasReady=true），直接啟計時器
-        studentTimer=setInterval(()=>{
-          if(S.phase!=='DRAWING'||myIdx<0){ clearInterval(studentTimer); studentTimer=null; return; }
-          const g2=S.groups[myIdx];
-          if(!g2||g2.submitted){ clearInterval(studentTimer); studentTimer=null; return; }
-          S.time=Math.max(0,S.time-1);
-          updateTimerUI();
-        },1000);
       }
     } else {
       // 已交卷：顯示 overlay 蓋在畫布上，畫布本身不動
