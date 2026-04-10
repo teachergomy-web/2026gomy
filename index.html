@@ -454,40 +454,40 @@ body::before {
     <button class="kr-btn kr-btn-start" style="font-size:1.2rem;padding:18px 60px" id="ls-w6-start-btn" onclick="tcStartGame()">▶ 全班開始！</button>
   </div>
 
-  <!-- W8 選關（3 個 Part 卡片） -->
-  <div id="ls-w8" style="display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:28px 20px">
+  <!-- W7 選關（3 個 Part 卡片） -->
+  <div id="ls-W7" style="display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:28px 20px">
     <div style="text-align:center">
       <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:1.6rem;color:#f7c948;text-shadow:0 0 20px rgba(247,201,72,.4)">🧠 記憶力大考驗</div>
       <div style="font-family:'Nunito',sans-serif;font-size:.82rem;color:rgba(255,255,255,.4);margin-top:6px">選擇關卡，學生同步進入</div>
     </div>
     <!-- Part 選擇卡片 -->
     <div style="display:flex;flex-direction:column;gap:12px;width:100%;max-width:360px">
-      <div id="ls-w8-card-1" class="w8-part-card w8-selected" onclick="w8SelectPart(1)">
-        <div class="w8-part-icon">🃏</div>
+      <div id="ls-w7-card-1" class="w7-part-card w7-selected" onclick="w7SelectPart(1)">
+        <div class="w7-part-icon">🃏</div>
         <div>
-          <div class="w8-part-name">第一關：記憶翻牌</div>
-          <div class="w8-part-desc">12 ～ 30 張牌，找出所有配對</div>
+          <div class="w7-part-name">第一關：記憶翻牌</div>
+          <div class="w7-part-desc">12 ～ 30 張牌，找出所有配對</div>
         </div>
       </div>
-      <div id="ls-w8-card-2" class="w8-part-card" onclick="w8SelectPart(2)">
-        <div class="w8-part-icon">🎪</div>
+      <div id="ls-w7-card-2" class="w7-part-card" onclick="w7SelectPart(2)">
+        <div class="w7-part-icon">🎪</div>
         <div>
-          <div class="w8-part-name">第二關：動果大遊行</div>
-          <div class="w8-part-desc">6 ～ 12 個物品，依序排列</div>
+          <div class="w7-part-name">第二關：動果大遊行</div>
+          <div class="w7-part-desc">6 ～ 12 個物品，依序排列</div>
         </div>
       </div>
-      <div id="ls-w8-card-3" class="w8-part-card" onclick="w8SelectPart(3)">
-        <div class="w8-part-icon">🔐</div>
+      <div id="ls-w7-card-3" class="w7-part-card" onclick="w7SelectPart(3)">
+        <div class="w7-part-icon">🔐</div>
         <div>
-          <div class="w8-part-name">第三關：金庫解碼</div>
-          <div class="w8-part-desc">5 ～ 10 個指令，精準解鎖</div>
+          <div class="w7-part-name">第三關：金庫解碼</div>
+          <div class="w7-part-desc">5 ～ 10 個指令，精準解鎖</div>
         </div>
       </div>
     </div>
     <!-- 組別完成格子 -->
-    <div id="ls-w8-groups" style="display:none;width:100%;max-width:400px">
+    <div id="ls-w7-groups" style="display:none;width:100%;max-width:400px">
       <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:.75rem;color:rgba(245,200,0,.6);text-align:center;margin-bottom:10px;letter-spacing:.1em">各組進度</div>
-      <div id="ls-w8-groups-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px"></div>
+      <div id="ls-w7-groups-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px"></div>
     </div>
     <button class="kr-btn kr-btn-start" style="font-size:1.2rem;padding:18px 60px" onclick="tcStartGame()">▶ 全班開始！</button>
   </div>
@@ -1047,17 +1047,17 @@ function openTeacherConsole() {
     const isW2 = window.state.selectedGame === 1;
     const isW4 = window.state.selectedGame === 3;
     const isW6 = window.state.selectedGame === 5;
-    const isW8 = window.state.selectedGame === 7;
-    document.getElementById('ls-w1').style.display = (!isW2 && !isW4 && !isW6 && !isW8) ? 'flex' : 'none';
+    const isW7 = window.state.selectedGame === 7;
+    document.getElementById('ls-w1').style.display = (!isW2 && !isW4 && !isW6 && !isW7) ? 'flex' : 'none';
     document.getElementById('ls-w2').style.display = isW2 ? 'flex' : 'none';
     document.getElementById('ls-w4').style.display = isW4 ? 'flex' : 'none';
     document.getElementById('ls-w6').style.display = isW6 ? 'flex' : 'none';
-    const lsW8El = document.getElementById('ls-w8');
-    if (lsW8El) lsW8El.style.display = isW8 ? 'flex' : 'none';
+    const lsW7El = document.getElementById('ls-W7');
+    if (lsW7El) lsW7El.style.display = isW7 ? 'flex' : 'none';
     if (isW2) { lsW2SelectedLevel = 0; TC.level = 1; lsW2Render(); }
     if (isW4) { lsW4Render(); }
     if (isW6) { TC.level = 1; w6UpdateLevelDisplay(); w6RenderGroupCards(); }
-    if (isW8) { TC.level = 1; w8UpdatePartDisplay(); }
+    if (isW7) { TC.level = 1; W7UpdatePartDisplay(); }
     window.pStates['teacher'].screen = 'screen-level-select';
     window.goTo('screen-level-select');
 }
@@ -1123,15 +1123,15 @@ function w6RenderGroupCards() {
     .w6-dot.done{background:#2ecc71;border-color:#2ecc71}
     .w6-dot.active{background:#f1c40f;border-color:#f1c40f;animation:w6dotPulse .7s ease-in-out infinite alternate}
     @keyframes w6dotPulse{from{transform:scale(1)}to{transform:scale(1.4)}}
-    .w8-part-card{display:flex;align-items:center;gap:14px;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.12);border-radius:14px;padding:14px 18px;cursor:pointer;transition:all .15s;font-family:'Nunito',sans-serif}
-    .w8-part-card:active{transform:scale(.97)}
-    .w8-part-card.w8-selected{border-color:#f7c948;background:rgba(247,201,72,.12);box-shadow:0 0 18px rgba(247,201,72,.2)}
-    .w8-part-icon{font-size:2rem;flex-shrink:0}
-    .w8-part-name{font-weight:900;font-size:.95rem;color:#fff}
-    .w8-part-desc{font-size:.75rem;color:rgba(255,255,255,.4);margin-top:3px}
-    .w8-group-card{background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.12);border-radius:10px;padding:10px 14px;font-family:'Nunito',sans-serif}
-    .w8-group-card.done{border-color:#2ecc71;background:rgba(46,204,113,.12)}
-    .w8-group-card.playing{border-color:#f1c40f;background:rgba(241,196,15,.08)}`;
+    .w7-part-card{display:flex;align-items:center;gap:14px;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.12);border-radius:14px;padding:14px 18px;cursor:pointer;transition:all .15s;font-family:'Nunito',sans-serif}
+    .w7-part-card:active{transform:scale(.97)}
+    .w7-part-card.w7-selected{border-color:#f7c948;background:rgba(247,201,72,.12);box-shadow:0 0 18px rgba(247,201,72,.2)}
+    .w7-part-icon{font-size:2rem;flex-shrink:0}
+    .w7-part-name{font-weight:900;font-size:.95rem;color:#fff}
+    .w7-part-desc{font-size:.75rem;color:rgba(255,255,255,.4);margin-top:3px}
+    .w7-group-card{background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.12);border-radius:10px;padding:10px 14px;font-family:'Nunito',sans-serif}
+    .w7-group-card.done{border-color:#2ecc71;background:rgba(46,204,113,.12)}
+    .w7-group-card.playing{border-color:#f1c40f;background:rgba(241,196,15,.08)}`;
     document.head.appendChild(s);
 })();
 
@@ -1259,42 +1259,42 @@ window.addEventListener('message', (e2) => {
 });
 
 // ════════════════════════════════════
-// W8：記憶力大考驗
+// W7：記憶力大考驗
 // ════════════════════════════════════
-let _w8SelectedPart = 1;
-let _w8GroupStatus  = {}; // { groupName: { done, score, elapsed } }
+let _w7SelectedPart = 1;
+let _w7GroupStatus  = {}; // { groupName: { done, score, elapsed } }
 
-function w8SelectPart(part) {
-    _w8SelectedPart = part;
+function w7SelectPart(part) {
+    _w7SelectedPart = part;
     TC.level = part;
     [1,2,3].forEach(i => {
-        const el = document.getElementById(`ls-w8-card-${i}`);
-        if (el) el.classList.toggle('w8-selected', i === part);
+        const el = document.getElementById(`ls-w7-card-${i}`);
+        if (el) el.classList.toggle('w7-selected', i === part);
     });
 }
 
-function w8UpdatePartDisplay() {
-    _w8SelectedPart = TC.level || 1;
+function w7UpdatePartDisplay() {
+    _w7SelectedPart = TC.level || 1;
     [1,2,3].forEach(i => {
-        const el = document.getElementById(`ls-w8-card-${i}`);
-        if (el) el.classList.toggle('w8-selected', i === _w8SelectedPart);
+        const el = document.getElementById(`ls-w7-card-${i}`);
+        if (el) el.classList.toggle('w7-selected', i === _w7SelectedPart);
     });
-    _w8GroupStatus = {};
-    w8RenderGroupCards();
+    _w7GroupStatus = {};
+    w7RenderGroupCards();
 }
 
-function w8RenderGroupCards() {
-    const grid = document.getElementById('ls-w8-groups-grid');
-    const wrap = document.getElementById('ls-w8-groups');
+function w7RenderGroupCards() {
+    const grid = document.getElementById('ls-w7-groups-grid');
+    const wrap = document.getElementById('ls-w7-groups');
     if (!grid || !wrap) return;
     const players = window.state.players || [];
     if (!players.length) { wrap.style.display = 'none'; return; }
     wrap.style.display = '';
     grid.innerHTML = '';
     players.forEach(p => {
-        const st = _w8GroupStatus[p.group] || {};
+        const st = _w7GroupStatus[p.group] || {};
         const card = document.createElement('div');
-        card.className = 'w8-group-card' + (st.done ? ' done' : ' playing');
+        card.className = 'w7-group-card' + (st.done ? ' done' : ' playing');
         card.innerHTML = `
             <div style="font-weight:900;font-size:.9rem;color:#fff;margin-bottom:4px">${p.symbol||''} ${p.group}</div>
             <div style="font-size:.75rem;color:${st.done ? '#2ecc71' : 'rgba(255,255,255,.4)'}">
@@ -1304,15 +1304,15 @@ function w8RenderGroupCards() {
     });
 }
 
-function w8RenderTCCards() {
-    const grid = document.getElementById('tc-w8-grid');
+function w7RenderTCCards() {
+    const grid = document.getElementById('tc-w7-grid');
     if (!grid) return;
     const players = window.state.players || [];
     grid.innerHTML = '';
     players.forEach(p => {
-        const st = _w8GroupStatus[p.group] || {};
+        const st = _w7GroupStatus[p.group] || {};
         const card = document.createElement('div');
-        card.className = 'w8-group-card' + (st.done ? ' done' : ' playing');
+        card.className = 'w7-group-card' + (st.done ? ' done' : ' playing');
         card.innerHTML = `
             <div style="font-weight:900;font-size:.9rem;color:#fff;margin-bottom:4px">${p.symbol||''} ${p.group}</div>
             <div style="font-size:.75rem;color:${st.done ? '#2ecc71' : 'rgba(255,255,255,.4)'}">
@@ -1321,24 +1321,24 @@ function w8RenderTCCards() {
         grid.appendChild(card);
     });
     // 完成人數
-    const doneCount = players.filter(p => (_w8GroupStatus[p.group]||{}).done).length;
-    const doneEl = document.getElementById('tc-w8-done-count');
+    const doneCount = players.filter(p => (_w7GroupStatus[p.group]||{}).done).length;
+    const doneEl = document.getElementById('tc-w7-done-count');
     if (doneEl) doneEl.textContent = doneCount;
     // 全組完成提示
     const allDone = players.length > 0 && doneCount === players.length;
-    const nextWrap = document.getElementById('tc-w8-next-wrap');
+    const nextWrap = document.getElementById('tc-w7-next-wrap');
     if (nextWrap) nextWrap.style.display = allDone ? 'block' : 'none';
 }
 
-// W8_PROGRESS：每個小節（LV）完成時即時回報，供結算使用
+// W7_PROGRESS：每個小節（LV）完成時即時回報，供結算使用
 window.addEventListener('message', (e4) => {
-    if (!e4.data || e4.data.type !== 'W8_PROGRESS') return;
+    if (!e4.data || e4.data.type !== 'W7_PROGRESS') return;
     const { group, part, score } = e4.data;
     if (!group) return;
     const pts = parseInt(score) || 0;
-    // 更新 _w8GroupStatus 的當前分數（不標記 done，只更新 score）
-    const prev = _w8GroupStatus[group] || {};
-    _w8GroupStatus[group] = {
+    // 更新 _w7GroupStatus 的當前分數（不標記 done，只更新 score）
+    const prev = _w7GroupStatus[group] || {};
+    _w7GroupStatus[group] = {
         ...prev,
         score: pts,
         cumScore: pts  // 當前累計（含跨 Part）
@@ -1356,16 +1356,16 @@ window.addEventListener('message', (e4) => {
     }
 });
 window.addEventListener('message', (e3) => {
-    if (!e3.data || e3.data.type !== 'W8_COMPLETE') return;
+    if (!e3.data || e3.data.type !== 'W7_COMPLETE') return;
     const { group, score, elapsed, part } = e3.data;
     if (!group) return;
     // 同一 Part 同一組已完成則忽略重複訊息
-    const prev = _w8GroupStatus[group] || {};
+    const prev = _w7GroupStatus[group] || {};
     if (prev.done && prev.part === (part || TC.level)) return;
     const pts = parseInt(score) || 0;
     // 累加跨 Part 分數
     const newCum = (prev.cumScore || 0) + pts;
-    _w8GroupStatus[group] = { done: true, score: pts, elapsed, cumScore: newCum, part: part || TC.level };
+    _w7GroupStatus[group] = { done: true, score: pts, elapsed, cumScore: newCum, part: part || TC.level };
     TC.scores[group] = newCum;
 
     // 寫入 Firebase
@@ -1376,22 +1376,22 @@ window.addEventListener('message', (e3) => {
         window.saveRooms(rooms2);
     }
 
-    w8RenderTCCards();
-    w8RenderGroupCards();
+    w7RenderTCCards();
+    w7RenderGroupCards();
 
     if (window.state.perspective === 'teacher') {
         showToast(`✔ ${group} Part${part||TC.level} 完成！+${pts}分（累計 ${newCum}分）`);
     }
 });
 
-function w8NextPart() {
-    // 老師按「開始下一關」→ TC.level+1，重進 tcStartGame W8 分支，廣播給學生
+function w7NextPart() {
+    // 老師按「開始下一關」→ TC.level+1，重進 tcStartGame W7 分支，廣播給學生
     TC.level = Math.min(3, TC.level + 1);
     TC.isNextLevel = true;
     tcStartGame();
 }
 
-function w8GoSettle() {
+function w7GoSettle() {
     const settleBtn = document.getElementById('tc-btn-settle');
     if (settleBtn) settleBtn.click();
 }
@@ -1704,7 +1704,7 @@ function tcStartGame() {
             w6RenderTCCards();
         }
     } else if (window.state.selectedGame === 7) {
-        // W8：老師控制台顯示各組完成狀態
+        // W7：老師控制台顯示各組完成狀態
         const levelBadge    = document.getElementById('tc-level-badge');
         const nextContainer = document.getElementById('tc-next-level-container');
         if (levelBadge) { levelBadge.style.display = ''; levelBadge.textContent = `PART ${TC.level}`; }
@@ -1713,7 +1713,7 @@ function tcStartGame() {
         // 新 Part 開始：重置本 Part 的完成狀態（但保留累計分數）
         const players = window.state.players || [];
         players.forEach(p => {
-            if (_w8GroupStatus[p.group]) _w8GroupStatus[p.group].done = false;
+            if (_w7GroupStatus[p.group]) _w7GroupStatus[p.group].done = false;
         });
         const partNames = ['','🃏 記憶翻牌','🎪 動果大遊行','🔐 金庫解碼'];
         const sa = document.getElementById('tc-scores-area');
@@ -1725,22 +1725,22 @@ function tcStartGame() {
                   🧠 記憶力大考驗 — ${partNames[TC.level]||''}
                 </div>
                 <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:.75rem;color:rgba(255,255,255,.35)">
-                  完成: <span id="tc-w8-done-count">0</span> / ${players.length} 組
+                  完成: <span id="tc-w7-done-count">0</span> / ${players.length} 組
                 </div>
               </div>
-              <div id="tc-w8-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:10px;width:100%;max-width:760px"></div>
-              <div id="tc-w8-next-wrap" style="display:none;margin-top:16px;text-align:center">
+              <div id="tc-w7-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:10px;width:100%;max-width:760px"></div>
+              <div id="tc-w7-next-wrap" style="display:none;margin-top:16px;text-align:center">
                 <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:.8rem;color:#2ecc71;margin-bottom:10px">✅ 全組完成！</div>
                 ${TC.level < 3
-                  ? `<button onclick="w8NextPart()" style="font-family:'Nunito',sans-serif;font-weight:900;font-size:1rem;padding:12px 36px;background:linear-gradient(135deg,#f7c948,#e0a800);color:#1a1200;border:none;border-radius:12px;cursor:pointer;box-shadow:0 4px 0 rgba(0,0,0,.4)">
+                  ? `<button onclick="w7NextPart()" style="font-family:'Nunito',sans-serif;font-weight:900;font-size:1rem;padding:12px 36px;background:linear-gradient(135deg,#f7c948,#e0a800);color:#1a1200;border:none;border-radius:12px;cursor:pointer;box-shadow:0 4px 0 rgba(0,0,0,.4)">
                        ▶ 開始 ${partNames[TC.level+1]||'下一關'}
                      </button>`
-                  : `<button onclick="w8GoSettle()" style="font-family:'Nunito',sans-serif;font-weight:900;font-size:1rem;padding:12px 36px;background:linear-gradient(135deg,#2ecc71,#1a9955);color:#fff;border:none;border-radius:12px;cursor:pointer;box-shadow:0 4px 0 rgba(0,0,0,.4)">
+                  : `<button onclick="w7GoSettle()" style="font-family:'Nunito',sans-serif;font-weight:900;font-size:1rem;padding:12px 36px;background:linear-gradient(135deg,#2ecc71,#1a9955);color:#fff;border:none;border-radius:12px;cursor:pointer;box-shadow:0 4px 0 rgba(0,0,0,.4)">
                        🏆 公布最終結果
                      </button>`
                 }
               </div>`;
-            w8RenderTCCards();
+            w7RenderTCCards();
         }
     } else if (window.state.selectedGame === 3) {
         // W4：老師控制台顯示即時分數排行，並顯示當前 mode/level badge
@@ -1877,12 +1877,12 @@ function tcLaunchStudentIfNeeded() {
         return;
     }
     const gameMode = r.gameMode || 'SINGLE';
-    const gameFiles = ['W1_消除方塊.html', 'W2_能源管線.html', 'W3_五子棋.html', 'W4_節奏合鳴.html', 'W5_你畫我猜.html', 'W6_雙人圈圈.html', 'W7_星際大富翁.html', 'W8_記憶力大考驗.html'];
+    const gameFiles = ['W1_消除方塊.html', 'W2_能源管線.html', 'W3_五子棋.html', 'W4_節奏合鳴.html', 'W5_你畫我猜.html', 'W6_雙人圈圈.html', 'W9_星際大富翁.html', 'W7_記憶力大考驗.html'];
     const gameFile = gameFiles[selectedGame] || gameFiles[0];
     const isW2 = selectedGame === 1;
     const isW4 = selectedGame === 3;
     const isW6 = selectedGame === 5;
-    const isW8 = selectedGame === 7;
+    const isW7 = selectedGame === 7;
 
     // 記錄目前載入的關卡狀態，防止輪詢重複觸發 iframe 重新載入
     pData.gameLevel = level;
@@ -1925,9 +1925,9 @@ function tcLaunchStudentIfNeeded() {
             url = gameFile + '?group=' + encodeURIComponent(myGroup);
         } else if (isW6) {
             url = gameFile + '?autostart=' + level + '&group=' + encodeURIComponent(myGroup);
-        } else if (isW8) {
-            // W8：首次載入才設 src；下一 Part 時 iframe 已存在，直接 postMessage 不重載
-            const alreadyLoaded = iframe.src && iframe.src.includes('W8');
+        } else if (isW7) {
+            // W7：首次載入才設 src；下一 Part 時 iframe 已存在，直接 postMessage 不重載
+            const alreadyLoaded = iframe.src && iframe.src.includes('W7');
             if (!alreadyLoaded) {
                 url = gameFile + '?group=' + encodeURIComponent(myGroup);
             } else {
@@ -1954,8 +1954,8 @@ function tcLaunchStudentIfNeeded() {
                 const isTeacher2 = window.state.perspective === 'teacher';
                 const w3state = r2.w3state || null;
                 const w5state = r2.w5state || null;
-                // W8：傳入 level（= Part 編號）和 group
-                if (isW8) {
+                // W7：傳入 level（= Part 編號）和 group
+                if (isW7) {
                     iframe.contentWindow.postMessage({
                         type: 'PLATFORM_START', level, group: myGroup
                     }, '*');
@@ -2033,14 +2033,14 @@ function tcSettleGame() {
     const players = window.state.players;
     const isW3 = window.state.selectedGame === 2;
     const isW6 = window.state.selectedGame === 5;
-    const isW8 = window.state.selectedGame === 7;
+    const isW7 = window.state.selectedGame === 7;
     const rooms = window.getRooms();
     const room  = rooms[window.state.roomCode] || {};
 
     // ── 分數合併：取所有來源的最大值 ──
     // 來源1：TC.scores（本地記憶體，遊戲中即時更新）
     // 來源2：room.scores（Firebase，跨裝置同步）
-    // 來源3：W6/W8 的各組累計分數物件
+    // 來源3：W6/W7 的各組累計分數物件
     const mergedScores = {};
 
     // 先取 TC.scores
@@ -2060,10 +2060,10 @@ function tcSettleGame() {
             mergedScores[g] = Math.max(mergedScores[g] || 0, cum);
         }
     }
-    // W8：從 _w8GroupStatus 取累計分數
-    if (isW8) {
-        for (const g in _w8GroupStatus) {
-            const cum = _w8GroupStatus[g]?.cumScore || 0;
+    // W7：從 _W7GroupStatus 取累計分數
+    if (isW7) {
+        for (const g in _W7GroupStatus) {
+            const cum = _W7GroupStatus[g]?.cumScore || 0;
             mergedScores[g] = Math.max(mergedScores[g] || 0, cum);
         }
     }
@@ -2588,8 +2588,9 @@ const GAMES = [
   {id:4, name:'節奏合鳴',   icon:'🎵', desc:'跟隨音樂律動',     available: true},
   {id:5, name:'你畫我猜',   icon:'🎨', desc:'繪畫聯想猜謎',     available: true},
   {id:6, name:'雙人圈圈',   icon:'⭕', desc:'同步推入圈圈',     available: true},
-  {id:7, name:'星際大富翁', icon:'🚀', desc:'擲骰冒險奪寶',     available: false},
-  {id:8, name:'記憶大考驗', icon:'🧠', desc:'翻牌遊行解碼',     available: true}
+  {id:7, name:'記憶大考驗', icon:'🧠', desc:'翻牌遊行解碼',     available: true},
+  {id:8, name:'星際大富翁', icon:'🚀', desc:'擲骰冒險奪寶',     available: false}
+  
 ];
 
 // ── 排行榜更新與轉播畫面更新 ──
