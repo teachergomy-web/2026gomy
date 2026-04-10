@@ -1972,8 +1972,9 @@ function tcPauseGame() {
         rooms[window.state.roomCode].paused = true;
         window.saveRooms(rooms);
     }
-    // 同頁面學生 iframe 也直接發
+    // 同頁面學生 iframe 也直接發；W5 老師端 iframe 也一起發（停計時器）
     document.getElementById('sg-iframe')?.contentWindow?.postMessage({ type:'PLATFORM_PAUSE' }, '*');
+    document.getElementById('tc-w5-iframe')?.contentWindow?.postMessage({ type:'PLATFORM_PAUSE' }, '*');
     showToast('⏸ 遊戲已暫停');
 }
 
@@ -1998,6 +1999,7 @@ function tcResumeGame() {
         window.saveRooms(rooms);
     }
     document.getElementById('sg-iframe')?.contentWindow?.postMessage({ type:'PLATFORM_RESUME' }, '*');
+    document.getElementById('tc-w5-iframe')?.contentWindow?.postMessage({ type:'PLATFORM_RESUME' }, '*');
     showToast('▶ 遊戲繼續');
 }
 
@@ -2006,19 +2008,56 @@ function tcSettleGame() {
     if (!list) return;
     const players = window.state.players;
     const isW3 = window.state.selectedGame === 2;
+    const isW6 = window.state.selectedGame === 5;
+    const isW8 = window.state.selectedGame === 7;
     const rooms = window.getRooms();
     const room  = rooms[window.state.roomCode] || {};
 
-    // W3：從 w3state.scores 讀取最新分數，並通知 tc-w3-iframe 發送分數
+    // ── 分數合併：取所有來源的最大值 ──
+    // 來源1：TC.scores（本地記憶體，遊戲中即時更新）
+    // 來源2：room.scores（Firebase，跨裝置同步）
+    // 來源3：W6/W8 的各組累計分數物件
+    const mergedScores = {};
+
+    // 先取 TC.scores
+    for (const g in TC.scores) {
+        mergedScores[g] = TC.scores[g] || 0;
+    }
+    // 再合併 room.scores（取較大值）
+    if (room.scores) {
+        for (const g in room.scores) {
+            mergedScores[g] = Math.max(mergedScores[g] || 0, room.scores[g] || 0);
+        }
+    }
+    // W6：從 _w6GroupStatus 取累計分數
+    if (isW6) {
+        for (const g in _w6GroupStatus) {
+            const cum = _w6GroupStatus[g]?.cumScore || 0;
+            mergedScores[g] = Math.max(mergedScores[g] || 0, cum);
+        }
+    }
+    // W8：從 _w8GroupStatus 取累計分數
+    if (isW8) {
+        for (const g in _w8GroupStatus) {
+            const cum = _w8GroupStatus[g]?.cumScore || 0;
+            mergedScores[g] = Math.max(mergedScores[g] || 0, cum);
+        }
+    }
+    // 同步回 TC.scores（確保 finalScores 寫入 Firebase 時是完整的）
+    for (const g in mergedScores) {
+        TC.scores[g] = mergedScores[g];
+    }
+
+    // W3：從 w3state.scores 讀取勝場數
     let w3scores = room.w3scores || {};
     if (isW3 && room.w3state && room.w3state.scores) {
-        // 直接從 w3state 取得各組分數
         const raw = room.w3state.scores;
         Object.keys(raw).forEach(g => {
             w3scores[g] = { wins: raw[g].wins || 0, matches: raw[g].matches || 0 };
             TC.scores[g] = raw[g].wins || 0;
         });
     }
+
     const sorted = [...players].sort((a,b) => (TC.scores[b.group]||0) - (TC.scores[a.group]||0));
     const medals  = ['🥇','🥈','🥉','4️⃣','5️⃣'];
     const colors  = ['#FFD600','#C0C0C0','#CD7F32','#aaa','#aaa'];
@@ -2146,7 +2185,7 @@ window.addEventListener('message', (e) => {
         return; 
     }
     
-    // 老師端處理
+    // 老師端處理（W1/W2/W5/W3/W6 分數）
     if ((isScore || isGameover) && group) {
         const rooms = window.getRooms();
         let finalScore = score;
@@ -2156,7 +2195,11 @@ window.addEventListener('message', (e) => {
             finalScore = (base[group] || 0) + score;
             
             if (!rooms[window.state.roomCode].scores) rooms[window.state.roomCode].scores = {};
-            rooms[window.state.roomCode].scores[group] = finalScore;
+            // 只更新為較高的值（避免舊訊息蓋掉較新的高分）
+            const prev = rooms[window.state.roomCode].scores[group] || 0;
+            if (finalScore >= prev) {
+                rooms[window.state.roomCode].scores[group] = finalScore;
+            }
             
             if (type === 'W3_SCORE') {
                 if (!rooms[window.state.roomCode].w3scores) rooms[window.state.roomCode].w3scores = {};
@@ -2168,7 +2211,11 @@ window.addEventListener('message', (e) => {
             window.saveRooms(rooms);
         }
         
-        tcUpdateScore(group, finalScore);
+        // TC.scores 也同步更新（老師控制台即時顯示用）
+        const currentBest = TC.scores[group] || 0;
+        if (finalScore >= currentBest) {
+            tcUpdateScore(group, finalScore);
+        }
         
         if (isGameover && window.state.perspective === 'teacher') {
             showToast(`🏁 ${group} 完成！累積得分：${finalScore}`);
