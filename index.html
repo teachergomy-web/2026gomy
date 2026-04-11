@@ -30,6 +30,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body {
   width: 100%; height: 100%;
+  height: 100dvh;
   max-height: -webkit-fill-available;
   font-family: 'Noto Sans TC', 'Nunito', sans-serif;
   background: var(--sky) !important; color: var(--ink);
@@ -78,6 +79,7 @@ body::before {
 .screen {
   display: none; position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
+  height: 100%; height: 100dvh;
   z-index: 1;
   flex-direction: column; align-items: center;
   padding: 28px 16px 80px;
@@ -93,6 +95,7 @@ body::before {
     align-items: stretch; padding: 0; overflow: hidden;
     top: 0 !important; left: 0 !important;
     width: 100% !important; height: 100% !important;
+    height: 100dvh !important;
 }
 
 /* 排行榜項目 */
@@ -691,16 +694,16 @@ body::before {
 </div>
 
 <div id="screen-student-game" class="screen" style="padding:0;background:#000;flex-direction:column;overflow:hidden">
-  <div id="sg-bar" style="width:100%;background:#111;padding:8px 16px;display:flex;align-items:center;gap:12px;border-bottom:2px solid #f5c800;flex-shrink:0">
+  <div id="sg-bar" style="width:100%;background:#111;padding:8px 16px;display:flex;align-items:center;gap:12px;border-bottom:2px solid #f5c800;flex-shrink:0;height:44px;">
     <span id="sg-title" style="color:white;font-weight:900;font-size:.9rem;flex:1">🎮 遊戲中</span>
     <span id="sg-group" style="color:#f5c800;font-size:.8rem;font-weight:900"></span>
     <button onclick="studentLeaveGame()" style="background:#c0392b;color:#fff;border:2px solid #fff;border-radius:8px;padding:4px 10px;font-family:'Nunito',sans-serif;font-size:.75rem;font-weight:900;cursor:pointer">← 返回</button>
   </div>
-  <iframe id="sg-iframe" style="flex:1;border:none;width:100%;height:calc(100% - 42px)" allow="autoplay"></iframe>
+  <iframe id="sg-iframe" style="flex:1;border:none;width:100%;min-height:0;display:block;" allow="autoplay"></iframe>
 </div>
 
-<div id="screen-student-wait" class="screen" style="padding:0;background:#0d0f1a;overflow:hidden">
-    <div class="kr-header">
+<div id="screen-student-wait" class="screen" style="padding:0;background:#0d0f1a;overflow:hidden;flex-direction:column;">
+    <div class="kr-header" style="flex-shrink:0;">
         <div style="display:flex;flex-direction:column">
             <div style="color:#f5c800;font-size:.65rem;font-weight:900">🏁 學生大廳</div>
             <div class="kr-room-name" id="sw-room-name">誰是遊戲王</div>
@@ -715,8 +718,8 @@ body::before {
         </div>
     </div>
 
-    <div class="kr-body vertical">
-        <div class="kr-panel" style="border-bottom:1px solid rgba(255,255,255,0.1); align-items:center; justify-content:center; text-align:center; padding-bottom: 20px;">
+    <div class="kr-body vertical" style="flex:1;min-height:0;overflow:hidden;">
+        <div class="kr-panel" style="border-bottom:1px solid rgba(255,255,255,0.1); align-items:center; justify-content:center; text-align:center; padding-bottom: 20px; flex-shrink:0;">
             <div class="kr-panel-title" style="width:100%; text-align:left;">🎮 老師選擇的遊戲</div>
             
             <div id="sw-my-card" style="display:flex;align-items:center;gap:14px;background:rgba(255,255,255,0.08);border:2px solid rgba(245,200,0,0.4);border-radius:16px;padding:12px 20px;margin:10px 0;width:85%;max-width:300px">
@@ -731,13 +734,13 @@ body::before {
                 </div>
         </div>
 
-        <div class="kr-panel" style="padding-top: 16px;">
+        <div class="kr-panel" style="flex:1;min-height:0;overflow-y:auto;padding-top: 16px;">
             <div class="kr-panel-title">👥 已加入玩家</div>
             <div class="kr-seats" id="sw-lobby-players"></div>
         </div>
     </div>
 
-    <div class="kr-footer">
+    <div class="kr-footer" style="flex-shrink:0;">
         <button class="kr-btn kr-btn-danger" onclick="leaveRoomStudent()">🚪 離開房間</button>
     </div>
 </div>

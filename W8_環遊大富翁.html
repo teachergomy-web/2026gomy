@@ -32,6 +32,7 @@ body, button, input, select, textarea { font-family: var(--font); }
 body { 
   background: var(--bg-dark); 
   min-height: 100vh; 
+  min-height: 100dvh;
   overflow: hidden;
   color: #fff;
 }
@@ -56,7 +57,7 @@ body {
 /* ══════════════════════════════
    TEACHER VIEW (全螢幕棋盤 + 摺疊側邊欄)
    ══════════════════════════════ */
-#teacher-view { display: none; width: 100vw; height: 100vh; position: relative; overflow: hidden; }
+#teacher-view { display: none; width: 100vw; height: 100vh; height: 100dvh; position: relative; overflow: hidden; }
 
 .t-header {
   position: absolute; top: 12px; left: 12px; right: 12px; z-index: 40;
@@ -158,56 +159,80 @@ body {
    ══════════════════════════════ */
 #student-view { 
   display: none; flex-direction: column; 
-  width: 100vw; height: 100vh; 
+  width: 100vw; height: 100vh; height: 100dvh;
   position: fixed; inset: 0;
   z-index: 10; overflow: hidden;
 }
-.s-header {
-  position: absolute; top: 0; left: 0; right: 0; z-index: 300;
-  background: rgba(5,5,8,0.85); border-bottom: 1px solid rgba(255,255,255,0.08);
-  padding: 8px 16px; display: flex; align-items: center; justify-content: space-between; 
-  backdrop-filter: blur(12px); height: 52px; flex-shrink: 0;
-}
-.s-title { font-size: 1rem; font-weight: 900; color: #fff; text-shadow: 0 0 10px var(--blue); }
-.my-badge {
-  background: rgba(255, 214, 0, 0.2); color: var(--yellow); font-weight: 900; font-size: 0.82rem;
-  padding: 4px 12px; border-radius: 50px; display: flex; align-items: center; gap: 5px; border: 1px solid rgba(255, 214, 0, 0.5);
-}
+/* 分數條：緊貼頂部，含組別標識 */
 .s-scores { 
-  position: absolute; top: 52px; left: 0; right: 0; z-index: 290;
-  display: flex; gap: 5px; flex-wrap: nowrap; justify-content: center; padding: 6px 10px;
-  background: rgba(5,5,8,0.6); backdrop-filter: blur(8px);
-  border-bottom: 1px solid rgba(255,255,255,0.06); overflow-x: auto;
+  position: absolute; top: 0; left: 0; right: 0; z-index: 300;
+  display: flex; gap: 5px; flex-wrap: nowrap; align-items: center;
+  padding: 6px 10px 5px;
+  background: rgba(5,5,8,0.88); backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255,255,255,0.08); overflow-x: auto;
+  height: 40px; flex-shrink: 0;
+}
+.my-badge {
+  background: rgba(0, 229, 255, 0.2); color: var(--blue); font-weight: 900; font-size: 0.8rem;
+  padding: 3px 10px; border-radius: 50px; display: flex; align-items: center; gap: 4px;
+  border: 1px solid rgba(0,229,255,0.4); white-space: nowrap; flex-shrink: 0; margin-right: 4px;
 }
 .score-chip {
   display: flex; align-items: center; gap: 4px; background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.1); padding: 4px 10px; border-radius: 50px;
-  font-weight: 900; font-size: 0.78rem; color: rgba(255,255,255,0.7); white-space: nowrap; flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,0.1); padding: 3px 9px; border-radius: 50px;
+  font-weight: 900; font-size: 0.75rem; color: rgba(255,255,255,0.7); white-space: nowrap; flex-shrink: 0;
 }
-.score-chip.mine { background: rgba(0, 229, 255, 0.15); border-color: var(--blue); color: var(--blue); box-shadow: 0 0 8px rgba(0,229,255,0.2); }
+.score-chip.mine { background: rgba(0, 229, 255, 0.15); border-color: var(--blue); color: var(--blue); }
 
-/* 地圖容器：全螢幕可拖動 */
+/* 地圖容器：全螢幕可拖動，頂部留40px給分數條，底部留action高度 */
 .s-map {
-  position: absolute; inset: 0;
-  overflow: hidden; cursor: grab; touch-action: none;
+  position: absolute; top: 40px; left: 0; right: 0; bottom: 110px;
+  overflow: hidden; cursor: grab; touch-action: none; background: transparent;
 }
 .s-map:active { cursor: grabbing; }
 .s-map-inner {
-  position: absolute; 
-  /* 會被JS動態設定transform來拖動 */
+  position: absolute; width: 0; height: 0;
+  /* transform 由JS控制拖動偏移 */
 }
 .s-map .iso-scene {
-  width: 100%; height: 100%; perspective: 2000px;
+  position: absolute;
+  width: 1px; height: 1px;
+  perspective: 2000px;
   display: flex; align-items: center; justify-content: center;
+  overflow: visible;
 }
 
 /* 底部固定Action區 */
 .s-action {
-  position: absolute; bottom: 0; left: 0; right: 0; z-index: 300;
-  background: rgba(10,10,15,0.92); border-top: 1px solid rgba(255,255,255,0.1);
-  padding: 14px 20px; text-align: center; backdrop-filter: blur(12px);
-  min-height: 100px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  position: absolute; bottom: 0; left: 0; right: 0; z-index: 300; height: 110px;
+  background: rgba(8,8,14,0.94); border-top: 1px solid rgba(255,255,255,0.1);
+  padding: 10px 20px; text-align: center; backdrop-filter: blur(14px);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
 }
+
+/* 等待遮罩 */
+.wait-overlay {
+  position: absolute; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.55); backdrop-filter: blur(3px);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+}
+.wait-overlay-text {
+  color: rgba(255,255,255,0.85); font-weight: 900; font-size: 1rem;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+}
+
+/* 棋盤中心擲骰動畫 */
+.dice-anim-overlay {
+  position: absolute; inset: 0; z-index: 400; pointer-events: none;
+  display: flex; align-items: center; justify-content: center;
+}
+.dice-anim-box {
+  background: rgba(5,5,10,0.88); border: 2px solid rgba(255,255,255,0.2);
+  border-radius: 24px; padding: 24px 36px; text-align: center;
+  backdrop-filter: blur(16px); box-shadow: 0 8px 40px rgba(0,0,0,0.8);
+  animation: dicePopIn 0.35s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes dicePopIn { from { transform: scale(0.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 .wait-msg { color: rgba(255,255,255,0.6); font-size: 0.95rem; display: flex; align-items: center; gap: 8px; font-weight: 700; }
 .pulse { width: 10px; height: 10px; background: var(--blue); border-radius: 50%; animation: pulse 1.2s ease-in-out infinite; box-shadow: 0 0 8px var(--blue); }
 @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.6); } }
@@ -514,17 +539,26 @@ body {
 
 <!-- STUDENT VIEW -->
 <div id="student-view">
-  <div class="s-header">
-    <div class="s-title">✈️ 環遊大富翁</div>
+  <!-- 頂部分數條（含組別標識） -->
+  <div class="s-scores" id="s-scores">
     <div class="my-badge" id="my-badge">🐻 第1組</div>
   </div>
-  <div class="s-scores" id="s-scores"></div>
   <!-- 全螢幕可拖動地圖 -->
   <div class="s-map" id="s-map">
     <div class="s-map-inner" id="s-map-inner">
       <div class="iso-scene"><div id="s-board" class="iso-board"></div></div>
     </div>
+    <!-- 等待遮罩（其他組回合時顯示） -->
+    <div class="wait-overlay" id="s-wait-overlay" style="display:none;">
+      <div class="pulse" style="width:16px;height:16px;"></div>
+      <div class="wait-overlay-text" id="s-wait-text">等待中...</div>
+    </div>
+    <!-- 擲骰動畫浮層 -->
+    <div class="dice-anim-overlay" id="s-dice-overlay" style="display:none;">
+      <div class="dice-anim-box" id="s-dice-box"></div>
+    </div>
   </div>
+  <!-- 底部操作區 -->
   <div class="s-action" id="s-action">
     <div class="wait-msg"><div class="pulse"></div><span>等待遊戲狀態同步...</span></div>
   </div>
@@ -673,9 +707,12 @@ function processAction(action) {
   if (!gameState) return;
   if (parseInt(action.teamId) === gameState.currentTurn && action.ts !== _lastActionTs) {
     _lastActionTs = action.ts;
-    updateState({ phase: 'rolled', diceResult: action.diceResult });
+    const d = action.diceResult;
+    // 老師端棋盤中心顯示擲骰動畫
+    showDiceAnim(d.d1, d.d2, d.total, 't');
+    updateState({ phase: 'rolled', diceResult: d });
     const team = TEAMS.find(t => t.id === parseInt(action.teamId));
-    showToast(`🎲 ${team?.icon || ''} 擲出 ${action.diceResult.total} 步！`);
+    showToast(`🎲 ${team?.icon || ''} 擲出 ${d.total} 步！`);
   }
 }
 
@@ -1054,23 +1091,19 @@ function renderRevealPanel() {
 }
 
 function resizeBoard() {
-  // 正確數學推導：
-  // 棋盤 BOARD_SIZE×BOARD_SIZE，旋轉 rotateX(55deg) + rotateZ(-45deg)
-  // rotateZ(-45deg) 讓正方形變菱形，對角線 = BOARD_SIZE * sqrt(2)
-  // rotateX(55deg) 將 Y 軸壓縮 sin(55deg) = 0.819
+  // 正確數學：rotateX(55deg) + rotateZ(-45deg)
   // 視覺寬 = BOARD_SIZE * sqrt(2) = BOARD_SIZE * 1.414
-  // 視覺高 = BOARD_SIZE * sqrt(2) * sin(55deg) = BOARD_SIZE * 1.158
-  // (加上3D厚度20px視覺高再+0.05)
-  const VW = BOARD_SIZE * 1.414;   // 視覺寬
-  const VH = BOARD_SIZE * 1.22;    // 視覺高（含3D厚度）
+  // 視覺高 = BOARD_SIZE * sqrt(2) * sin(55deg) ≈ BOARD_SIZE * 1.158 (含3D厚度 ~1.22)
+  const VW = BOARD_SIZE * 1.414;
+  const VH = BOARD_SIZE * 1.22;
 
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
+  // 用 visualViewport 或 innerHeight 取得實際可見高度（ios safari 安全）
+  const vw = (window.visualViewport ? window.visualViewport.width : window.innerWidth);
+  const vh = (window.visualViewport ? window.visualViewport.height : window.innerHeight);
 
   const isTeacher = myRole === 'teacher';
   const sidebar = document.getElementById('t-sidebar');
   const sidebarW = (isTeacher && sidebar && !sidebar.classList.contains('collapsed')) ? 268 : 42;
-  // 老師端：左邊事件面板寬320px，右邊sidebar
   const leftPanel = isTeacher ? 328 : 0;
   const availW = Math.max(200, vw - leftPanel - sidebarW - 16);
   const availH = isTeacher ? vh - 16 : vh * 0.52;
@@ -1096,15 +1129,26 @@ function initStudentMap() {
   const map = document.getElementById('s-map');
   if (!map) return;
 
-  // 學生端棋盤：放大讓每格約佔螢幕 1/4 寬（約看到4-5格）
-  // 棋盤原始720px，等距後視覺寬~1018px，我們要讓每格約vh*0.22
-  const targetCellPx = Math.max(window.innerWidth, window.innerHeight) * 0.22;
-  const sScale = targetCellPx / C; // C=120px（角落格大小）
+  // 棋盤放大：讓每格約佔畫面 28% 的寬（看到約3-4格）
+  // C=120px 是角落格，我們用可見寬的28%作為目標格子大小
+  const vw = window.innerWidth;
+  const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  const targetCellPx = Math.min(vw, vh) * 0.28;
+  const sScale = targetCellPx / C;
   const sboard = document.getElementById('s-board');
   if (sboard) sboard.style.transform = `scale(${sScale}) rotateX(55deg) rotateZ(-45deg)`;
 
+  // map-inner 起始置中於 s-map 中央
+  const mapRect = map.getBoundingClientRect();
+  _mapX = mapRect.width / 2;
+  _mapY = mapRect.height / 2;
+  applyMapTransform();
+
+  let _mapInitDone = false;
+
   // 拖動：mouse
   map.addEventListener('mousedown', e => {
+    if (e.target.closest('.dice-anim-overlay, .wait-overlay')) return;
     _drag = true; _dragStartX = e.clientX; _dragStartY = e.clientY;
     _dragBaseX = _mapX; _dragBaseY = _mapY;
   });
@@ -1118,6 +1162,7 @@ function initStudentMap() {
 
   // 拖動：touch
   map.addEventListener('touchstart', e => {
+    if (e.target.closest('.dice-anim-overlay, .wait-overlay')) return;
     if (e.touches.length !== 1) return;
     _drag = true;
     _dragStartX = e.touches[0].clientX; _dragStartY = e.touches[0].clientY;
@@ -1131,6 +1176,10 @@ function initStudentMap() {
     applyMapTransform();
   }, { passive: false });
   map.addEventListener('touchend', () => { _drag = false; });
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', centerOnMyPiece);
+  }
 }
 
 function applyMapTransform() {
@@ -1146,35 +1195,33 @@ function centerOnMyPiece() {
   const bp = boardPos[pos];
   if (!bp) return;
 
-  // 棋子在棋盤上的原始坐標中心
   const cellW = (bp.type === 'top' || bp.type === 'bottom') ? M : C;
   const cellH = (bp.type === 'left' || bp.type === 'right') ? M : C;
   const pieceLocalX = bp.x + cellW / 2;
   const pieceLocalY = bp.y + cellH / 2;
 
-  // 棋盤原點在map-inner中心（iso-scene flex center）
-  // 等距旋轉後棋子在畫面上的偏移：rotateZ(-45deg) + rotateX(55deg)
   const sboard = document.getElementById('s-board');
   if (!sboard) return;
   const scaleMatch = sboard.style.transform.match(/scale\(([^)]+)\)/);
   const sScale = scaleMatch ? parseFloat(scaleMatch[1]) : 1;
 
-  // 棋盤中心相對局部坐標 = (BOARD_SIZE/2, BOARD_SIZE/2)
   const relX = (pieceLocalX - BOARD_SIZE / 2) * sScale;
   const relY = (pieceLocalY - BOARD_SIZE / 2) * sScale;
 
-  // 等距旋轉後的畫面位移（rotateZ(-45deg)後X方向）
   const angle = -45 * Math.PI / 180;
   const cos45 = Math.cos(angle), sin45 = Math.sin(angle);
   const screenX = relX * cos45 - relY * sin45;
   const screenY = (relX * sin45 + relY * cos45) * Math.sin(55 * Math.PI / 180);
 
-  // 目標：讓棋子在可視區中央（扣掉header≈86px和action≈110px）
-  const mapEl = document.getElementById('s-map');
-  if (!mapEl) return;
-  const rect = mapEl.getBoundingClientRect();
-  const cx = rect.width / 2;
-  const cy = (rect.height + 86 - 110) / 2; // 稍微偏上讓action區不擋
+  // 用 visualViewport 取得正確可見高度
+  const vvw = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+  const vvh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  const headerH = 86; // s-header + s-scores 合計高度
+  const actionH = 110; // s-action 高度
+  const mapH = vvh - headerH - actionH;
+
+  const cx = vvw / 2;
+  const cy = headerH + mapH / 2;
 
   _mapX = cx - screenX;
   _mapY = cy - screenY;
@@ -1193,7 +1240,9 @@ function renderStudent() {
   const gs = gameState;
   const myT = TEAMS.find(t => t.id === myTeamId);
   if (myT) document.getElementById('my-badge').innerHTML = `${myT.icon} ${myT.name}`;
-  const sr = document.getElementById('s-scores'); sr.innerHTML = '';
+  const sr = document.getElementById('s-scores'); 
+  // 清除舊chips但保留my-badge
+  Array.from(sr.children).forEach(c => { if (!c.classList.contains('my-badge')) c.remove(); });
   
   if (!gs || !gs.teams) {
     document.getElementById('s-action').innerHTML = `<div class="wait-msg"><div class="pulse"></div><span>等待遊戲狀態同步...</span></div>`;
@@ -1209,16 +1258,27 @@ function renderStudent() {
   });
   
   const sa = document.getElementById('s-action');
-  // 強制數字比較，避免字串/數字型態不符
   const isMyTurn = Number(gs.currentTurn) === Number(myTeamId);
   const ct = TEAMS.find(t => t.id == gs.currentTurn);
   const myTD = gs.teams[myTeamId] || gs.teams[String(myTeamId)];
   sa.innerHTML = '';
 
+  // 等待遮罩：非自己回合時顯示
+  const overlay = document.getElementById('s-wait-overlay');
+  const waitText = document.getElementById('s-wait-text');
+  if (overlay) {
+    if (!isMyTurn && gs.phase === 'waiting_roll') {
+      overlay.style.display = 'flex';
+      if (waitText) waitText.textContent = `${ct?.icon || ''} ${ct?.name || ''} 的回合，等待擲骰...`;
+    } else {
+      overlay.style.display = 'none';
+    }
+  }
+
   if (gs.phase === 'waiting_roll' && isMyTurn) {
     if (myTD?.skipTurn) { sa.innerHTML = `<div style="font-size:1.2rem;font-weight:900;color:var(--red)">⏸ 這回合停止行動！</div>`; }
     else {
-      sa.innerHTML = `<div style="color:rgba(255,255,255,0.7);font-size:1rem;margin-bottom:15px;font-weight:900;">輪到你們了！${myTD?.extraDice ? '<span style="color:var(--yellow)">🎲🎲 兩顆骰子</span>' : ''}</div>
+      sa.innerHTML = `<div style="color:rgba(255,255,255,0.7);font-size:0.9rem;margin-bottom:10px;font-weight:900;">輪到你們了！${myTD?.extraDice ? '<span style="color:var(--yellow)">🎲🎲 兩顆骰子</span>' : ''}</div>
         <button class="btn-roll" onclick="rollDice()">🎲 擲骰！</button>`;
     }
   } else if (gs.phase === 'waiting_roll') {
@@ -1226,9 +1286,9 @@ function renderStudent() {
   } else if (gs.phase === 'rolled' || gs.phase === 'event') {
     const d = gs.diceResult;
     if (d) {
-      const f = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
-      sa.innerHTML = `<div style="color:rgba(255,255,255,0.7);font-size:0.95rem;margin-bottom:10px;font-weight:900;">${isMyTurn ? '你們' : '他們'}擲出了</div>
-        <div class="dice-show"><div class="dice-face">${f[(d.d1 || 1) - 1]}</div>${d.d2 ? `<div class="dice-face">${f[(d.d2 || 1) - 1]}</div>` : ''}</div>
+      const f = ['⚀','⚁','⚂','⚃','⚄','⚅'];
+      sa.innerHTML = `<div style="color:rgba(255,255,255,0.7);font-size:0.9rem;margin-bottom:8px;font-weight:900;">${isMyTurn ? '你們' : ct?.icon+' 他們'}擲出了</div>
+        <div class="dice-show"><div class="dice-face">${f[(d.d1||1)-1]}</div>${d.d2?`<div class="dice-face">${f[(d.d2||1)-1]}</div>`:''}</div>
         <div class="dice-total">共 ${d.total} 步</div>`;
     }
   } else if (gs.phase === 'answering') {
@@ -1236,34 +1296,65 @@ function renderStudent() {
     if (!q) { sa.innerHTML = `<div class="ldots"><span></span><span></span><span></span><span style="margin-left:10px">AI 出題中...</span></div>`; }
     else {
       sa.innerHTML = `
-      <div style="font-weight:900;font-size:1.1rem;color:#fff;margin-bottom:15px">${q.question}</div>
-      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
-        <div style="padding:12px 24px;background:rgba(0,229,255,0.15);border:2px solid rgba(0,229,255,0.4);border-radius:12px;font-weight:900;font-size:1.05rem;color:var(--blue)">A．${q.optionA}</div>
-        <div style="padding:12px 24px;background:rgba(255,23,68,0.15);border:2px solid rgba(255,23,68,0.4);border-radius:12px;font-weight:900;font-size:1.05rem;color:var(--red)">B．${q.optionB}</div>
-      </div>
-      <div style="margin-top:15px;color:rgba(255,255,255,0.4);font-size:0.85rem;font-weight:700;">老師正在選擇答案...</div>`;
+      <div style="font-weight:900;font-size:1rem;color:#fff;margin-bottom:10px">${q.question}</div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+        <div style="padding:8px 18px;background:rgba(0,229,255,0.15);border:2px solid rgba(0,229,255,0.4);border-radius:10px;font-weight:900;font-size:0.95rem;color:var(--blue)">A．${q.optionA}</div>
+        <div style="padding:8px 18px;background:rgba(255,23,68,0.15);border:2px solid rgba(255,23,68,0.4);border-radius:10px;font-weight:900;font-size:0.95rem;color:var(--red)">B．${q.optionB}</div>
+      </div>`;
     }
   } else if (gs.phase === 'revealing') {
     const q = gs.question; const sa2 = gs.selectedAnswer; const correct = sa2 === q?.answer;
-    sa.innerHTML = `<div style="font-size:3rem;margin-bottom:10px">${correct ? '🎉' : '😢'}</div>
-      <div style="font-weight:900;font-size:1.4rem;color:${correct ? 'var(--green)' : 'var(--red)'}">${correct ? '答對了！' : '答錯了...'}</div>
-      <div style="color:rgba(255,255,255,0.6);margin-top:10px;font-size:0.9rem;font-weight:700;">💡 ${q?.explanation || ''}</div>`;
+    sa.innerHTML = `<div style="font-size:2.5rem;margin-bottom:6px">${correct ? '🎉' : '😢'}</div>
+      <div style="font-weight:900;font-size:1.2rem;color:${correct ? 'var(--green)' : 'var(--red)'}">${correct ? '答對了！' : '答錯了...'}</div>
+      <div style="color:rgba(255,255,255,0.6);margin-top:6px;font-size:0.8rem;font-weight:700;">💡 ${q?.explanation || ''}</div>`;
   } else {
     sa.innerHTML = `<div class="wait-msg"><div class="pulse"></div><span>等待繼續...</span></div>`;
   }
-  // 更新地圖：讓棋子置中
   centerOnMyPiece();
 }
 
+function showDiceAnim(d1, d2, total, onBoard) {
+  // 在棋盤中心顯示擲骰動畫（teacher=board, student=s-board）
+  const f = ['⚀','⚁','⚂','⚃','⚄','⚅'];
+  const html = `
+    <div style="font-size:.8rem;color:rgba(255,255,255,.5);margin-bottom:10px;font-weight:900;">🎲 骰子結果</div>
+    <div style="display:flex;gap:12px;justify-content:center;margin-bottom:10px;">
+      <div class="dice-face">${f[(d1||1)-1]}</div>
+      ${d2 ? `<div class="dice-face">${f[(d2||1)-1]}</div>` : ''}
+    </div>
+    <div class="dice-total">共 ${total} 步</div>`;
+  if (onBoard === 's') {
+    const box = document.getElementById('s-dice-box');
+    const overlay = document.getElementById('s-dice-overlay');
+    if (box) box.innerHTML = html;
+    if (overlay) { overlay.style.display = 'flex'; setTimeout(() => overlay.style.display = 'none', 2200); }
+  } else {
+    // 老師端：在棋盤容器正中間插入動畫div
+    const existing = document.getElementById('t-dice-overlay');
+    if (existing) existing.remove();
+    const el = document.createElement('div');
+    el.id = 't-dice-overlay';
+    el.className = 'dice-anim-overlay';
+    el.style.cssText = 'position:absolute;inset:0;z-index:400;pointer-events:none;display:flex;align-items:center;justify-content:center;';
+    el.innerHTML = `<div class="dice-anim-box">${html}</div>`;
+    const bc = document.querySelector('.board-container');
+    if (bc) { bc.appendChild(el); setTimeout(() => el.remove(), 2200); }
+  }
+}
+
 function rollDice() {
-  if (!gameState || gameState.currentTurn !== myTeamId) return;
-  const team = gameState.teams[myTeamId];
+  // 強制數字比較防止型態不符
+  if (!gameState || Number(gameState.currentTurn) !== Number(myTeamId)) return;
+  const team = gameState.teams[myTeamId] || gameState.teams[String(myTeamId)];
   if (!team || team.skipTurn) return;
   const d1 = Math.ceil(Math.random() * 6);
   let d2 = null; if (team.extraDice) d2 = Math.ceil(Math.random() * 6);
   const total = d1 + (d2 || 0);
   
   const action = { teamId: myTeamId, diceResult: { d1, d2, total }, ts: Date.now() };
+
+  // 學生端：立即顯示動畫
+  showDiceAnim(d1, d2, total, 's');
 
   if (myRole === 'student') {
     try { window.parent.postMessage({ type: 'W8_ROLL', ...action }, '*'); } catch (e) {}
@@ -1277,7 +1368,6 @@ function rollDice() {
         window.parent.saveRooms();
       }
     } catch(e) {}
-    
     const sa = document.getElementById('s-action');
     if (sa) sa.innerHTML = `<div class="wait-msg"><div class="pulse"></div><span>骰子已擲出，請看老師畫面...</span></div>`;
   } else {
