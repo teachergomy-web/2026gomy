@@ -738,8 +738,8 @@ function attachSync() {
           if (stateStr !== _lastStateStr) {
             _lastStateStr = stateStr;
             gameState = data.w8State;
-            syncTeamsFromParent();
-            render();
+            syncTeamsFromParent(); syncTeamsFromState();
+            render(); centerOnMyPiece();
           }
         }
         if (data && data.w8Action && myRole === 'teacher') {
@@ -750,16 +750,16 @@ function attachSync() {
     }
   } catch(e) {}
 
-  // 備用機制：透過 localStorage 輪詢（跨 origin 安全，老師端已寫入）
-  setInterval(() => {
+  // 立即輪詢一次
+  const pollNow = () => {
     try {
       if (myRole === 'student') {
         const raw = localStorage.getItem('W8_STATE');
         if (raw && raw !== _lastStateStr) {
           _lastStateStr = raw;
           gameState = JSON.parse(raw);
-          syncTeamsFromParent();
-          render();
+          syncTeamsFromParent(); syncTeamsFromState();
+          render(); centerOnMyPiece();
         }
       }
       if (myRole === 'teacher') {
@@ -770,20 +770,22 @@ function attachSync() {
         }
       }
     } catch(e) {}
-  }, 800);
+  };
+  pollNow(); // 立即執行一次
+  setInterval(pollNow, 500); // 縮短到500ms
 }
 
 function processAction(action) {
   if (!gameState) return;
-  if (parseInt(action.teamId) === gameState.currentTurn && action.ts !== _lastActionTs) {
-    _lastActionTs = action.ts;
-    const d = action.diceResult;
-    // 老師端棋盤中心顯示擲骰動畫
-    showDiceAnim(d.d1, d.d2, d.total, 't');
-    updateState({ phase: 'rolled', diceResult: d });
-    const team = TEAMS.find(t => t.id === parseInt(action.teamId));
-    showToast(`🎲 ${team?.icon || ''} 擲出 ${d.total} 步！`);
-  }
+  // 寬鬆比較避免型態不符
+  if (action.ts === _lastActionTs) return;
+  if (Number(action.teamId) !== Number(gameState.currentTurn)) return;
+  _lastActionTs = action.ts;
+  const d = action.diceResult;
+  showDiceAnim(d.d1, d.d2, d.total, 't');
+  updateState({ phase: 'rolled', diceResult: d });
+  const team = TEAMS.find(t => t.id == action.teamId);
+  showToast(`🎲 ${team?.icon || ''} 擲出 ${d.total} 步！`);
 }
 
 let _launched = false; // 防止重複launch
@@ -886,13 +888,31 @@ function launch() {
       // 嘗試讀取快取state
       try {
         const cached = localStorage.getItem('W8_STATE');
-        if (cached) { gameState = JSON.parse(cached); }
+        if (cached) {
+          gameState = JSON.parse(cached);
+          syncTeamsFromState();
+        }
       } catch(e) {}
       if (gameState) {
         render();
+        centerOnMyPiece();
       } else {
-        document.getElementById('s-action').innerHTML =
-          `<div class="wait-msg"><div class="pulse"></div><span>等待遊戲開始...</span></div>`;
+        // 立即輪詢一次（有些設備 localStorage 需要延遲才能讀到）
+        setTimeout(() => {
+          try {
+            const cached2 = localStorage.getItem('W8_STATE');
+            if (cached2 && !gameState) {
+              gameState = JSON.parse(cached2);
+              syncTeamsFromState();
+              render();
+              centerOnMyPiece();
+            }
+          } catch(e) {}
+          if (!gameState) {
+            document.getElementById('s-action').innerHTML =
+              `<div class="wait-msg"><div class="pulse"></div><span>等待遊戲開始...</span></div>`;
+          }
+        }, 300);
       }
     }
     resizeBoard();
@@ -969,6 +989,20 @@ function buildBoard() {
 
 function makeInit() {
   syncTeamsFromParent();
+
+  // 如果 TEAMS 只有預設1組，嘗試從 URL ?teams=N 擴展
+  const urlP = new URLSearchParams(location.search);
+  const urlTeamCount = parseInt(urlP.get('teams')) || 0;
+  if (urlTeamCount > TEAMS.length) {
+    const colors = ['#FF8A65','#81C784','#FFB74D','#4FC3F7','#CE93D8','#FFD54F','#4DB6AC','#7986CB'];
+    const icons = ['🐻','🐼','🦊','🐸','🐧','🦁','🐯','🐨'];
+    while (TEAMS.length < urlTeamCount) {
+      const n = TEAMS.length + 1;
+      TEAMS.push({ id: n, name: `第${n}組`, icon: icons[(n-1) % icons.length], color: colors[(n-1) % colors.length] });
+    }
+    teamCount = TEAMS.length;
+  }
+
   const teams = {};
   TEAMS.forEach(t => {
     teams[t.id] = { id: t.id, position: 0, score: 0, extraDice: false, skipTurn: false };
@@ -1549,8 +1583,10 @@ function rollDice() {
 function movePiece() {
   const gs = gameState;
   const tid = gs.currentTurn;
-  const team = gs.teams[tid];
-  if (!team) return;
+  // teams 的 key 在 JSON 序列化後都是字串，用 String() 確保找得到
+  const tidStr = String(tid);
+  const team = gs.teams[tid] || gs.teams[tidStr];
+  if (!team) { console.warn('movePiece: 找不到 team', tid, Object.keys(gs.teams)); return; }
   const steps = gs.diceResult?.total || 1;
   const startPos = team.position;
   const finalPos = (startPos + steps) % TOTAL;
@@ -1559,24 +1595,27 @@ function movePiece() {
   function moveStep() {
     step++;
     const curPos = (startPos + step) % TOTAL;
-    // 直接修改 gameState（不廣播），只更新 UI
-    if (gameState.teams[tid]) {
-      gameState.teams[tid].position = curPos;
-    }
+    // 同時更新數字key和字串key確保找得到
+    if (gameState.teams[tid] !== undefined) gameState.teams[tid].position = curPos;
+    if (gameState.teams[tidStr] !== undefined) gameState.teams[tidStr].position = curPos;
     renderPieces();
 
     if (step < steps) {
       setTimeout(moveStep, 180);
     } else {
-      // 走完：廣播最終位置，觸發格子事件
       setTimeout(() => {
-        updateTeam(tid, { position: finalPos }); // 廣播
+        // 最後走完：直接更新並廣播，不再呼叫 triggerEvent 前先更新
+        const t = { ...gameState.teams };
+        const tEntry = t[tid] || t[tidStr];
+        if (t[tid]) t[tid] = { ...t[tid], position: finalPos };
+        if (t[tidStr]) t[tidStr] = { ...t[tidStr], position: finalPos };
+        gameState = { ...gameState, teams: t };
+        broadcast();
+        renderPieces();
         setTimeout(() => triggerEvent(CTYPES[finalPos], finalPos), 200);
       }, 200);
     }
   }
-
-  // 立即開始走格
   moveStep();
 }
 
