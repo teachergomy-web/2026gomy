@@ -2,7 +2,10 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>W8 環遊大富翁</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
 <style>
@@ -27,14 +30,17 @@
   --p-red:    #ff9ff3;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 body, button, input, select, textarea { font-family: var(--font); }
 body { 
   background: var(--bg-dark); 
-  min-height: 100vh; 
-  min-height: 100dvh;
+  width: 100%; height: 100vh; height: 100dvh;
   overflow: hidden;
   color: #fff;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  -webkit-text-size-adjust: 100%;
+  touch-action: manipulation;
 }
 
 /* 星空背景特效 */
@@ -57,19 +63,11 @@ body {
 /* ══════════════════════════════
    TEACHER VIEW (全螢幕棋盤 + 摺疊側邊欄)
    ══════════════════════════════ */
-#teacher-view { display: none; width: 100vw; height: 100vh; height: 100dvh; position: relative; overflow: hidden; }
-
-.t-header {
-  position: absolute; top: 12px; left: 12px; right: 12px; z-index: 40;
-  background: rgba(20, 20, 25, 0.8); border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 12px; display: flex; align-items: center; gap: 12px; padding: 10px 16px; 
-  backdrop-filter: blur(10px);
-}
-.t-title { font-size: 1.2rem; font-weight: 900; color: #fff; text-shadow: 0 0 10px var(--blue); }
-.turn-chip {
-  background: rgba(255, 214, 0, 0.2); color: var(--yellow); font-weight: 900; font-size: 0.95rem;
-  padding: 6px 16px; border-radius: 50px; margin-left: auto; display: flex; align-items: center; gap: 6px;
-  border: 1px solid rgba(255, 214, 0, 0.5); box-shadow: 0 0 10px rgba(255, 214, 0, 0.2);
+#teacher-view { 
+  display: none; 
+  width: 100%; height: 100vh; height: 100dvh; 
+  position: fixed; inset: 0;
+  overflow: hidden; 
 }
 
 .board-container {
@@ -77,13 +75,28 @@ body {
   display: flex; align-items: center; justify-content: center;
 }
 
+/* 事件面板：自適應寬度，手機上縮小 */
+.event-float {
+  position: absolute; top: 12px; left: 12px; z-index: 400;
+  width: min(300px, calc(100vw - 320px));
+  min-width: 200px;
+  background: var(--panel-bg); border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 16px; 
+  -webkit-backdrop-filter: blur(15px);
+  backdrop-filter: blur(15px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.7);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+
 /* 摺疊側邊欄 */
 .sidebar {
-  position: absolute; right: 0; top: 12px; bottom: 12px; width: 260px;
+  position: absolute; right: 0; top: 12px; bottom: 12px; 
+  width: clamp(200px, 22vw, 260px);
   background: var(--panel-bg); border: 1px solid rgba(255,255,255,0.1);
   border-right: none; border-radius: 16px 0 0 16px;
   transform: translateX(0); transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
   z-index: 500; display: flex; flex-direction: column;
+  -webkit-backdrop-filter: blur(15px);
   backdrop-filter: blur(15px); box-shadow: -5px 0 30px rgba(0,0,0,0.8);
 }
 .sidebar.collapsed { transform: translateX(100%); }
@@ -167,10 +180,13 @@ body {
 .s-scores { 
   position: absolute; top: 0; left: 0; right: 0; z-index: 300;
   display: flex; gap: 5px; flex-wrap: nowrap; align-items: center;
-  padding: 6px 10px 5px;
-  background: rgba(5,5,8,0.88); backdrop-filter: blur(10px);
+  padding: env(safe-area-inset-top, 6px) 10px 5px;
+  background: rgba(5,5,8,0.88); 
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
   border-bottom: 1px solid rgba(255,255,255,0.08); overflow-x: auto;
-  height: 40px; flex-shrink: 0;
+  height: calc(40px + env(safe-area-inset-top, 0px)); flex-shrink: 0;
+  padding-top: max(6px, env(safe-area-inset-top, 6px));
 }
 .my-badge {
   background: rgba(0, 229, 255, 0.2); color: var(--blue); font-weight: 900; font-size: 0.8rem;
@@ -184,29 +200,26 @@ body {
 }
 .score-chip.mine { background: rgba(0, 229, 255, 0.15); border-color: var(--blue); color: var(--blue); }
 
-/* 地圖容器：全螢幕可拖動，頂部留40px給分數條，底部留action高度 */
+/* 地圖容器 */
 .s-map {
-  position: absolute; top: 40px; left: 0; right: 0; bottom: 110px;
+  position: absolute; 
+  top: calc(40px + env(safe-area-inset-top, 0px)); 
+  left: 0; right: 0; 
+  bottom: calc(110px + env(safe-area-inset-bottom, 0px));
   overflow: hidden; cursor: grab; touch-action: none; background: transparent;
 }
 .s-map:active { cursor: grabbing; }
-/* s-map-inner 就是拖動錨點，位置由JS控制 */
-.s-map-inner {
-  position: absolute;
-  left: 0; top: 0;
-}
-/* iso-scene 作為棋盤的旋轉舞台，絕對置中 */
+.s-map-inner { position: absolute; left: 0; top: 0; }
 .s-map .iso-scene {
-  position: absolute;
-  perspective: 2000px;
-  overflow: visible;
-  /* 由JS設定 left/top 讓棋盤幾何中心對準地圖中心 */
+  position: absolute; perspective: 2000px; overflow: visible;
 }
 
-/* 全螢幕等待遮罩（覆蓋整個student-view） */
+/* 全螢幕等待遮罩 */
 .wait-overlay {
   position: fixed; inset: 0; z-index: 500;
-  background: rgba(0,0,0,0.72); backdrop-filter: blur(4px);
+  background: rgba(0,0,0,0.72); 
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px;
 }
 .wait-overlay-icon { font-size: 3.5rem; animation: bounce 1.5s ease-in-out infinite; }
@@ -215,11 +228,16 @@ body {
   text-shadow: 0 2px 8px rgba(0,0,0,0.8); text-align: center; line-height: 1.5;
 }
 
-/* 底部固定Action區 */
+/* 底部Action區 */
 .s-action {
-  position: absolute; bottom: 0; left: 0; right: 0; z-index: 300; height: 110px;
+  position: absolute; bottom: 0; left: 0; right: 0; z-index: 300; 
+  height: calc(110px + env(safe-area-inset-bottom, 0px));
   background: rgba(8,8,14,0.94); border-top: 1px solid rgba(255,255,255,0.1);
-  padding: 10px 20px; text-align: center; backdrop-filter: blur(14px);
+  padding: 10px 20px; 
+  padding-bottom: max(10px, env(safe-area-inset-bottom, 10px));
+  text-align: center; 
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
 }
 
@@ -247,7 +265,35 @@ body {
 @keyframes bounce { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-8px) scale(1.02); } }
 .btn-roll:active { transform: scale(0.92) !important; animation: none; box-shadow: 0 2px 10px rgba(0,229,255,0.4); }
 
-.dice-show { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 8px 0; }
+/* ══════════════════════════════
+   3D 骰子旋轉動畫
+   ══════════════════════════════ */
+.dice3d-wrap {
+  perspective: 200px; width: 80px; height: 80px; margin: 0 auto;
+}
+.dice3d {
+  width: 80px; height: 80px; position: relative; transform-style: preserve-3d;
+  animation: diceRoll 0.6s ease-out forwards;
+}
+@keyframes diceRoll {
+  0%   { transform: rotateX(0)   rotateY(0)   rotateZ(0); }
+  25%  { transform: rotateX(180deg) rotateY(90deg)  rotateZ(90deg); }
+  50%  { transform: rotateX(90deg)  rotateY(270deg) rotateZ(180deg); }
+  75%  { transform: rotateX(270deg) rotateY(180deg) rotateZ(270deg); }
+  100% { transform: rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) rotateZ(0deg); }
+}
+.dice3d .face {
+  position: absolute; width: 80px; height: 80px;
+  background: #fff; border: 2px solid #ddd; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2.2rem; box-shadow: inset 0 0 8px rgba(0,0,0,0.1);
+}
+.dice3d .face.front  { transform: translateZ(40px); }
+.dice3d .face.back   { transform: rotateY(180deg) translateZ(40px); }
+.dice3d .face.right  { transform: rotateY(90deg)  translateZ(40px); }
+.dice3d .face.left   { transform: rotateY(-90deg) translateZ(40px); }
+.dice3d .face.top    { transform: rotateX(90deg)  translateZ(40px); }
+.dice3d .face.bottom { transform: rotateX(-90deg) translateZ(40px); }
 .dice-face {
   width: 70px; height: 70px; background: #fff; border-radius: 16px; color: #000;
   box-shadow: inset 0 -4px 0 rgba(0,0,0,0.1), 0 5px 15px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;
@@ -350,7 +396,7 @@ body {
 .cell-s {
   position: absolute;
   left: 0; bottom: 0; width: 100%; height: 20px;
-  background: color-mix(in srgb, var(--c-color, #d0d0d0) 55%, #666);
+  background: #b0b0b0;
   border: 1px solid var(--outline);
   transform-origin: bottom center;
   transform: translateZ(20px) rotateX(90deg);
@@ -358,7 +404,7 @@ body {
 .cell-n {
   position: absolute;
   left: 0; top: 0; width: 100%; height: 20px;
-  background: color-mix(in srgb, var(--c-color, #d0d0d0) 45%, #555);
+  background: #999;
   border: 1px solid var(--outline);
   transform-origin: top center;
   transform: translateZ(20px) rotateX(-90deg);
@@ -366,7 +412,7 @@ body {
 .cell-e {
   position: absolute;
   right: 0; top: 0; width: 20px; height: 100%;
-  background: color-mix(in srgb, var(--c-color, #d0d0d0) 50%, #666);
+  background: #aaa;
   border: 1px solid var(--outline);
   transform-origin: right center;
   transform: translateZ(20px) rotateY(-90deg);
@@ -374,7 +420,7 @@ body {
 .cell-w {
   position: absolute;
   left: 0; top: 0; width: 20px; height: 100%;
-  background: color-mix(in srgb, var(--c-color, #d0d0d0) 60%, #777);
+  background: #c0c0c0;
   border: 1px solid var(--outline);
   transform-origin: left center;
   transform: translateZ(20px) rotateY(90deg);
@@ -596,31 +642,21 @@ function syncTeamsFromParent() {
         parentPlayers.forEach((p, i) => {
           const gId = parseInt(String(p.group).replace(/\D/g, '')) || (i + 1);
           if (!newTeams.find(t => t.id === gId)) {
-            newTeams.push({
-              id: gId,
-              name: p.name || `第${gId}組`,
-              icon: p.symbol || p.avatar || '🐻',
-              color: colors[newTeams.length % colors.length]
-            });
+            newTeams.push({ id: gId, name: p.name || `第${gId}組`, icon: p.symbol || p.avatar || '🐻', color: colors[newTeams.length % colors.length] });
           }
         });
-        if (newTeams.length > 0) {
-          TEAMS = newTeams;
-          teamCount = TEAMS.length;
-          return; // 成功就 return
-        }
+        if (newTeams.length > 0) { TEAMS = newTeams; teamCount = TEAMS.length; return; }
       }
     }
   } catch(e) {}
-  // 跨 origin 失敗：嘗試從 URL params 讀取 players JSON
   try {
     const p = new URLSearchParams(location.search);
     const playersRaw = p.get('players');
     if (playersRaw) {
-      const parentPlayers = JSON.parse(decodeURIComponent(playersRaw));
       const colors = ['#FF8A65', '#81C784', '#FFB74D', '#4FC3F7', '#CE93D8', '#FFD54F', '#4DB6AC', '#7986CB'];
+      const parsed = JSON.parse(decodeURIComponent(playersRaw));
       const newTeams = [];
-      parentPlayers.forEach((pl, i) => {
+      parsed.forEach((pl, i) => {
         const gId = parseInt(String(pl.group).replace(/\D/g, '')) || (i + 1);
         if (!newTeams.find(t => t.id === gId)) {
           newTeams.push({ id: gId, name: pl.name || `第${gId}組`, icon: pl.symbol || '🐻', color: colors[newTeams.length % colors.length] });
@@ -629,6 +665,20 @@ function syncTeamsFromParent() {
       if (newTeams.length > 0) { TEAMS = newTeams; teamCount = TEAMS.length; }
     }
   } catch(e) {}
+}
+
+// 從 gameState 補全 TEAMS（確保每個 team.id 有對應項目）
+function syncTeamsFromState() {
+  if (!gameState || !gameState.teams) return;
+  const colors = ['#FF8A65','#81C784','#FFB74D','#4FC3F7','#CE93D8','#FFD54F','#4DB6AC','#7986CB'];
+  let changed = false;
+  Object.values(gameState.teams).forEach((team, i) => {
+    if (!TEAMS.find(t => t.id == team.id)) {
+      TEAMS.push({ id: team.id, name: `第${team.id}組`, icon: '🐻', color: colors[i % colors.length] });
+      changed = true;
+    }
+  });
+  if (changed) teamCount = TEAMS.length;
 }
 
 const TOTAL = 28;
@@ -806,6 +856,7 @@ window.addEventListener('load', () => {
         document.getElementById('s-action').innerHTML =
           `<div class="wait-msg"><div class="pulse"></div><span>等待遊戲開始...</span></div>`;
         initStudentMap();
+        resizeStudentBoard();
         resizeBoard();
         attachSync();
         _launched = true;
@@ -831,6 +882,7 @@ function launch() {
       document.getElementById('teacher-view').style.display = 'none';
       document.getElementById('student-view').style.display = 'flex';
       initStudentMap();
+      resizeStudentBoard();
       // 嘗試讀取快取state
       try {
         const cached = localStorage.getItem('W8_STATE');
@@ -956,6 +1008,7 @@ function render() {
   document.getElementById('teacher-view').style.display = isT ? 'block' : 'none';
   document.getElementById('student-view').style.display = isT ? 'none' : 'flex';
   if (!gameState) return;
+  syncTeamsFromState(); // 確保所有 team 都有對應的 TEAMS 項目
   renderPieces();
   if (isT) renderTeacher(); else renderStudent();
 }
@@ -968,13 +1021,17 @@ function renderPieces() {
     cellCounts[pos] = (cellCounts[pos] || 0) + 1;
   });
 
-  ['board', 's-board'].forEach(id => {
+  // 只渲染存在的棋盤（teacher/student各自一個）
+  const boardIds = myRole === 'teacher' ? ['board'] : ['s-board'];
+  boardIds.forEach(id => {
     const el = document.getElementById(id); if (!el) return;
     el.querySelectorAll('.piece').forEach(p => p.remove());
     
     const cellIndices = {};
     Object.values(gameState.teams || {}).forEach(team => {
-      const t = TEAMS.find(x => x.id === team.id); if (!t) return;
+      // 寬鬆比較 id（避免數字/字串型態不符）
+      const t = TEAMS.find(x => x.id == team.id);
+      if (!t) return;
       const pos = team.position % TOTAL;
       const bp = boardPos[pos]; if (!bp) return;
       
@@ -991,7 +1048,7 @@ function renderPieces() {
       let ox = 0, oy = 0;
       if (totalOnCell > 1) {
         const angle = (idx / totalOnCell) * Math.PI * 2;
-        const radius = 22;
+        const radius = 20;
         ox = Math.cos(angle) * radius;
         oy = Math.sin(angle) * radius;
       }
@@ -1011,7 +1068,7 @@ function renderPieces() {
 
     el.querySelectorAll('.cell').forEach(c => c.classList.remove('active'));
     if (gameState.currentTurn) {
-      const team = gameState.teams[gameState.currentTurn];
+      const team = Object.values(gameState.teams).find(t => t.id == gameState.currentTurn);
       if (team) {
         const cel = document.getElementById((id === 'board' ? 'cell-' : 'sc-') + (team.position % TOTAL));
         if (cel) cel.classList.add('active');
@@ -1115,33 +1172,57 @@ function renderRevealPanel() {
 }
 
 function resizeBoard() {
-  // 正確數學：rotateX(55deg) + rotateZ(-45deg)
-  // 視覺寬 = BOARD_SIZE * sqrt(2) = BOARD_SIZE * 1.414
-  // 視覺高 = BOARD_SIZE * sqrt(2) * sin(55deg) ≈ BOARD_SIZE * 1.158 (含3D厚度 ~1.22)
   const VW = BOARD_SIZE * 1.414;
   const VH = BOARD_SIZE * 1.22;
+  const vw = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+  const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
 
-  // 用 visualViewport 或 innerHeight 取得實際可見高度（ios safari 安全）
-  const vw = (window.visualViewport ? window.visualViewport.width : window.innerWidth);
-  const vh = (window.visualViewport ? window.visualViewport.height : window.innerHeight);
+  let scale;
+  if (myRole === 'teacher') {
+    const sidebar = document.getElementById('t-sidebar');
+    const sidebarW = (sidebar && !sidebar.classList.contains('collapsed')) ? Math.min(260, vw * 0.22) : 42;
+    const eventW = Math.min(300, Math.max(180, vw - sidebarW - 80));
+    const availW = Math.max(150, vw - eventW - 20 - sidebarW - 16);
+    const availH = vh - 16;
+    scale = Math.min(availW / VW, availH / VH);
+    const board = document.getElementById('board');
+    if (board) board.style.transform = `scale(${scale}) rotateX(55deg) rotateZ(-45deg)`;
+  } else {
+    // 學生端：跟老師端一樣大（全螢幕扣掉分數條和action區）
+    const topH = 40;
+    const botH = 110;
+    const availW = vw;
+    const availH = vh - topH - botH;
+    scale = Math.min(availW / VW, availH / VH);
+    const sboard = document.getElementById('s-board');
+    if (sboard) sboard.style.transform = `scale(${scale}) rotateX(55deg) rotateZ(-45deg)`;
 
-  const isTeacher = myRole === 'teacher';
-  const sidebar = document.getElementById('t-sidebar');
-  const sidebarW = (isTeacher && sidebar && !sidebar.classList.contains('collapsed')) ? 268 : 42;
-  const leftPanel = isTeacher ? 328 : 0;
-  const availW = Math.max(200, vw - leftPanel - sidebarW - 16);
-  const availH = isTeacher ? vh - 16 : vh * 0.52;
-
-  const scaleW = availW / VW;
-  const scaleH = availH / VH;
-  const scale = Math.min(scaleW, scaleH);
-
-  const board = document.getElementById('board');
-  const sboard = document.getElementById('s-board');
-  if (board) board.style.transform = `scale(${scale}) rotateX(55deg) rotateZ(-45deg)`;
-  if (sboard) sboard.style.transform = `scale(${scale}) rotateX(55deg) rotateZ(-45deg)`;
+    // 更新 iso-scene 定位讓棋盤幾何中心在 (0,0)
+    const scene = document.getElementById('s-iso-scene');
+    if (scene) {
+      const half = (BOARD_SIZE / 2) * scale;
+      scene.style.left = (-half) + 'px';
+      scene.style.top = (-half) + 'px';
+      scene.style.width = (BOARD_SIZE * scale) + 'px';
+      scene.style.height = (BOARD_SIZE * scale) + 'px';
+    }
+    // map-inner 置中
+    const map = document.getElementById('s-map');
+    if (map) {
+      const rect = map.getBoundingClientRect();
+      _mapX = rect.width / 2;
+      _mapY = rect.height / 2;
+      applyMapTransform();
+    }
+  }
 }
+
+function resizeStudentBoard() { resizeBoard(); }
+
 window.addEventListener('resize', resizeBoard);
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', () => { resizeBoard(); centerOnMyPiece(); });
+}
 
 // ══════════════════════════════
 // 學生端地圖拖動 + 棋子置中
@@ -1210,23 +1291,7 @@ function initStudentMap() {
     applyMapTransform();
   }, { passive: false });
   map.addEventListener('touchend', () => { _drag = false; });
-
-  if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', () => {
-      // 重算scale
-      const nvw = window.innerWidth;
-      const ns = nvw / (BOARD_SIZE * Math.SQRT2);
-      if (sboard) sboard.style.transform = `scale(${ns}) rotateX(55deg) rotateZ(-45deg)`;
-      if (scene) {
-        const h2 = (BOARD_SIZE / 2) * ns;
-        scene.style.left = (-h2) + 'px';
-        scene.style.top = (-h2) + 'px';
-        scene.style.width = (BOARD_SIZE * ns) + 'px';
-        scene.style.height = (BOARD_SIZE * ns) + 'px';
-      }
-      centerOnMyPiece();
-    });
-  }
+  // resize 已由 window resize / visualViewport resize 統一處理
 }
 
 function applyMapTransform() {
@@ -1383,32 +1448,68 @@ function renderStudent() {
   centerOnMyPiece();
 }
 
+// 骰子面的 emoji 對應
+const DICE_FACES = ['⚀','⚁','⚂','⚃','⚄','⚅'];
+// 每個點數對應骰子「front面」需要旋轉的角度（讓front面顯示正確點數）
+const DICE_RX = [0,   -90,  0,   0,  90,  0];
+const DICE_RY = [0,    0,   90, -90,   0, 180];
+
+function makeDice3D(val) {
+  // val = 1-6，返回 3D 骰子 HTML
+  const rx = DICE_RX[(val||1)-1];
+  const ry = DICE_RY[(val||1)-1];
+  return `<div class="dice3d-wrap">
+    <div class="dice3d" style="--rx:${rx}deg;--ry:${ry}deg;">
+      <div class="face front">⚀</div>
+      <div class="face back">⚅</div>
+      <div class="face right">⚂</div>
+      <div class="face left">⚃</div>
+      <div class="face top">⚁</div>
+      <div class="face bottom">⚄</div>
+    </div>
+  </div>`;
+}
+
 function showDiceAnim(d1, d2, total, onBoard) {
-  // 在棋盤中心顯示擲骰動畫（teacher=board, student=s-board）
-  const f = ['⚀','⚁','⚂','⚃','⚄','⚅'];
-  const html = `
+  // 第一階段：旋轉動畫（0.8s）
+  const spinHtml = `
+    <div style="font-size:.8rem;color:rgba(255,255,255,.5);margin-bottom:14px;font-weight:900;">🎲 擲骰中...</div>
+    <div style="display:flex;gap:16px;justify-content:center;">${makeDice3D(d1)}${d2?makeDice3D(d2):''}</div>`;
+  
+  // 第二階段：顯示結果（動畫結束後）
+  const resultHtml = `
     <div style="font-size:.8rem;color:rgba(255,255,255,.5);margin-bottom:10px;font-weight:900;">🎲 骰子結果</div>
     <div style="display:flex;gap:12px;justify-content:center;margin-bottom:10px;">
-      <div class="dice-face">${f[(d1||1)-1]}</div>
-      ${d2 ? `<div class="dice-face">${f[(d2||1)-1]}</div>` : ''}
+      <div class="dice-face">${DICE_FACES[(d1||1)-1]}</div>
+      ${d2?`<div class="dice-face">${DICE_FACES[(d2||1)-1]}</div>`:''}
     </div>
     <div class="dice-total">共 ${total} 步</div>`;
+
+  const showIn = (boxId, overlayId) => {
+    const box = document.getElementById(boxId);
+    const overlay = document.getElementById(overlayId);
+    if (!box || !overlay) return;
+    box.innerHTML = spinHtml;
+    overlay.style.display = 'flex';
+    setTimeout(() => { box.innerHTML = resultHtml; }, 700);
+    setTimeout(() => { overlay.style.display = 'none'; }, 2400);
+  };
+
   if (onBoard === 's') {
-    const box = document.getElementById('s-dice-box');
-    const overlay = document.getElementById('s-dice-overlay');
-    if (box) box.innerHTML = html;
-    if (overlay) { overlay.style.display = 'flex'; setTimeout(() => overlay.style.display = 'none', 2200); }
+    showIn('s-dice-box', 's-dice-overlay');
   } else {
-    // 老師端：在棋盤容器正中間插入動畫div
     const existing = document.getElementById('t-dice-overlay');
     if (existing) existing.remove();
     const el = document.createElement('div');
     el.id = 't-dice-overlay';
-    el.className = 'dice-anim-overlay';
     el.style.cssText = 'position:absolute;inset:0;z-index:400;pointer-events:none;display:flex;align-items:center;justify-content:center;';
-    el.innerHTML = `<div class="dice-anim-box">${html}</div>`;
+    el.innerHTML = `<div class="dice-anim-box" id="t-dice-box">${spinHtml}</div>`;
     const bc = document.querySelector('.board-container');
-    if (bc) { bc.appendChild(el); setTimeout(() => el.remove(), 2200); }
+    if (bc) {
+      bc.appendChild(el);
+      setTimeout(() => { const b = document.getElementById('t-dice-box'); if(b) b.innerHTML = resultHtml; }, 700);
+      setTimeout(() => el.remove(), 2400);
+    }
   }
 }
 
@@ -1449,34 +1550,34 @@ function movePiece() {
   const gs = gameState;
   const tid = gs.currentTurn;
   const team = gs.teams[tid];
+  if (!team) return;
   const steps = gs.diceResult?.total || 1;
   const startPos = team.position;
+  const finalPos = (startPos + steps) % TOTAL;
 
-  // 逐格跳動動畫
   let step = 0;
   function moveStep() {
-    if (step >= steps) {
-      // 全部走完，觸發事件
-      const finalPos = (startPos + steps) % TOTAL;
-      setTimeout(() => triggerEvent(CTYPES[finalPos], finalPos), 300);
-      return;
-    }
     step++;
-    const newPos = (startPos + step) % TOTAL;
-    // 更新位置但不廣播（避免每格都廣播）
-    gameState = { ...gameState, teams: { ...gameState.teams, [tid]: { ...gameState.teams[tid], position: newPos } } };
+    const curPos = (startPos + step) % TOTAL;
+    // 直接修改 gameState（不廣播），只更新 UI
+    if (gameState.teams[tid]) {
+      gameState.teams[tid].position = curPos;
+    }
     renderPieces();
-    // 每格間隔：快速走格（200ms一格）
-    setTimeout(moveStep, step < steps ? 200 : 300);
+
+    if (step < steps) {
+      setTimeout(moveStep, 180);
+    } else {
+      // 走完：廣播最終位置，觸發格子事件
+      setTimeout(() => {
+        updateTeam(tid, { position: finalPos }); // 廣播
+        setTimeout(() => triggerEvent(CTYPES[finalPos], finalPos), 200);
+      }, 200);
+    }
   }
 
-  // 廣播最終位置（只在最後）
-  const finalPos = (startPos + steps) % TOTAL;
-  updateTeam(tid, { position: finalPos });
-  // 但先從 startPos 開始逐格動畫（updateTeam 已更新 gameState，需要從 startPos 重建）
-  gameState = { ...gameState, teams: { ...gameState.teams, [tid]: { ...gameState.teams[tid], position: startPos } } };
-  renderPieces();
-  setTimeout(moveStep, 100);
+  // 立即開始走格
+  moveStep();
 }
 
 function triggerEvent(type) {
