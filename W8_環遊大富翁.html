@@ -607,8 +607,26 @@ function syncTeamsFromParent() {
         if (newTeams.length > 0) {
           TEAMS = newTeams;
           teamCount = TEAMS.length;
+          return; // 成功就 return
         }
       }
+    }
+  } catch(e) {}
+  // 跨 origin 失敗：嘗試從 URL params 讀取 players JSON
+  try {
+    const p = new URLSearchParams(location.search);
+    const playersRaw = p.get('players');
+    if (playersRaw) {
+      const parentPlayers = JSON.parse(decodeURIComponent(playersRaw));
+      const colors = ['#FF8A65', '#81C784', '#FFB74D', '#4FC3F7', '#CE93D8', '#FFD54F', '#4DB6AC', '#7986CB'];
+      const newTeams = [];
+      parentPlayers.forEach((pl, i) => {
+        const gId = parseInt(String(pl.group).replace(/\D/g, '')) || (i + 1);
+        if (!newTeams.find(t => t.id === gId)) {
+          newTeams.push({ id: gId, name: pl.name || `第${gId}組`, icon: pl.symbol || '🐻', color: colors[newTeams.length % colors.length] });
+        }
+      });
+      if (newTeams.length > 0) { TEAMS = newTeams; teamCount = TEAMS.length; }
     }
   } catch(e) {}
 }
@@ -732,6 +750,7 @@ window.addEventListener('message', e => {
       launch();
     } else {
       // 已啟動過，直接更新角色和重新渲染
+      syncTeamsFromParent();
       if (myRole === 'teacher') {
         document.getElementById('teacher-view').style.display = 'block';
         document.getElementById('student-view').style.display = 'none';
@@ -740,6 +759,9 @@ window.addEventListener('message', e => {
       } else {
         document.getElementById('teacher-view').style.display = 'none';
         document.getElementById('student-view').style.display = 'flex';
+        // 強制關閉遮罩（避免舊狀態殘留）
+        const ov = document.getElementById('s-wait-overlay');
+        if (ov) ov.style.display = 'none';
         render();
         centerOnMyPiece();
       }
@@ -1263,10 +1285,20 @@ function toggleSidebar() {
 
 function renderStudent() {
   const gs = gameState;
-  // 更新 my-badge（用id直接抓，不在scores裡面清除它）
+
+  // 更新 my-badge：優先從 TEAMS 找，找不到就用預設顯示組號
   const myT = TEAMS.find(t => t.id == myTeamId);
   const badge = document.getElementById('my-badge');
-  if (myT && badge) badge.innerHTML = `${myT.icon} ${myT.name}`;
+  if (badge) {
+    if (myT) {
+      badge.innerHTML = `${myT.icon} ${myT.name}`;
+    } else {
+      // TEAMS 沒有匹配時，嘗試從 gameState.teams 取資料
+      const fallbackTeam = gs?.teams?.[myTeamId] || gs?.teams?.[String(myTeamId)];
+      const fallbackT = TEAMS.find(t => Number(t.id) === Number(myTeamId));
+      badge.innerHTML = fallbackT ? `${fallbackT.icon} ${fallbackT.name}` : `🐻 第${myTeamId}組`;
+    }
+  }
 
   // 更新分數chips（清除舊的chip，保留badge）
   const sr = document.getElementById('s-scores');
@@ -1286,16 +1318,23 @@ function renderStudent() {
   });
   
   const sa = document.getElementById('s-action');
-  const isMyTurn = Number(gs.currentTurn) === Number(myTeamId);
+  // 三重保險比較：數字、字串、原始值都試
+  const curTurn = gs.currentTurn;
+  const isMyTurn = (
+    Number(curTurn) === Number(myTeamId) ||
+    String(curTurn) === String(myTeamId) ||
+    curTurn == myTeamId
+  );
   const ct = TEAMS.find(t => t.id == gs.currentTurn);
   const myTD = gs.teams[myTeamId] || gs.teams[String(myTeamId)];
   sa.innerHTML = '';
 
-  // 全螢幕等待遮罩
+  // 遮罩：只有在「明確不是我的回合」且「等待狀態」才顯示
+  // 如果 isMyTurn 有任何方式為 true，絕不顯示遮罩
   const overlay = document.getElementById('s-wait-overlay');
   const waitIcon = document.getElementById('s-wait-icon');
   const waitText = document.getElementById('s-wait-text');
-  const showOverlay = !isMyTurn && (gs.phase === 'waiting_roll' || gs.phase === 'rolled' || gs.phase === 'event');
+  const showOverlay = !isMyTurn && gs.phase === 'waiting_roll';
   if (overlay) {
     overlay.style.display = showOverlay ? 'flex' : 'none';
     if (showOverlay && ct) {
