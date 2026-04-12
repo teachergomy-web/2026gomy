@@ -457,8 +457,7 @@ body {
   margin-top: 4px;
 }
 
-/* 方塊的厚度面 - 從頂面(Z=20)向下延伸到底面(Z=0) */
-/* 高度=20px 剛好等於 translateZ(20px) 的厚度 */
+/* 方塊的厚度面 */
 .cell-s {
   position: absolute;
   left: 0; bottom: 0; width: 100%; height: 20px;
@@ -505,7 +504,7 @@ body {
 /* 直立 3D 棋子 */
 .piece { 
   position: absolute; width: 0; height: 0; transform-style: preserve-3d; z-index: 100;
-  transition: left 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), top 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: left 0.4s ease-out, top 0.4s ease-out;
 }
 .piece-shadow {
   position: absolute; width: 34px; height: 34px; background: rgba(0,0,0,0.8);
@@ -746,7 +745,7 @@ function syncTeamsFromState() {
   if (changed) teamCount = TEAMS.length;
 }
 
-// 從 URL 讀取組別（最可靠，不用 localStorage 避免舊資料干擾）
+// 從 URL 讀取組別
 function syncMyTeamId() {
   try {
     const p = new URLSearchParams(location.search);
@@ -756,7 +755,6 @@ function syncMyTeamId() {
       if (!isNaN(parsed) && parsed > 0) { myTeamId = parsed; return; }
     }
   } catch(e) {}
-  // 無 URL 參數時保持現有值（由 PLATFORM_START 設定）
 }
 
 const TOTAL = 28;
@@ -801,7 +799,6 @@ let _lastActionTs = 0;
 
 function attachSync() {
   syncMyTeamId();
-  // 老師端：把 _lastActionTs 設為現在，避免讀到殘留的舊 W8_ROLL
   if (myRole === 'teacher') {
     try {
       const raw = localStorage.getItem('W8_ROLL');
@@ -809,7 +806,6 @@ function attachSync() {
     } catch(e) {}
   }
 
-  // localStorage 輪詢（同電腦/同瀏覽器備援）
   const applyState = (raw) => {
     if (!raw || raw === _lastStateStr) return;
     try {
@@ -832,7 +828,6 @@ function attachSync() {
         if (raw) {
           const action = JSON.parse(raw);
           if (action.ts && action.ts !== _lastActionTs) {
-            console.log('[W8] pollNow teacher: W8_ROLL found, ts=', action.ts, 'type=', action.type);
             processAction(action);
           }
         }
@@ -843,38 +838,33 @@ function attachSync() {
   setInterval(pollNow, 400);
 }
 
+// 統一接收訊號處理骰子動畫並移動 (注意: 此處只處理正確的 W8_ROLL 訊號)
 function processAction(action) {
-  if (!gameState) { console.warn('[W8] processAction: no gameState'); return; }
-  if (action.ts === _lastActionTs) { console.log('[W8] processAction: duplicate ts, skip'); return; }
+  if (!gameState) return;
+  if (action.ts === _lastActionTs) return;
   _lastActionTs = action.ts;
 
-  console.log('[W8] processAction:', action.type, 'myRole=', myRole, 'currentTurn=', gameState.currentTurn, 'teamId=', action.teamId);
-
-  if (action.type === 'W8_MOVE_ROLL') {
+  if (action.type === 'W8_ROLL') {
     if (Number(action.teamId) !== Number(gameState.currentTurn) &&
-        String(action.teamId) !== String(gameState.currentTurn)) {
-      console.warn('[W8] processAction: teamId mismatch', action.teamId, '!=', gameState.currentTurn);
-      return;
-    }
+        String(action.teamId) !== String(gameState.currentTurn)) return;
+        
     const d = action.diceResult;
     showDiceAnim(d.d1, d.d2, d.total);
     updateState({ phase: 'rolled', diceResult: d });
+    
     const team = TEAMS.find(t => t.id == action.teamId);
     showToast(`🎲 ${team?.icon || ''} 擲出 ${d.total} 步！`);
-    console.log('[W8] processAction: scheduling movePiece in 2500ms, myRole=', myRole);
+    
     if (myRole === 'teacher') {
-      // 傳入 diceResult 直接使用，不依賴 gameState.phase
       const savedDice = { ...d };
-      const savedTid = action.teamId;
+      // 等待 3 秒鐘讓 3D 骰子動畫與結果完全播完，再開始跑棋子
       setTimeout(() => {
-        console.log('[W8] movePiece trigger, phase=', gameState?.phase, 'diceResult=', gameState?.diceResult);
-        // 強制設定 phase 和 diceResult 再移動
         if (gameState) {
           gameState.phase = 'rolled';
           gameState.diceResult = savedDice;
           movePiece();
         }
-      }, 2500);
+      }, 3000);
     }
   }
 }
@@ -940,10 +930,11 @@ window.addEventListener('message', e => {
     syncTeamsFromParent(); syncTeamsFromState();
     render(); centerOnMyPiece();
   }
-  if ((e.data.type === 'W8_ROLL' || e.data.type === 'W8_MOVE_ROLL') && myRole === 'teacher') {
+  if (e.data.type === 'W8_ROLL' && myRole === 'teacher') {
     processAction(e.data);
   }
 });
+
 window.addEventListener('storage', e => {
   if (e.key === 'W8_STATE' && myRole === 'student') { gameState = JSON.parse(e.newValue); syncTeamsFromParent(); render(); }
   if (e.key === 'W8_ROLL' && myRole === 'teacher') { processAction(JSON.parse(e.newValue)); }
@@ -977,7 +968,6 @@ window.addEventListener('load', () => {
         initStudentMap();
         resizeStudentBoard();
         resizeBoard();
-        // 嘗試立即讀取 state
         try {
           const raw = localStorage.getItem('W8_STATE');
           if (raw) { gameState = JSON.parse(raw); syncTeamsFromState(); render(); centerOnMyPiece(); }
@@ -1001,7 +991,6 @@ function launch() {
     if (myRole === 'teacher') {
       document.getElementById('teacher-view').style.display = 'block';
       document.getElementById('student-view').style.display = 'none';
-      // 清除舊的 W8_ROLL（防止進入遊戲就觸發舊 action）
       try { localStorage.removeItem('W8_ROLL'); localStorage.removeItem('W8_STATE'); } catch(e) {}
       gameState = makeInit();
       render(); broadcast();
@@ -1009,12 +998,11 @@ function launch() {
       document.getElementById('teacher-view').style.display = 'none';
       document.getElementById('student-view').style.display = 'flex';
       updateBadge();
-      // 確保棋盤建好
       if (!boardPos || boardPos.length === 0) boardPos = getBoardLayout();
       buildBoard();
       initStudentMap();
       resizeStudentBoard();
-      // 讀快取 state
+      
       const tryLoadState = () => {
         try {
           const raw = localStorage.getItem('W8_STATE');
@@ -1030,7 +1018,6 @@ function launch() {
       };
       if (!tryLoadState()) {
         setHud('⏳ 等待遊戲開始...');
-        // 每200ms重試，最多10秒
         let retries = 0;
         const retryTimer = setInterval(() => {
           retries++;
@@ -1126,7 +1113,6 @@ function makeInit() {
     teams[t.id] = { id: t.id, position: 0, score: 0, extraDice: false, skipTurn: false };
   });
 
-  // 依組別號碼由小到大決定順序（第1組先）
   const playOrder = [...TEAMS].sort((a, b) => a.id - b.id).map(t => t.id);
   
   return { 
@@ -1145,9 +1131,7 @@ function makeInit() {
 function broadcast() {
   if (myRole !== 'teacher') return;
   const stateStr = JSON.stringify(gameState);
-  // postMessage 給同頁面學生 iframe
   try { window.parent.postMessage({ type: 'W8_STATE', state: gameState }, '*'); } catch (e) {}
-  // localStorage（同電腦備援）
   try {
     localStorage.setItem('W8_STATE', stateStr);
     window.dispatchEvent(new StorageEvent('storage', { key: 'W8_STATE', newValue: stateStr }));
@@ -1164,7 +1148,7 @@ function updateTeam(tid, patch) {
   const base = t[tidStr] || t[tid] || {};
   const updated = { ...base, ...patch };
   t[tidStr] = updated;
-  t[tid] = updated; // 同時寫數字key確保相容
+  t[tid] = updated;
   updateState({ teams: t });
 }
 
@@ -1182,7 +1166,6 @@ function renderPieces() {
   if (!gameState) return;
   if (!boardPos || boardPos.length === 0) return;
 
-  // 去重：同一 id 只保留一個 team 物件（避免數字/字串 key 重複）
   const seenIds = new Set();
   const uniqueTeams = Object.values(gameState.teams || {}).filter(team => {
     const key = String(team.id);
@@ -1373,10 +1356,8 @@ function resizeBoard() {
     const board = document.getElementById('board');
     if (board) board.style.transform = `scale(${scale}) rotateX(55deg) rotateZ(-45deg)`;
   } else {
-    // 學生端：棋盤填滿畫面寬度
     const topH = 40;
-    // 等距視角視覺寬 ≈ BOARD_SIZE * √2，用畫面寬作為基準
-    const availW = vw;          // 不扣邊距，讓棋盤填滿
+    const availW = vw;          
     const availH = vh - topH - 10;
     const scaleW = availW / VW;
     const scaleH = availH / VH;
@@ -1385,7 +1366,6 @@ function resizeBoard() {
     const sboard = document.getElementById('s-board');
     if (sboard) sboard.style.transform = `scale(${scale}) rotateX(55deg) rotateZ(-45deg)`;
 
-    // iso-scene 幾何中心對齊 (0,0)
     const scene = document.getElementById('s-iso-scene');
     if (scene) {
       const half = (BOARD_SIZE / 2) * scale;
@@ -1395,14 +1375,10 @@ function resizeBoard() {
       scene.style.height = (BOARD_SIZE * scale) + 'px';
     }
 
-    // map-inner 置中：等距旋轉後視覺中心在畫面中央
-    // rotateZ(-45deg) 讓棋盤菱形左右對稱，X 方向不需補正
-    // rotateX(55deg) 讓棋盤垂直壓縮，Y 方向稍微上移
     const map = document.getElementById('s-map');
     if (map) {
       const rect = map.getBoundingClientRect();
       _mapX = rect.width / 2;
-      // 視覺高度 = VH * scale，對齊到 map 上半部
       const visH = VH * scale;
       _mapY = (rect.height - visH) / 2 + visH / 2;
       if (_mapY < 0) _mapY = rect.height / 2;
@@ -1451,12 +1427,10 @@ function initStudentMap() {
   if (_mapY < 0) _mapY = mapRect.height / 2;
   applyMapTransform();
 
-  // 拖動 mouse
   let _drag = false, _sx = 0, _sy = 0, _bx = 0, _by = 0;
   map.addEventListener('mousedown', e => { _drag=true; _sx=e.clientX; _sy=e.clientY; _bx=_mapX; _by=_mapY; });
   window.addEventListener('mousemove', e => { if(!_drag) return; _mapX=_bx+(e.clientX-_sx); _mapY=_by+(e.clientY-_sy); applyMapTransform(); });
   window.addEventListener('mouseup', () => { _drag=false; });
-  // 拖動 touch
   map.addEventListener('touchstart', e => { if(e.touches.length!==1) return; _drag=true; _sx=e.touches[0].clientX; _sy=e.touches[0].clientY; _bx=_mapX; _by=_mapY; }, {passive:true});
   map.addEventListener('touchmove', e => { if(!_drag||e.touches.length!==1) return; e.preventDefault(); _mapX=_bx+(e.touches[0].clientX-_sx); _mapY=_by+(e.touches[0].clientY-_sy); applyMapTransform(); }, {passive:false});
   map.addEventListener('touchend', () => { _drag=false; });
@@ -1513,13 +1487,11 @@ function toggleSidebar() {
   setTimeout(resizeBoard, 400);
 }
 
-// HUD 輔助：設定右下角卡片內容
 function setHud(cardHtml) {
   const card = document.getElementById('s-hud-card');
   if (card) card.innerHTML = cardHtml;
 }
 
-// HUD 輔助：顯示骰子+GO按鈕面板
 function setHudRoll(extraDice) {
   const hud = document.getElementById('s-hud');
   if (!hud) return;
@@ -1537,7 +1509,6 @@ function setHudRoll(extraDice) {
   hud.appendChild(panel);
 }
 
-// HUD 輔助：移除骰子面板
 function removeHudRoll() {
   const hud = document.getElementById('s-hud');
   if (hud) hud.querySelector('.s-hud-roll-panel')?.remove();
@@ -1546,7 +1517,6 @@ function removeHudRoll() {
 function renderStudent() {
   const gs = gameState;
 
-  // 頂部：自己組別 + 分數
   const myT = TEAMS.find(t => t.id == myTeamId);
   const badge = document.getElementById('my-badge');
   if (badge) badge.innerHTML = myT ? `${myT.icon} ${myT.name}` : `🐻 第${myTeamId}組`;
@@ -1564,22 +1534,18 @@ function renderStudent() {
   const isMyTurn = Number(curTurn) === Number(myTeamId) || String(curTurn) === String(myTeamId) || curTurn == myTeamId;
   const ct = TEAMS.find(t => t.id == gs.currentTurn);
 
-  // 右上角顯示當前回合是誰
   const turnEl = document.getElementById('turn-indicator');
   if (turnEl) {
     turnEl.textContent = isMyTurn ? '⭐ 你的回合' : `${ct?.icon||''} ${ct?.name||''} 的回合`;
     turnEl.style.color = isMyTurn ? 'var(--yellow)' : 'rgba(255,255,255,0.45)';
   }
 
-  // 等待時：透明阻擋層（棋盤仍可見）
   const blocker = document.getElementById('s-wait-blocker');
   if (blocker) blocker.style.display = !isMyTurn ? 'block' : 'none';
 
-  // HUD z-index 在 blocker 之上（讓 HUD 仍可見）
   const hud = document.getElementById('s-hud');
   if (hud) hud.style.zIndex = '1000';
 
-  // ── HUD 內容依 phase 決定 ──
   removeHudRoll();
 
   if (!isMyTurn) {
@@ -1628,22 +1594,9 @@ function renderStudent() {
   centerOnMyPiece();
 }
 
-const DICE_EMOJI = ['⚀','⚁','⚂','⚃','⚄','⚅'];
-
 // ══════════════════════════════
 // Three.js 3D 骰子系統
 // ══════════════════════════════
-
-// 骰子各面旋轉：靜止時讓 finalVal 朝上（+y 面）
-// 策略：直接把 finalVal 貼在 +y 面，靜止旋轉全為 0
-const DICE_FACE_ROT = {
-  1: { x: 0, y: 0 },
-  2: { x: 0, y: 0 },
-  3: { x: 0, y: 0 },
-  4: { x: 0, y: 0 },
-  5: { x: 0, y: 0 },
-  6: { x: 0, y: 0 },
-};
 
 function createDiceScene(canvas, finalVal) {
   if (!window.THREE) return null;
@@ -1657,12 +1610,10 @@ function createDiceScene(canvas, finalVal) {
   renderer.shadowMap.enabled = true;
 
   const scene = new THREE.Scene();
-  // 相機：等距三點視角（能看到上、右、前三個面）
   const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
   camera.position.set(4, 4, 4);
   camera.lookAt(0, 0, 0);
 
-  // 燈光
   const amb = new THREE.AmbientLight(0xffffff, 0.6);
   scene.add(amb);
   const dir = new THREE.DirectionalLight(0xffffff, 1.2);
@@ -1673,20 +1624,16 @@ function createDiceScene(canvas, finalVal) {
   fill.position.set(-5, 2, -3);
   scene.add(fill);
 
-  // 骰子幾何（圓角用 BoxGeometry + 稍微縮小）
   const geo = new THREE.BoxGeometry(2, 2, 2);
   
-  // 為每個面建立帶骰點的 canvas 貼圖
   function makeFaceTex(num) {
     const c = document.createElement('canvas');
     c.width = c.height = 256;
     const ctx = c.getContext('2d');
-    // 背景
     const r = ctx.createRadialGradient(128,100,10,128,128,180);
     r.addColorStop(0, '#ffffff');
     r.addColorStop(1, '#e8e8e8');
     ctx.fillStyle = r;
-    // 圓角矩形
     const rad = 32;
     ctx.beginPath();
     ctx.moveTo(rad, 0);
@@ -1700,7 +1647,7 @@ function createDiceScene(canvas, finalVal) {
     ctx.arcTo(0,0,rad,0,rad);
     ctx.closePath();
     ctx.fill();
-    // 點
+    
     ctx.fillStyle = '#1a1a2e';
     const dots = {
       1: [[128,128]],
@@ -1711,29 +1658,23 @@ function createDiceScene(canvas, finalVal) {
       6: [[72,72],[184,72],[72,128],[184,128],[72,184],[184,184]],
     };
     (dots[num]||dots[1]).forEach(([dx,dy]) => {
-      ctx.beginPath();
-      ctx.arc(dx, dy, 22, 0, Math.PI*2);
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(dx, dy, 22, 0, Math.PI*2); ctx.fill();
     });
     return new THREE.CanvasTexture(c);
   }
 
-  // BoxGeometry 面順序: 0=+x(右), 1=-x(左), 2=+y(上), 3=-y(下), 4=+z(前), 5=-z(後)
-  // 直接把 finalVal 貼在上面（index 2），其餘面填其他點數
   const otherVals = [1,2,3,4,5,6].filter(v => v !== finalVal);
-  // 對面相加=7：下面貼 7-finalVal
   const bottomVal = 7 - finalVal;
   const sideVals = [1,2,3,4,5,6].filter(v => v !== finalVal && v !== bottomVal);
-  // 隨機打亂側面
   sideVals.sort(() => Math.random() - 0.5);
 
   const faceMats = [
-    new THREE.MeshPhongMaterial({ map: makeFaceTex(sideVals[0] || 3) }), // +x 右
-    new THREE.MeshPhongMaterial({ map: makeFaceTex(sideVals[1] || 4) }), // -x 左
-    new THREE.MeshPhongMaterial({ map: makeFaceTex(finalVal) }),          // +y 上（目標點數）
-    new THREE.MeshPhongMaterial({ map: makeFaceTex(bottomVal) }),         // -y 下（對面）
-    new THREE.MeshPhongMaterial({ map: makeFaceTex(sideVals[2] || 2) }), // +z 前
-    new THREE.MeshPhongMaterial({ map: makeFaceTex(sideVals[3] || 5) }), // -z 後
+    new THREE.MeshPhongMaterial({ map: makeFaceTex(sideVals[0] || 3) }), // +x
+    new THREE.MeshPhongMaterial({ map: makeFaceTex(sideVals[1] || 4) }), // -x
+    new THREE.MeshPhongMaterial({ map: makeFaceTex(finalVal) }),         // +y (朝上為最終點數)
+    new THREE.MeshPhongMaterial({ map: makeFaceTex(bottomVal) }),        // -y
+    new THREE.MeshPhongMaterial({ map: makeFaceTex(sideVals[2] || 2) }), // +z
+    new THREE.MeshPhongMaterial({ map: makeFaceTex(sideVals[3] || 5) }), // -z
   ];
   faceMats.forEach(m => { m.shininess = 80; });
 
@@ -1741,7 +1682,6 @@ function createDiceScene(canvas, finalVal) {
   dice.castShadow = true;
   scene.add(dice);
 
-  // 地板（接影子）
   const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(20,20),
     new THREE.MeshStandardMaterial({ color:0x111111, transparent:true, opacity:0.3 })
@@ -1751,13 +1691,12 @@ function createDiceScene(canvas, finalVal) {
   floor.receiveShadow = true;
   scene.add(floor);
 
-  // 動畫狀態 - 改進的拋物線與彈跳物理
   const state = {
     phase: 'throw',
     t: 0,
-    vy: 28, // 初始向上較大的速度 (拋高)
-    y: -0.5, // 從地板出發
-    spinX: (Math.random() - 0.5) * 40, // 增加旋轉速度
+    vy: 28,
+    y: -0.5,
+    spinX: (Math.random() - 0.5) * 40,
     spinY: (Math.random() - 0.5) * 40,
     spinZ: (Math.random() - 0.5) * 40,
     bounceCount: 0,
@@ -1771,7 +1710,7 @@ function animateDice(state, elapsed) {
   if (!state || state.done) return;
   const dt = Math.min(elapsed, 0.05);
   const { dice } = state;
-  const gravity = 80; // 較強的重力讓骰子迅速落下
+  const gravity = 80;
 
   if (state.phase === 'throw') {
     state.vy -= gravity * dt;
@@ -1786,35 +1725,33 @@ function animateDice(state, elapsed) {
       state.y = -0.5;
       state.bounceCount++;
       
-      // 彈跳時衰減速度與旋轉
       state.vy = Math.abs(state.vy) * 0.55; 
       state.spinX *= 0.7; 
       state.spinY *= 0.7; 
       state.spinZ *= 0.7;
 
-      // 當彈跳速度夠小，或彈跳次數足夠多時靜止
       if (state.vy < 3.5 || state.bounceCount > 4) {
         state.phase = 'settle';
         state.t = 0;
       }
     }
   } else if (state.phase === 'settle') {
-    state.t += dt * 4; // 加快導正速度
+    state.t += dt * 4; 
     const p = Math.min(state.t, 1);
-    const ease = 1 - Math.pow(1 - p, 3); // Cubic ease out
-    const TX = 0, TY = Math.PI / 4, TZ = 0;
+    const ease = 1 - Math.pow(1 - p, 3); 
+    const TX = 0, TY = 0, TZ = 0; // 朝向 (0,0,0) 就是 +y 朝上
 
     if (!state.rotStart) {
-      const norm = (a, target) => {
+      const norm = (a) => {
         let v = a % (Math.PI * 2);
-        while (v - target > Math.PI) v -= Math.PI * 2;
-        while (target - v > Math.PI) v += Math.PI * 2;
+        if (v > Math.PI) v -= Math.PI * 2;
+        if (v < -Math.PI) v += Math.PI * 2;
         return v;
       };
       state.rotStart = {
-        x: norm(dice.rotation.x, TX),
-        y: norm(dice.rotation.y, TY),
-        z: norm(dice.rotation.z, TZ)
+        x: norm(dice.rotation.x),
+        y: norm(dice.rotation.y),
+        z: norm(dice.rotation.z)
       };
     }
 
@@ -1831,129 +1768,115 @@ function animateDice(state, elapsed) {
   state.renderer.render(state.scene, state.camera);
 }
 
-// 主動畫函式
 function showDiceAnim(d1, d2, total) {
-<!-- ... existing code ... -->
-function attachSync() {
-  syncMyTeamId();
-  // 老師端：把 _lastActionTs 設為現在，避免讀到殘留的舊 W8_ROLL
-  if (myRole === 'teacher') {
-    try {
-      const raw = localStorage.getItem('W8_ROLL');
-      if (raw) { const a = JSON.parse(raw); if (a.ts) _lastActionTs = a.ts; }
-    } catch(e) {}
+  const overlay = document.getElementById('dice3d-overlay');
+  const wrap = document.getElementById('dice3d-canvas-wrap');
+  if (!overlay || !wrap) return;
+
+  overlay.classList.add('show');
+  wrap.innerHTML = '';
+  const existingResult = overlay.querySelector('.dt-result');
+  if (existingResult) existingResult.remove();
+
+  const animStates = [];
+  if (d1) {
+    const c1 = document.createElement('canvas');
+    wrap.appendChild(c1);
+    const st = createDiceScene(c1, d1);
+    if (st) animStates.push(st);
+  }
+  if (d2) {
+    const c2 = document.createElement('canvas');
+    wrap.appendChild(c2);
+    const st = createDiceScene(c2, d2);
+    if (st) animStates.push(st);
   }
 
-  // localStorage 輪詢（同電腦/同瀏覽器備援）
-  const applyState = (raw) => {
-    if (!raw || raw === _lastStateStr) return;
-    try {
-      const parsed = JSON.parse(raw);
-      if (!parsed?.teams) return;
-      _lastStateStr = raw;
-      gameState = parsed;
-      if (!boardPos?.length) boardPos = getBoardLayout();
-      if (!document.getElementById('sc-0')) buildBoard();
-      syncTeamsFromParent(); syncTeamsFromState();
-      render(); centerOnMyPiece();
-    } catch(e) {}
-  };
-
-  const pollNow = () => {
-    if (myRole === 'student') applyState(localStorage.getItem('W8_STATE'));
-    if (myRole === 'teacher') {
-      try {
-        const raw = localStorage.getItem('W8_ROLL');
-        if (raw) {
-          const action = JSON.parse(raw);
-          if (action.ts && action.ts !== _lastActionTs) {
-            console.log('[W8] pollNow teacher: W8_ROLL found, ts=', action.ts, 'type=', action.type);
-            processAction(action);
-          }
-        }
-      } catch(e) {}
-    }
-  };
-  pollNow();
-  setInterval(pollNow, 400);
-}
-
-function processAction(action) {
-  if (!gameState) { console.warn('[W8] processAction: no gameState'); return; }
-  if (action.ts === _lastActionTs) { console.log('[W8] processAction: duplicate ts, skip'); return; }
-  _lastActionTs = action.ts;
-
-  console.log('[W8] processAction:', action.type, 'myRole=', myRole, 'currentTurn=', gameState.currentTurn, 'teamId=', action.teamId);
-
-  // 同步處理 W8_ROLL 動作（包含移動與擲骰）
-  if (action.type === 'W8_ROLL' || action.type === 'W8_MOVE_ROLL') {
-    if (Number(action.teamId) !== Number(gameState.currentTurn) &&
-        String(action.teamId) !== String(gameState.currentTurn)) {
-      console.warn('[W8] processAction: teamId mismatch', action.teamId, '!=', gameState.currentTurn);
-      return;
-    }
-    const d = action.diceResult;
-    showDiceAnim(d.d1, d.d2, d.total);
-    updateState({ phase: 'rolled', diceResult: d });
-    const team = TEAMS.find(t => t.id == action.teamId);
-    showToast(`🎲 ${team?.icon || ''} 擲出 ${d.total} 步！`);
-    console.log('[W8] processAction: scheduling movePiece in 2800ms, myRole=', myRole);
-    if (myRole === 'teacher') {
-      // 傳入 diceResult 直接使用，不依賴 gameState.phase
-      const savedDice = { ...d };
-      setTimeout(() => {
-        console.log('[W8] movePiece trigger, phase=', gameState?.phase, 'diceResult=', gameState?.diceResult);
-        // 強制設定 phase 和 diceResult 再移動
-        if (gameState) {
-          gameState.phase = 'rolled';
-          gameState.diceResult = savedDice;
-          movePiece();
-        }
-      }, 2800);
-    }
-  }
-}
-
-let _launched = false;
-<!-- ... existing code ... -->
-// 擲骰（正式移動）：骰子 1-6
-function rollDice() {
-  if (!gameState) return;
-  const isMyTurn = Number(gameState.currentTurn) === Number(myTeamId) || gameState.currentTurn == myTeamId;
-  if (!isMyTurn || gameState.phase !== 'waiting_roll') {
-    console.warn('[W8] rollDice blocked: isMyTurn=', isMyTurn, 'phase=', gameState?.phase);
+  if (animStates.length === 0) {
+    overlay.classList.remove('show');
     return;
   }
+
+  let startTime = performance.now();
+  let rafId;
+  function loop(now) {
+    const elapsed = (now - startTime) / 1000;
+    startTime = now;
+    let allDone = true;
+    animStates.forEach(st => {
+      animateDice(st, elapsed);
+      if (!st.done) allDone = false;
+    });
+
+    if (!allDone) {
+      rafId = requestAnimationFrame(loop);
+    } else {
+      setTimeout(() => {
+        wrap.innerHTML = '';
+        const res = document.createElement('div');
+        res.className = 'dt-result';
+        const f = ['⚀','⚁','⚂','⚃','⚄','⚅'];
+        res.innerHTML = `
+          <div class="dt-result-dice-row">
+            <div class="dt-result-face">${f[d1-1]}</div>
+            ${d2 ? `<div class="dt-result-face">${f[d2-1]}</div>` : ''}
+          </div>
+          <div class="dt-total-badge">共 ${total} 步</div>
+        `;
+        overlay.appendChild(res);
+
+        setTimeout(() => {
+          overlay.classList.remove('show');
+          res.remove();
+        }, 1500); // 顯示1.5秒後關閉
+      }, 300);
+    }
+  }
+  rafId = requestAnimationFrame(loop);
+}
+
+// ══════════════════════════════
+// 遊戲操作邏輯
+// ══════════════════════════════
+
+// 統一接收訊號 W8_ROLL 並觸發 3D 動畫與棋子移動
+function rollDice() {
+  if (!gameState) return;
+  const curTurn = gameState.currentTurn;
+  const isMyTurn = Number(curTurn) === Number(myTeamId) || String(curTurn) === String(myTeamId) || curTurn == myTeamId;
+  if (!isMyTurn || gameState.phase !== 'waiting_roll') return;
+
   const team = gameState.teams[myTeamId] || gameState.teams[String(myTeamId)];
   if (!team || team.skipTurn) return;
-  // 立刻鎖定 phase，防止重複擲骰
-  gameState.phase = 'rolled';
+  
+  gameState.phase = 'rolled'; // 防止重複點擊
   removeHudRoll();
+  
   const d1 = Math.ceil(Math.random() * 6);
   const d2 = team.extraDice ? Math.ceil(Math.random() * 6) : null;
   const total = d1 + (d2 || 0);
   
-  // 使用 W8_ROLL 以確保主平台 index.html 能夠正確攔截並同步 Firebase
+  // 請務必確保發送的是 'W8_ROLL'，讓 index.html 能夠攔截與記錄
   const action = { type: 'W8_ROLL', teamId: myTeamId, diceResult: { d1, d2, total }, ts: Date.now() };
-  console.log('[W8] rollDice: myRole=', myRole, 'action=', JSON.stringify(action));
-  showDiceAnim(d1, d2, total);
-  setHud(`<div style="font-size:0.78rem;color:rgba(255,255,255,0.6);">骰子已擲出</div>
-    <div style="color:var(--yellow);font-weight:900;font-size:1rem;">請看老師畫面...</div>`);
-    
+
   if (myRole === 'student') {
-    try { window.parent.postMessage(action, '*'); } catch(e) {}
-    try { localStorage.setItem('W8_ROLL', JSON.stringify(action)); console.log('[W8] W8_ROLL→localStorage'); } catch(e) {}
-    
-    // 直接寫入主平台資料庫
+    try { window.parent.postMessage(action, '*'); } catch (e) {}
+    try { localStorage.setItem('W8_ROLL', JSON.stringify(action)); } catch(e) {}
     try {
-      if (parentDb && window.parent?.state?.roomId) {
-        parentDb.collection('rooms').doc(window.parent.state.roomId).update({ w8Action: action });
+      const roomId = window.parent?.state?.roomId;
+      if (parentDb && roomId) {
+        parentDb.collection('rooms').doc(roomId).update({ w8Action: action });
       } else if (window.parent?.state && typeof window.parent.saveRooms === 'function') {
         window.parent.state.w8Action = action;
         window.parent.saveRooms();
       }
     } catch(e) {}
+    
+    // 學生端也立刻自己播放 3D 骰子動畫 (但不做 movePiece 控制權判斷)
+    processAction(action);
+    setHud(`<div style="font-size:0.78rem;color:rgba(255,255,255,0.6);">骰子已擲出</div><div style="color:var(--yellow);font-weight:900;font-size:1rem;">請看老師畫面...</div>`);
   } else {
+    // 老師單機測試時直接觸發
     processAction(action);
   }
 }
@@ -1963,39 +1886,30 @@ function movePiece() {
   const tid = gs.currentTurn;
   const tidStr = String(tid);
   const team = gs.teams[tidStr] || gs.teams[tid];
-  console.log('[W8] movePiece called: tid=', tid, 'team=', team, 'diceResult=', gs.diceResult, 'phase=', gs.phase);
-  if (!team) { console.warn('[W8] movePiece: team not found!'); return; }
-  const steps = gs.diceResult?.total;
-  if (!steps) { console.warn('[W8] movePiece: no diceResult.total!', gs.diceResult); return; }
+  if (!team) return;
+  
+  const steps = gs.diceResult?.total || 1;
   const startPos = Number(team.position || 0);
   const finalPos = (startPos + steps) % TOTAL;
-  console.log('[W8] movePiece: steps=', steps, 'startPos=', startPos, 'finalPos=', finalPos);
 
   let step = 0;
   function moveStep() {
     step++;
     const curPos = (startPos + step) % TOTAL;
-    // 同時更新數字key和字串key（確保找得到）
     const _t = gameState.teams[tidStr] || gameState.teams[tid];
     if (_t) { _t.position = curPos; gameState.teams[tidStr] = _t; gameState.teams[tid] = _t; }
     
-    broadcast(); // 每走一步廣播一次，讓學生端也能看到棋子格格前進
+    broadcast(); // 每走一格廣播一次，讓學生畫面也逐格更新
     renderPieces();
     
     if (myRole === 'student') centerOnMyPiece();
 
     if (step < steps) {
-      setTimeout(moveStep, 200); // 放慢一點讓動畫清晰
+      setTimeout(moveStep, 400); // 逐格跳動間隔 400ms，配合 CSS 的 0.4s transition
     } else {
       setTimeout(() => {
-        const t = { ...gameState.teams };
-        if (t[tid]) t[tid] = { ...t[tid], position: finalPos };
-        if (t[tidStr]) t[tidStr] = { ...t[tidStr], position: finalPos };
-        gameState = { ...gameState, teams: t };
-        broadcast();
-        renderPieces();
-        setTimeout(() => triggerEvent(CTYPES[finalPos], finalPos), 250);
-      }, 250);
+        triggerEvent(CTYPES[finalPos], finalPos);
+      }, 500);
     }
   }
   moveStep();
@@ -2124,8 +2038,8 @@ function showResult() {
     const t = TEAMS.find(x => x.id === team.id);
     const item = document.createElement('div'); item.className = 'r-item';
     item.style.animationDelay = (i * 0.12) + 's';
-    item.innerHTML = `<span class=\"r-rank\">${medals[i]}</span><span class=\"r-icon\">${t.icon}</span>
-      <span class=\"r-name\">${t.name}</span><span class=\"r-score\">${team.score}分</span>`;
+    item.innerHTML = `<span class="r-rank">${medals[i]}</span><span class="r-icon">${t.icon}</span>
+      <span class="r-name">${t.name}</span><span class="r-score">${team.score}分</span>`;
     rl.appendChild(item);
   });
   const wrap = document.getElementById('confetti-wrap');
