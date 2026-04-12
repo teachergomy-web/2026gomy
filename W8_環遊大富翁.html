@@ -1751,18 +1751,16 @@ function createDiceScene(canvas, finalVal) {
   floor.receiveShadow = true;
   scene.add(floor);
 
-  // 目標旋轉（讓 finalVal 面朝正前方）
-  const target = DICE_FACE_ROT[finalVal] || DICE_FACE_ROT[1];
-
-  // 動畫狀態
+  // 動畫狀態 - 改進的拋物線與彈跳物理
   const state = {
-    phase: 'fall',
+    phase: 'throw',
     t: 0,
-    vy: 6,
-    y: 5,
-    spinX: (Math.random()-0.5) * 8,
-    spinY: (Math.random()-0.5) * 10,
-    spinZ: (Math.random()-0.5) * 6,
+    vy: 28, // 初始向上較大的速度 (拋高)
+    y: -0.5, // 從地板出發
+    spinX: (Math.random() - 0.5) * 40, // 增加旋轉速度
+    spinY: (Math.random() - 0.5) * 40,
+    spinZ: (Math.random() - 0.5) * 40,
+    bounceCount: 0,
     done: false,
     renderer, scene, camera, dice
   };
@@ -1773,55 +1771,58 @@ function animateDice(state, elapsed) {
   if (!state || state.done) return;
   const dt = Math.min(elapsed, 0.05);
   const { dice } = state;
+  const gravity = 80; // 較強的重力讓骰子迅速落下
 
-  if (state.phase === 'fall') {
-    state.vy += dt * 16;
-    state.y -= state.vy * dt;
+  if (state.phase === 'throw') {
+    state.vy -= gravity * dt;
+    state.y += state.vy * dt;
     dice.position.y = state.y;
-    // 自然旋轉：速度適中
+    
     dice.rotation.x += state.spinX * dt;
     dice.rotation.y += state.spinY * dt;
     dice.rotation.z += state.spinZ * dt;
+
     if (state.y <= -0.5) {
-      state.phase = 'bounce1';
       state.y = -0.5;
-      state.vy = -state.vy * 0.42;
-      state.spinX *= 0.25; state.spinY *= 0.25; state.spinZ *= 0.15;
-    }
-  } else if (state.phase === 'bounce1') {
-    state.vy += dt * 16;
-    state.y -= state.vy * dt;
-    dice.position.y = state.y;
-    dice.rotation.x += state.spinX * dt;
-    dice.rotation.y += state.spinY * dt;
-    dice.rotation.z += state.spinZ * dt;
-    if (state.y <= -0.5) {
-      state.phase = 'bounce2';
-      state.y = -0.5;
-      state.vy = -state.vy * 0.28;
-      state.spinX *= 0.1; state.spinY *= 0.1; state.spinZ *= 0.05;
-    }
-  } else if (state.phase === 'bounce2') {
-    state.vy += dt * 16;
-    state.y -= state.vy * dt;
-    dice.position.y = state.y;
-    dice.rotation.x += state.spinX * dt;
-    dice.rotation.y += state.spinY * dt;
-    if (state.y <= -0.5) {
-      state.phase = 'settle';
-      state.y = -0.5;
-      state.t = 0;
+      state.bounceCount++;
+      
+      // 彈跳時衰減速度與旋轉
+      state.vy = Math.abs(state.vy) * 0.55; 
+      state.spinX *= 0.7; 
+      state.spinY *= 0.7; 
+      state.spinZ *= 0.7;
+
+      // 當彈跳速度夠小，或彈跳次數足夠多時靜止
+      if (state.vy < 3.5 || state.bounceCount > 4) {
+        state.phase = 'settle';
+        state.t = 0;
+      }
     }
   } else if (state.phase === 'settle') {
-    state.t += dt * 2.5;
+    state.t += dt * 4; // 加快導正速度
     const p = Math.min(state.t, 1);
-    const ease = 1 - Math.pow(1 - p, 4); // 更平滑
-    // 目標：等距三點視角 x=0, y=PI/4, z=0（讓上、右、前三面可見）
+    const ease = 1 - Math.pow(1 - p, 3); // Cubic ease out
     const TX = 0, TY = Math.PI / 4, TZ = 0;
-    dice.rotation.x += (TX - dice.rotation.x) * ease * 0.1;
-    dice.rotation.y += (TY - dice.rotation.y) * ease * 0.08;
-    dice.rotation.z += (TZ - dice.rotation.z) * ease * 0.1;
+
+    if (!state.rotStart) {
+      const norm = (a, target) => {
+        let v = a % (Math.PI * 2);
+        while (v - target > Math.PI) v -= Math.PI * 2;
+        while (target - v > Math.PI) v += Math.PI * 2;
+        return v;
+      };
+      state.rotStart = {
+        x: norm(dice.rotation.x, TX),
+        y: norm(dice.rotation.y, TY),
+        z: norm(dice.rotation.z, TZ)
+      };
+    }
+
+    dice.rotation.x = state.rotStart.x + (TX - state.rotStart.x) * ease;
+    dice.rotation.y = state.rotStart.y + (TY - state.rotStart.y) * ease;
+    dice.rotation.z = state.rotStart.z + (TZ - state.rotStart.z) * ease;
     dice.position.y = -0.5;
+
     if (p >= 1) {
       dice.rotation.x = TX; dice.rotation.y = TY; dice.rotation.z = TZ;
       state.done = true;
@@ -1832,80 +1833,89 @@ function animateDice(state, elapsed) {
 
 // 主動畫函式
 function showDiceAnim(d1, d2, total) {
-  document.querySelectorAll('.dt-result').forEach(el => el.remove());
-
-  if (!window.THREE) {
-    const EMOJI = ['⚀','⚁','⚂','⚃','⚄','⚅'];
-    const r = document.createElement('div');
-    r.className = 'dt-result';
-    r.innerHTML = `<div class="dt-result-dice-row">
-      <div class="dt-result-face">${EMOJI[(d1||1)-1]}</div>
-      ${d2?`<div style="color:#fff;font-size:1.6rem;font-weight:900;">+</div><div class="dt-result-face">${EMOJI[(d2||1)-1]}</div>`:''}
-    </div><div class="dt-total-badge">🎲 ${total} 步</div>`;
-    document.body.appendChild(r);
-    setTimeout(() => { r.style.transition='opacity 0.4s'; r.style.opacity='0'; setTimeout(()=>r.remove(),400); }, 2500);
-    return;
+<!-- ... existing code ... -->
+function attachSync() {
+  syncMyTeamId();
+  // 老師端：把 _lastActionTs 設為現在，避免讀到殘留的舊 W8_ROLL
+  if (myRole === 'teacher') {
+    try {
+      const raw = localStorage.getItem('W8_ROLL');
+      if (raw) { const a = JSON.parse(raw); if (a.ts) _lastActionTs = a.ts; }
+    } catch(e) {}
   }
 
-  const overlay = document.getElementById('dice3d-overlay');
-  const wrap = document.getElementById('dice3d-canvas-wrap');
-  wrap.innerHTML = '';
-  overlay.classList.add('show');
+  // localStorage 輪詢（同電腦/同瀏覽器備援）
+  const applyState = (raw) => {
+    if (!raw || raw === _lastStateStr) return;
+    try {
+      const parsed = JSON.parse(raw);
+      if (!parsed?.teams) return;
+      _lastStateStr = raw;
+      gameState = parsed;
+      if (!boardPos?.length) boardPos = getBoardLayout();
+      if (!document.getElementById('sc-0')) buildBoard();
+      syncTeamsFromParent(); syncTeamsFromState();
+      render(); centerOnMyPiece();
+    } catch(e) {}
+  };
 
-  // 建立骰子 canvas
-  const diceData = [];
-  [d1, d2].filter(Boolean).forEach((val) => {
-    const canvas = document.createElement('canvas');
-    wrap.appendChild(canvas);
-    const state = createDiceScene(canvas, val);
-    if (state) {
-      diceData.push(state);
+  const pollNow = () => {
+    if (myRole === 'student') applyState(localStorage.getItem('W8_STATE'));
+    if (myRole === 'teacher') {
+      try {
+        const raw = localStorage.getItem('W8_ROLL');
+        if (raw) {
+          const action = JSON.parse(raw);
+          if (action.ts && action.ts !== _lastActionTs) {
+            console.log('[W8] pollNow teacher: W8_ROLL found, ts=', action.ts, 'type=', action.type);
+            processAction(action);
+          }
+        }
+      } catch(e) {}
     }
-  });
-
-  // 步數標籤（一開始隱藏）
-  const totalLabel = document.createElement('div');
-  totalLabel.style.cssText = `
-    position:absolute; bottom: 24px; left:50%; transform:translateX(-50%);
-    color:var(--yellow); font-weight:900; font-size:1.6rem; letter-spacing:2px;
-    text-shadow: 0 2px 8px rgba(0,0,0,0.8);
-    opacity:0; transition: opacity 0.4s;
-    white-space: nowrap;
-  `;
-  totalLabel.textContent = `${total} 步`;
-  overlay.appendChild(totalLabel);
-
-  let last = performance.now();
-  function loop(now) {
-    const dt = (now - last) / 1000;
-    last = now;
-    diceData.forEach(s => animateDice(s, dt));
-    const allDone = diceData.every(s => s.done);
-    if (!allDone) {
-      requestAnimationFrame(loop);
-    } else {
-      // 全靜止：顯示步數
-      totalLabel.style.opacity = '1';
-      // 2.2秒後整體淡出
-      setTimeout(() => {
-        overlay.style.transition = 'opacity 0.4s';
-        overlay.style.opacity = '0';
-        setTimeout(() => {
-          overlay.classList.remove('show');
-          overlay.style.opacity = '';
-          overlay.style.transition = '';
-          overlay.removeChild(totalLabel);
-          wrap.innerHTML = '';
-          diceData.forEach(s => { try { s.renderer.dispose(); } catch(e){} });
-        }, 400);
-      }, 2200);
-    }
-  }
-  requestAnimationFrame(loop);
+  };
+  pollNow();
+  setInterval(pollNow, 400);
 }
 
+function processAction(action) {
+  if (!gameState) { console.warn('[W8] processAction: no gameState'); return; }
+  if (action.ts === _lastActionTs) { console.log('[W8] processAction: duplicate ts, skip'); return; }
+  _lastActionTs = action.ts;
 
+  console.log('[W8] processAction:', action.type, 'myRole=', myRole, 'currentTurn=', gameState.currentTurn, 'teamId=', action.teamId);
 
+  // 同步處理 W8_ROLL 動作（包含移動與擲骰）
+  if (action.type === 'W8_ROLL' || action.type === 'W8_MOVE_ROLL') {
+    if (Number(action.teamId) !== Number(gameState.currentTurn) &&
+        String(action.teamId) !== String(gameState.currentTurn)) {
+      console.warn('[W8] processAction: teamId mismatch', action.teamId, '!=', gameState.currentTurn);
+      return;
+    }
+    const d = action.diceResult;
+    showDiceAnim(d.d1, d.d2, d.total);
+    updateState({ phase: 'rolled', diceResult: d });
+    const team = TEAMS.find(t => t.id == action.teamId);
+    showToast(`🎲 ${team?.icon || ''} 擲出 ${d.total} 步！`);
+    console.log('[W8] processAction: scheduling movePiece in 2800ms, myRole=', myRole);
+    if (myRole === 'teacher') {
+      // 傳入 diceResult 直接使用，不依賴 gameState.phase
+      const savedDice = { ...d };
+      setTimeout(() => {
+        console.log('[W8] movePiece trigger, phase=', gameState?.phase, 'diceResult=', gameState?.diceResult);
+        // 強制設定 phase 和 diceResult 再移動
+        if (gameState) {
+          gameState.phase = 'rolled';
+          gameState.diceResult = savedDice;
+          movePiece();
+        }
+      }, 2800);
+    }
+  }
+}
+
+let _launched = false;
+<!-- ... existing code ... -->
 // 擲骰（正式移動）：骰子 1-6
 function rollDice() {
   if (!gameState) return;
@@ -1922,14 +1932,27 @@ function rollDice() {
   const d1 = Math.ceil(Math.random() * 6);
   const d2 = team.extraDice ? Math.ceil(Math.random() * 6) : null;
   const total = d1 + (d2 || 0);
-  const action = { type: 'W8_MOVE_ROLL', teamId: myTeamId, diceResult: { d1, d2, total }, ts: Date.now() };
+  
+  // 使用 W8_ROLL 以確保主平台 index.html 能夠正確攔截並同步 Firebase
+  const action = { type: 'W8_ROLL', teamId: myTeamId, diceResult: { d1, d2, total }, ts: Date.now() };
   console.log('[W8] rollDice: myRole=', myRole, 'action=', JSON.stringify(action));
   showDiceAnim(d1, d2, total);
   setHud(`<div style="font-size:0.78rem;color:rgba(255,255,255,0.6);">骰子已擲出</div>
     <div style="color:var(--yellow);font-weight:900;font-size:1rem;">請看老師畫面...</div>`);
+    
   if (myRole === 'student') {
-    try { window.parent.postMessage({ type: 'W8_ROLL', ...action }, '*'); } catch(e) {}
+    try { window.parent.postMessage(action, '*'); } catch(e) {}
     try { localStorage.setItem('W8_ROLL', JSON.stringify(action)); console.log('[W8] W8_ROLL→localStorage'); } catch(e) {}
+    
+    // 直接寫入主平台資料庫
+    try {
+      if (parentDb && window.parent?.state?.roomId) {
+        parentDb.collection('rooms').doc(window.parent.state.roomId).update({ w8Action: action });
+      } else if (window.parent?.state && typeof window.parent.saveRooms === 'function') {
+        window.parent.state.w8Action = action;
+        window.parent.saveRooms();
+      }
+    } catch(e) {}
   } else {
     processAction(action);
   }
@@ -1955,12 +1978,14 @@ function movePiece() {
     // 同時更新數字key和字串key（確保找得到）
     const _t = gameState.teams[tidStr] || gameState.teams[tid];
     if (_t) { _t.position = curPos; gameState.teams[tidStr] = _t; gameState.teams[tid] = _t; }
+    
+    broadcast(); // 每走一步廣播一次，讓學生端也能看到棋子格格前進
     renderPieces();
     
     if (myRole === 'student') centerOnMyPiece();
 
     if (step < steps) {
-      setTimeout(moveStep, 180);
+      setTimeout(moveStep, 200); // 放慢一點讓動畫清晰
     } else {
       setTimeout(() => {
         const t = { ...gameState.teams };
@@ -1969,8 +1994,8 @@ function movePiece() {
         gameState = { ...gameState, teams: t };
         broadcast();
         renderPieces();
-        setTimeout(() => triggerEvent(CTYPES[finalPos], finalPos), 200);
-      }, 200);
+        setTimeout(() => triggerEvent(CTYPES[finalPos], finalPos), 250);
+      }, 250);
     }
   }
   moveStep();
