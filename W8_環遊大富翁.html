@@ -84,17 +84,16 @@ body {
   -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
   box-shadow: 0 4px 20px rgba(0,0,0,0.5); flex-wrap: wrap;
 }
-.t-title { font-size: 1.3rem; font-weight: 900; color: #fff; text-shadow: 0 0 10px var(--blue); white-space: nowrap; }
 
 .t-horizontal-scores {
   display: flex; flex: 1; justify-content: center; gap: 10px; align-items: center; flex-wrap: wrap;
 }
-.score-col {
+.score-row {
   display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.5);
   padding: 6px 14px; border-radius: 50px; border: 1px solid rgba(255,255,255,0.1);
-  transition: all 0.3s;
+  transition: all 0.3s; margin-bottom: 0;
 }
-.score-col.active {
+.score-row.active {
   background: rgba(255,214,0,0.15); border-color: var(--yellow); box-shadow: 0 0 12px rgba(255,214,0,0.4);
 }
 .sc-icon { font-size: 1.2rem; }
@@ -270,6 +269,8 @@ body {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   box-shadow: inset 0 0 50px rgba(0,0,0,0.8); border-radius: 16px;
 }
+.center-logo { font-size: 4.5rem; font-weight: 900; color: var(--yellow); text-shadow: 0 5px 15px rgba(0,0,0,0.5); margin-bottom: 10px; }
+.center-sub { font-size: 1.6rem; color: var(--blue); font-weight: 900; letter-spacing: 0.6em; text-shadow: 0 2px 5px rgba(0,0,0,0.5); }
 
 /* 基本格子顏色主題 */
 .cell.type-q { --c-color: var(--p-yellow); }
@@ -404,13 +405,14 @@ body {
 <!-- TEACHER VIEW -->
 <div id="teacher-view">
   <div class="t-header" id="t-header">
-    <div class="t-title">✈️ 環遊大富翁</div>
     <div class="t-horizontal-scores" id="t-scores"></div>
     <button class="btn-settle-small" onclick="showResult()">🏆 結算</button>
   </div>
   
   <div class="board-container" id="t-map-container">
-    <div class="iso-scene"><div id="board" class="iso-board"></div></div>
+    <div id="t-camera-rig" style="position: absolute; inset: 0; transition: transform 0.4s ease-out;">
+        <div class="iso-scene"><div id="board" class="iso-board"></div></div>
+    </div>
   </div>
 </div>
 
@@ -424,7 +426,9 @@ body {
   </div>
   <!-- 全螢幕地圖 -->
   <div class="s-map" id="s-map">
-    <div class="iso-scene"><div id="s-board" class="iso-board"></div></div>
+    <div id="s-camera-rig" style="position: absolute; inset: 0; transition: transform 0.4s ease-out;">
+        <div class="iso-scene"><div id="s-board" class="iso-board"></div></div>
+    </div>
   </div>
   <!-- 右下角 HUD 懸浮視窗 -->
   <div class="s-hud" id="s-hud">
@@ -455,6 +459,7 @@ body {
 
 <script>
 let _gameStartTime = Date.now();
+window._isMoving = false; // 動畫防干擾鎖定
 
 // 動態組別系統
 let TEAMS = [
@@ -608,16 +613,20 @@ function applyTransform() {
     const tx = _panOffsetX * scale;
     const ty = _panOffsetY * scale;
     
+    const tRig = document.getElementById('t-camera-rig');
+    if (tRig) tRig.style.transform = `translate(${tx}px, ${ty}px)`;
     const tBoard = document.getElementById('board');
-    if (tBoard) tBoard.style.transform = `translate(${tx}px, ${ty}px) scale(${scale}) rotateX(55deg) rotateZ(-45deg)`;
+    if (tBoard) tBoard.style.transform = `scale(${scale}) rotateX(55deg) rotateZ(-45deg)`;
   } else {
-    // 學生端高倍率模式，利用 translate 移動鏡頭來跟蹤棋子
-    const scale = Math.max(vw, vh) / 500; 
+    // 學生端高倍率模式，利用 translate 移動鏡頭來跟蹤棋子 (調降為 750 以顯示更多範圍)
+    const scale = Math.max(vw, vh) / 750; 
     const tx = (_cameraOffsetX + _panOffsetX) * scale;
     const ty = (_cameraOffsetY + _panOffsetY) * scale;
     
+    const sRig = document.getElementById('s-camera-rig');
+    if (sRig) sRig.style.transform = `translate(${tx}px, ${ty}px)`;
     const sBoard = document.getElementById('s-board');
-    if (sBoard) sBoard.style.transform = `translate(${tx}px, ${ty}px) scale(${scale}) rotateX(55deg) rotateZ(-45deg)`;
+    if (sBoard) sBoard.style.transform = `scale(${scale}) rotateX(55deg) rotateZ(-45deg)`;
   }
 }
 
@@ -639,7 +648,7 @@ function setupDrag(elementId) {
       if (myRole === 'teacher') {
           scale = Math.min(window.innerWidth / (BOARD_SIZE * 1.414 + 120), window.innerHeight / (BOARD_SIZE * 1.22 + 120));
       } else {
-          scale = Math.max(window.innerWidth, window.innerHeight) / 500;
+          scale = Math.max(window.innerWidth, window.innerHeight) / 750;
       }
       _panOffsetX += (e.clientX - startX) / scale;
       _panOffsetY += (e.clientY - startY) / scale;
@@ -660,7 +669,7 @@ function setupDrag(elementId) {
       if (myRole === 'teacher') {
           scale = Math.min(window.innerWidth / (BOARD_SIZE * 1.414 + 120), window.innerHeight / (BOARD_SIZE * 1.22 + 120));
       } else {
-          scale = Math.max(window.innerWidth, window.innerHeight) / 500;
+          scale = Math.max(window.innerWidth, window.innerHeight) / 750;
       }
       _panOffsetX += (e.touches[0].clientX - startX) / scale;
       _panOffsetY += (e.touches[0].clientY - startY) / scale;
@@ -672,10 +681,10 @@ function setupDrag(elementId) {
 
 function setTransition(enabled) {
   const val = enabled ? 'transform 0.4s ease-out' : 'none';
-  const tBoard = document.getElementById('board');
-  const sBoard = document.getElementById('s-board');
-  if (tBoard) tBoard.style.transition = val;
-  if (sBoard) sBoard.style.transition = val;
+  const tRig = document.getElementById('t-camera-rig');
+  const sRig = document.getElementById('s-camera-rig');
+  if (tRig) tRig.style.transition = val;
+  if (sRig) sRig.style.transition = val;
 }
 
 // 傳送訊號到平台備援儲存機制
@@ -707,6 +716,7 @@ function attachSync() {
   }
 
   const applyState = (raw) => {
+    if (window._isMoving) return; // 鎖定防干擾
     if (!raw || raw === _lastStateStr) return;
     try {
       const parsed = JSON.parse(raw);
@@ -737,7 +747,7 @@ function attachSync() {
           }
       });
     }
-  } catch(e) {}
+  } catch(e) { console.log('Firebase 監聽失敗', e); }
 
   const pollNow = () => {
     if (myRole === 'student') {
@@ -823,17 +833,15 @@ function processAction(action) {
     showDiceAnim(d.d1, d.d2, d.total);
     updateState({ phase: 'rolled', diceResult: d });
     
-    if (myRole === 'teacher') {
-      const savedDice = { ...d };
-      // 等待 3 秒鐘讓 3D 骰子動畫與結果完全播完，再開始跑棋子
-      setTimeout(() => {
-        if (gameState) {
-          gameState.phase = 'rolled';
-          gameState.diceResult = savedDice;
-          movePiece();
-        }
-      }, 3000);
-    }
+    const savedDice = { ...d };
+    // 等待 3 秒鐘讓 3D 骰子動畫與結果完全播完，雙端一起觸發跑棋子
+    setTimeout(() => {
+      if (gameState) {
+        gameState.phase = 'rolled';
+        gameState.diceResult = savedDice;
+        movePiece();
+      }
+    }, 3000);
   }
 }
 
@@ -894,6 +902,7 @@ window.addEventListener('message', e => {
     }
   }
   if (e.data.type === 'W8_STATE' && myRole === 'student') {
+    if (window._isMoving) return;
     const incoming = e.data.state;
     if (!incoming?.teams) return;
     const str = JSON.stringify(incoming);
@@ -911,7 +920,10 @@ window.addEventListener('message', e => {
 });
 
 window.addEventListener('storage', e => {
-  if (e.key === 'W8_STATE' && myRole === 'student') { gameState = JSON.parse(e.newValue); syncTeamsFromParent(); render(); }
+  if (e.key === 'W8_STATE' && myRole === 'student') { 
+      if (window._isMoving) return;
+      gameState = JSON.parse(e.newValue); syncTeamsFromParent(); render(); 
+  }
   if (e.key === 'W8_ROLL' && myRole === 'teacher') { processAction(JSON.parse(e.newValue)); }
 });
 
@@ -1015,7 +1027,12 @@ function buildBoard() {
 
     const center = document.createElement('div');
     center.className = 'board-center';
-    center.innerHTML = ''; // 移除中間多餘的標題，保持畫面乾淨
+    center.innerHTML = `
+      <div style="transform: rotateZ(45deg); display: flex; flex-direction: column; align-items: center;">
+        <div class="center-logo">✈️ 環遊大富翁</div>
+        <div class="center-sub">WORLD TOUR</div>
+      </div>
+    `;
     el.appendChild(center);
 
     boardPos.forEach((bp, i) => {
@@ -1143,7 +1160,7 @@ function updateTeam(tid, patch) {
   updateState({ teams: t });
   
   if (patch.score !== undefined && myRole === 'teacher') {
-      try { window.parent.postMessage({ type: 'W8_SCORE', group: TEAMS.find(x=>x.id==tid)?.name, score: patch.score }, '*'); } catch(e) {}
+      try { window.parent.postMessage({ type: 'W8_SCORE', group: TEAMS.find(x=>x.id==tid)?.name, score: Number(patch.score) }, '*'); } catch(e) {}
   }
 }
 
@@ -1192,14 +1209,6 @@ function render() {
   if (showCenter) {
       overlay.style.display = 'flex';
       let html = '';
-
-      if (gameState.phase === 'waiting_roll' || gameState.phase === 'rolled') {
-          coBox.style.padding = '15px 30px';
-          coBox.style.background = 'rgba(20,20,30,0.75)';
-      } else {
-          coBox.style.padding = '30px 40px';
-          coBox.style.background = 'rgba(20,20,30,0.95)';
-      }
 
       if (gameState.phase === 'intro') {
           html = `<div class="co-title" style="font-size:2.5rem; color:var(--yellow); margin-bottom:16px;">🚀 環遊大富翁</div>
@@ -1280,7 +1289,6 @@ function render() {
               html += `<div style="font-size:0.95rem; color:rgba(255,255,255,0.7); margin-bottom:20px; line-height:1.5;">💡 ${q.explanation}</div>`;
               html += `<button class="btn-next" style="display:block;" onclick="nextTurn()">➡️ 下一組</button>`;
           } else {
-              // 學生端在結果揭曉時不顯示解析，強制看大螢幕
               html += `<div class="co-icon" style="animation:none;">👀</div>
                        <div class="co-title">請看老師畫面</div>
                        <div class="co-desc">結果揭曉中...</div>`;
@@ -1384,15 +1392,10 @@ function renderTeacher() {
     const row = document.createElement('div');
     row.className = 'score-row' + ((team.id === gs.currentTurn && gs.phase !== 'intro') ? ' active' : '');
     
-    const orderBadge = gs.playOrder && gs.playOrder.length > 0 ? `<span class="sr-order">${idx + 1}.</span>` : `<span class="sr-order">-</span>`;
-
     row.innerHTML = `
-      ${orderBadge}
       <span class="sc-icon">${t.icon}</span>
       <span class="sc-name" style="color:${t.color}">${t.name}</span>
-      ${team.extraDice ? '<span class="sr-tag">🎲🎲</span>' : ''}
-      ${team.skipTurn ? '<span style="font-size:0.7rem; background:var(--red); padding:2px 4px; border-radius:4px;">⏸</span>' : ''}
-      <span class="sc-pts">${team.score || 0}</span>`;
+      <span class="sc-pts">${Number(team.score) || 0}</span>`;
     sc.appendChild(row);
   });
 }
@@ -1739,7 +1742,9 @@ function movePiece() {
   const startPos = Number(team.position || 0);
   const finalPos = (startPos + steps) % TOTAL;
 
+  window._isMoving = true;
   let step = 0;
+  
   function moveStep() {
     step++;
     const curPos = (startPos + step) % TOTAL;
@@ -1750,16 +1755,20 @@ function movePiece() {
         updateCameraTarget(curPos);
         _panOffsetX = 0; _panOffsetY = 0; 
         applyTransform();
+    } else {
+        broadcast(); // 只有老師端廣播，以免互相覆蓋導致頓挫
     }
 
-    broadcast();
     renderPieces();
     
     if (step < steps) {
       setTimeout(moveStep, 400); 
     } else {
       setTimeout(() => {
-        triggerEvent(CTYPES[finalPos], finalPos);
+        window._isMoving = false;
+        if (myRole === 'teacher') {
+          triggerEvent(CTYPES[finalPos], finalPos);
+        }
       }, 600);
     }
   }
@@ -1780,7 +1789,7 @@ function triggerEvent(type, finalPos) {
       
       if (type === 'start') {
         showToast('🏁 經過起點！+1分');
-        updateTeam(tid, { score: (_curTeam.score || 0) + 1 });
+        updateTeam(tid, { score: (Number(_curTeam.score) || 0) + 1 });
         updateState({ phase: 'done', event: null });
       }
       else if (type === 'q') { updateState({ phase: 'answering', event: null, selectedAnswer: null }); fetchQ(false); }
