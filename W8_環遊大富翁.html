@@ -201,14 +201,14 @@ body {
 }
 .score-chip.mine { background: rgba(0, 229, 255, 0.15); border-color: var(--blue); color: var(--blue); }
 
-/* 地圖容器 */
+/* 地圖容器：頂部留分數條，底部到底 */
 .s-map {
   position: absolute; 
   top: calc(40px + env(safe-area-inset-top, 0px)); 
   left: 0; right: 0; 
-  bottom: calc(110px + env(safe-area-inset-bottom, 0px));
+  bottom: 0;
   overflow: hidden; touch-action: none; background: transparent;
-  pointer-events: none; /* 關鍵修正：解決 Safari / 平板上 3D 渲染層覆蓋按鈕的問題 */
+  pointer-events: none;
 }
 .s-map-inner { 
   position: absolute; left: 0; top: 0; 
@@ -218,7 +218,7 @@ body {
   position: absolute; perspective: 2000px; overflow: visible;
 }
 
-/* 全螢幕等待遮罩 (專注於引導觀看螢幕) */
+/* 全螢幕等待遮罩 */
 .wait-overlay {
   position: fixed; inset: 0; z-index: 500;
   background: rgba(8, 8, 12, 0.95); 
@@ -233,64 +233,91 @@ body {
   text-align: center; line-height: 1.5; letter-spacing: 1px;
 }
 
-/* 底部Action區 */
-.s-action {
-  position: absolute; bottom: 0; left: 0; right: 0; z-index: 300; 
-  height: calc(110px + env(safe-area-inset-bottom, 0px));
-  background: rgba(8,8,14,0.94); border-top: 1px solid rgba(255,255,255,0.1);
-  padding: 10px 20px; 
-  padding-bottom: max(10px, env(safe-area-inset-bottom, 10px));
-  text-align: center; 
-  -webkit-backdrop-filter: blur(14px);
-  backdrop-filter: blur(14px);
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
+/* ══════════════════════════════
+   右下角懸浮 HUD 視窗
+   ══════════════════════════════ */
+.s-hud {
+  position: fixed;
+  right: 14px;
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: auto;
+  isolation: isolate;
 }
 
-/* 學生端專屬擲骰儀表板 (右下角) */
-.s-roll-dashboard {
-  position: absolute; 
-  bottom: calc(130px + env(safe-area-inset-bottom, 0px)); 
-  right: 20px;
-  z-index: 9999; /* 提高層級 */
-  display: flex; align-items: center; gap: 12px;
-  animation: popIn 0.5s cubic-bezier(0.34,1.56,0.64,1);
-  pointer-events: auto; /* 關鍵修正：確保可被點擊 */
-  transform: translateZ(9999px); /* 關鍵修正：強制 Safari 將此圖層繪製於 3D 空間最頂層 */
-}
-@keyframes popIn {
-  from { transform: scale(0.3) translateY(50px) translateZ(9999px); opacity: 0; }
-  to { transform: scale(1) translateY(0) translateZ(9999px); opacity: 1; }
-}
-
-.dice-preview-box {
-  display: flex; gap: 8px; background: rgba(0,0,0,0.65); padding: 10px 16px;
-  border-radius: 30px; border: 2px solid rgba(255,255,255,0.15);
-  backdrop-filter: blur(10px); box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-}
-.dice-mini { 
-  font-size: 2.2rem; line-height: 1; 
-  filter: drop-shadow(0 2px 5px rgba(0,0,0,0.6)); 
-  animation: floatMini 2s infinite ease-in-out; 
-}
-.dice-mini:nth-child(2) { animation-delay: 0.3s; }
-@keyframes floatMini {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-5px); }
+/* HUD 狀態卡片（非輪到自己時的小提示） */
+.s-hud-card {
+  background: rgba(8, 8, 18, 0.92);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 16px;
+  padding: 10px 16px;
+  max-width: 220px;
+  min-width: 130px;
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.85);
+  line-height: 1.5;
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 6px 24px rgba(0,0,0,0.6);
 }
 
-/* 立體圓形按鈕 */
-.btn-round-roll {
-  width: 85px; height: 85px; border-radius: 50%; border: none;
-  background: radial-gradient(circle at 30% 30%, #ffeb3b, #fbc02d);
-  box-shadow: 0 8px 0 #c89000, 0 15px 25px rgba(0,0,0,0.6), inset 0 4px 5px rgba(255,255,255,0.6);
-  color: #b71c1c; font-family: var(--font); font-weight: 900; font-size: 1.5rem; 
-  text-shadow: 0 2px 2px rgba(255,255,255,0.4);
-  cursor: pointer; outline: none; transition: transform 0.1s, box-shadow 0.1s;
+/* 擲骰面板：骰子圖示 + GO 按鈕橫排（比照大富翁截圖） */
+.s-hud-roll-panel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(8, 8, 18, 0.92);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 50px;
+  padding: 8px 10px 8px 16px;
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 6px 24px rgba(0,0,0,0.7);
+}
+
+/* 骰子顯示區 */
+.s-hud-dice-area {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.s-hud-die {
+  width: 42px; height: 42px;
+  background: #fff;
+  border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
+  font-size: 1.6rem;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.5), inset 0 -3px 0 rgba(0,0,0,0.15);
+  animation: dieFloat 2s ease-in-out infinite;
 }
-.btn-round-roll:active {
-  transform: translateY(8px);
-  box-shadow: 0 0px 0 #c89000, 0 5px 10px rgba(0,0,0,0.6), inset 0 4px 5px rgba(255,255,255,0.6);
+.s-hud-die:nth-child(2) { animation-delay: 0.4s; }
+@keyframes dieFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+/* GO 按鈕 */
+.s-hud-go-btn {
+  width: 70px; height: 70px; border-radius: 50%; border: none;
+  background: radial-gradient(circle at 35% 30%, #ff5252, #c62828);
+  box-shadow: 0 6px 0 #7f0000, 0 10px 20px rgba(0,0,0,0.5), inset 0 3px 5px rgba(255,150,150,0.4);
+  color: #fff; font-family: var(--font); font-weight: 900; font-size: 1.5rem;
+  letter-spacing: 1px;
+  cursor: pointer; outline: none;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.08s, box-shadow 0.08s;
+  -webkit-transform: translateZ(0); transform: translateZ(0);
+  text-shadow: 0 2px 4px rgba(0,0,0,0.4);
+}
+.s-hud-go-btn:active {
+  transform: translateY(5px) translateZ(0);
+  box-shadow: 0 1px 0 #7f0000, 0 3px 8px rgba(0,0,0,0.4), inset 0 3px 5px rgba(255,150,150,0.4);
 }
 
 /* 棋盤中心擲骰動畫 */
@@ -668,7 +695,7 @@ body {
   <div class="s-scores" id="s-scores">
     <div class="my-badge" id="my-badge">🐻 第1組</div>
   </div>
-  <!-- 全螢幕可拖動地圖 -->
+  <!-- 全螢幕地圖（填滿除頂部分數條外的所有空間） -->
   <div class="s-map" id="s-map">
     <div class="s-map-inner" id="s-map-inner">
       <div class="iso-scene" id="s-iso-scene"><div id="s-board" class="iso-board"></div></div>
@@ -678,13 +705,10 @@ body {
       <div class="dice-anim-box" id="s-dice-box"></div>
     </div>
   </div>
-  
-  <!-- 專屬擲骰儀表板 -->
-  <div id="s-roll-dashboard" class="s-roll-dashboard" style="display:none;"></div>
 
-  <!-- 底部操作區 -->
-  <div class="s-action" id="s-action">
-    <div class="wait-msg"><div class="pulse"></div><span>等待遊戲狀態同步...</span></div>
+  <!-- 右下角 HUD 懸浮視窗（狀態卡片 + 操作按鈕） -->
+  <div class="s-hud" id="s-hud">
+    <div class="s-hud-card" id="s-hud-card">等待遊戲狀態同步...</div>
   </div>
   
   <!-- 全螢幕等待遮罩 -->
@@ -877,26 +901,6 @@ function processAction(action) {
   if (action.ts === _lastActionTs) return;
   _lastActionTs = action.ts;
 
-  if (action.type === 'W8_ORDER_ROLL' && gameState.phase === 'order_rolling') {
-    const d = action.diceResult;
-    showDiceAnim(d.d1, null, d.total, 't');
-    const rolls = { ...gameState.orderRolls, [action.teamId]: d.total };
-    updateState({ orderRolls: rolls });
-    const team = TEAMS.find(t => t.id == action.teamId);
-    showToast(`🎲 ${team?.icon || ''} 擲出 ${d.total} 點！`);
-    
-    // 【自動流程化】: 所有人骰完，自動結算順序開始
-    if (myRole === 'teacher') {
-      const allRolled = TEAMS.every(t => rolls[t.id] !== undefined);
-      if (allRolled) {
-        setTimeout(() => {
-          if (gameState.phase === 'order_rolling') resolveOrder();
-        }, 3500); // 確保老師端動畫播完
-      }
-    }
-    return;
-  }
-
   if (action.type === 'W8_MOVE_ROLL') {
     if (Number(action.teamId) !== Number(gameState.currentTurn)) return;
     const d = action.diceResult;
@@ -1000,8 +1004,7 @@ window.addEventListener('load', () => {
         boardPos = getBoardLayout();
         buildBoard();
         document.getElementById('student-view').style.display = 'flex';
-        document.getElementById('s-action').innerHTML =
-          `<div class="wait-msg"><div class="pulse"></div><span>等待遊戲開始...</span></div>`;
+        setHud('⏳ 等待遊戲開始...');
         initStudentMap();
         resizeStudentBoard();
         resizeBoard();
@@ -1029,6 +1032,9 @@ function launch() {
       document.getElementById('teacher-view').style.display = 'none';
       document.getElementById('student-view').style.display = 'flex';
       updateBadge();
+      // 確保 boardPos 先建好
+      if (!boardPos || boardPos.length === 0) boardPos = getBoardLayout();
+      if (!document.getElementById('sc-0')) buildBoard(); // s-board 尚未建立才建
       initStudentMap();
       resizeStudentBoard();
       try {
@@ -1047,8 +1053,7 @@ function launch() {
             }
           } catch(e) {}
           if (!gameState) {
-            document.getElementById('s-action').innerHTML =
-              `<div class="wait-msg"><div class="pulse"></div><span>等待遊戲開始...</span></div>`;
+            setHud('⏳ 等待遊戲開始...');
           }
         }, 300);
       }
@@ -1140,13 +1145,15 @@ function makeInit() {
   TEAMS.forEach(t => {
     teams[t.id] = { id: t.id, position: 0, score: 0, extraDice: false, skipTurn: false };
   });
+
+  // 依組別號碼由小到大決定順序（第1組先）
+  const playOrder = [...TEAMS].sort((a, b) => a.id - b.id).map(t => t.id);
   
   return { 
     teams, 
-    playOrder: [], 
-    orderRolls: {},
-    currentTurn: null, 
-    phase: 'order_rolling', 
+    playOrder,
+    currentTurn: playOrder[0], 
+    phase: 'waiting_roll', 
     diceResult: null, 
     event: null, 
     question: null, 
@@ -1181,23 +1188,6 @@ function updateTeam(tid, patch) {
   updateState({ teams: t });
 }
 
-function resolveOrder() {
-  if (!gameState || gameState.phase !== 'order_rolling') return;
-  const sortedIds = TEAMS.map(t => t.id).sort((a, b) => {
-    const rollA = gameState.orderRolls[a] || 0;
-    const rollB = gameState.orderRolls[b] || 0;
-    if (rollB !== rollA) return rollB - rollA;
-    return a - b; 
-  });
-  
-  updateState({ 
-    playOrder: sortedIds, 
-    currentTurn: sortedIds[0],
-    phase: 'waiting_roll' 
-  });
-  showToast('🎉 順序決定完成！遊戲開始！');
-}
-
 function render() {
   const isT = myRole === 'teacher';
   document.getElementById('teacher-view').style.display = isT ? 'block' : 'none';
@@ -1211,12 +1201,15 @@ function render() {
 
 function renderPieces() {
   if (!gameState) return;
+  if (!boardPos || boardPos.length === 0) return; // 棋盤未建好就跳過
+
   const cellCounts = {};
   Object.values(gameState.teams || {}).forEach(team => {
     const pos = team.position % TOTAL;
     cellCounts[pos] = (cellCounts[pos] || 0) + 1;
   });
 
+  // 兩端棋盤都渲染（老師=board，學生=s-board）
   const boardIds = myRole === 'teacher' ? ['board'] : ['s-board'];
   boardIds.forEach(id => {
     const el = document.getElementById(id); if (!el) return;
@@ -1226,7 +1219,7 @@ function renderPieces() {
     Object.values(gameState.teams || {}).forEach(team => {
       const t = TEAMS.find(x => x.id == team.id);
       if (!t) return;
-      const pos = team.position % TOTAL;
+      const pos = Number(team.position || 0) % TOTAL;
       const bp = boardPos[pos]; if (!bp) return;
       
       const totalOnCell = cellCounts[pos];
@@ -1261,10 +1254,10 @@ function renderPieces() {
     });
 
     el.querySelectorAll('.cell').forEach(c => c.classList.remove('active'));
-    if (gameState.currentTurn && gameState.phase !== 'order_rolling') {
+    if (gameState.currentTurn) {
       const team = Object.values(gameState.teams).find(t => t.id == gameState.currentTurn);
       if (team) {
-        const cel = document.getElementById((id === 'board' ? 'cell-' : 'sc-') + (team.position % TOTAL));
+        const cel = document.getElementById((id === 'board' ? 'cell-' : 'sc-') + (Number(team.position || 0) % TOTAL));
         if (cel) cel.classList.add('active');
       }
     }
@@ -1275,12 +1268,8 @@ function renderTeacher() {
   const gs = gameState;
   const chipEl = document.getElementById('turn-chip');
   
-  if (gs.phase === 'order_rolling') {
-    if (chipEl) chipEl.textContent = '🎲 決定順序中...';
-  } else {
-    const ct = TEAMS.find(t => t.id === gs.currentTurn);
-    if (ct && chipEl) chipEl.textContent = `${ct.icon} ${ct.name} 的回合`;
-  }
+  const ct0 = TEAMS.find(t => t.id === gs.currentTurn);
+  if (ct0 && chipEl) chipEl.textContent = `${ct0.icon} ${ct0.name} 的回合`;
   
   const sc = document.getElementById('t-scores'); sc.innerHTML = '';
   const orderArray = gs.playOrder && gs.playOrder.length > 0 ? gs.playOrder : TEAMS.map(t=>t.id);
@@ -1291,7 +1280,7 @@ function renderTeacher() {
     const t = TEAMS.find(x => x.id === team.id);
     if (!t) return;
     const row = document.createElement('div');
-    row.className = 'score-row' + (team.id === gs.currentTurn && gs.phase !== 'order_rolling' ? ' active' : '');
+    row.className = 'score-row' + (team.id === gs.currentTurn ? ' active' : '');
     
     const orderBadge = gs.playOrder && gs.playOrder.length > 0 ? `<span class="sr-order">${idx + 1}.</span>` : `<span class="sr-order">-</span>`;
 
@@ -1317,24 +1306,7 @@ function renderEventPanel() {
   exb.style.display = 'none'; bpub.style.display = 'none'; bnext.style.display = 'none';
   const ph = gs.phase;
 
-  if (ph === 'order_rolling') {
-    eb.className = 'event-box';
-    let rollsHtml = TEAMS.map(t => {
-      const roll = gs.orderRolls?.[t.id];
-      return `<div style="background:rgba(255,255,255,0.1); padding:4px 8px; border-radius:6px; font-size:0.85rem; display:flex; align-items:center; gap:4px;">
-         ${t.icon} ${t.name}: <span style="color:var(--yellow); font-weight:bold; margin-left:auto">${roll ? roll+'點' : '...'}</span>
-      </div>`;
-    }).join('');
-
-    eb.innerHTML = `
-      <div style="font-weight:bold; margin-bottom:10px; color:var(--yellow);">🎲 請各組在裝置上擲骰決定順序</div>
-      <div style="display:flex; flex-direction:column; gap:6px;">${rollsHtml}</div>
-    `;
-    bnext.style.display = 'block';
-    bnext.textContent = '⏭ 手動結算順序'; // 新增防呆選項給老師
-    bnext.onclick = () => resolveOrder();
-
-  } else if (ph === 'waiting_roll') {
+  if (ph === 'waiting_roll') {
     eb.className = 'event-box';
     const ct = TEAMS.find(t => t.id === gs.currentTurn);
     eb.innerHTML = `<div class="wait-msg" style="justify-content:center;padding:1rem"><div class="pulse"></div> 等待 ${ct?.icon || ''} 擲骰...</div>`;
@@ -1413,11 +1385,10 @@ function resizeBoard() {
     const board = document.getElementById('board');
     if (board) board.style.transform = `scale(${scale}) rotateX(55deg) rotateZ(-45deg)`;
   } else {
-    // 學生端：棋盤完整顯示在可見區（頂部40px + 底部110px）
+    // 學生端：地圖填滿（頂部分數條40px，底部到底）
     const topH = 40;
-    const botH = 110;
-    const availW = vw - 20;          // 左右留 10px 邊距
-    const availH = vh - topH - botH - 20; // 上下再留 10px 邊距
+    const availW = vw - 20;
+    const availH = vh - topH - 20;
     const scale = Math.min(availW / VW, availH / VH);
 
     const sboard = document.getElementById('s-board');
@@ -1463,7 +1434,7 @@ function initStudentMap() {
   const VH = BOARD_SIZE * 1.22;
   const vw = window.innerWidth;
   const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-  const sScale = Math.min((vw - 20) / VW, (vh - 40 - 110 - 20) / VH);
+  const sScale = Math.min((vw - 20) / VW, (vh - 40 - 20) / VH);
 
   const sboard = document.getElementById('s-board');
   if (sboard) sboard.style.transform = `scale(${sScale}) rotateX(55deg) rotateZ(-45deg)`;
@@ -1526,10 +1497,8 @@ function centerOnMyPiece() {
 
   const vvw = window.visualViewport ? window.visualViewport.width : window.innerWidth;
   const vvh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-  const headerH = 86; 
-  const actionH = 110; 
-  const mapH = vvh - headerH - actionH;
-
+  const headerH = 40;
+  const mapH = vvh - headerH;
   const cx = vvw / 2;
   const cy = headerH + mapH / 2;
 
@@ -1546,131 +1515,122 @@ function toggleSidebar() {
   setTimeout(resizeBoard, 400);
 }
 
+// HUD 輔助：設定右下角卡片內容
+function setHud(cardHtml) {
+  const card = document.getElementById('s-hud-card');
+  if (card) card.innerHTML = cardHtml;
+}
+
+// HUD 輔助：顯示骰子+GO按鈕面板
+function setHudRoll(extraDice) {
+  const hud = document.getElementById('s-hud');
+  if (!hud) return;
+  const existing = hud.querySelector('.s-hud-roll-panel');
+  if (existing) existing.remove();
+  const panel = document.createElement('div');
+  panel.className = 's-hud-roll-panel';
+  panel.innerHTML = `
+    <div class="s-hud-dice-area">
+      <div class="s-hud-die">🎲</div>
+      ${extraDice ? '<div class="s-hud-die">🎲</div>' : ''}
+    </div>
+    <button class="s-hud-go-btn" onclick="rollDice()">GO</button>
+  `;
+  hud.appendChild(panel);
+}
+
+// HUD 輔助：移除骰子面板
+function removeHudRoll() {
+  const hud = document.getElementById('s-hud');
+  if (hud) hud.querySelector('.s-hud-roll-panel')?.remove();
+}
+
 function renderStudent() {
   const gs = gameState;
 
+  // badge
   const myT = TEAMS.find(t => t.id == myTeamId);
   const badge = document.getElementById('my-badge');
-  if (badge) {
-    if (myT) {
-      badge.innerHTML = `${myT.icon} ${myT.name}`;
-    } else {
-      const fallbackT = TEAMS.find(t => Number(t.id) === Number(myTeamId));
-      badge.innerHTML = fallbackT ? `${fallbackT.icon} ${fallbackT.name}` : `🐻 第${myTeamId}組`;
-    }
-  }
+  if (badge) badge.innerHTML = myT ? `${myT.icon} ${myT.name}` : `🐻 第${myTeamId}組`;
 
+  // 分數條
   const sr = document.getElementById('s-scores');
   Array.from(sr.querySelectorAll('.score-chip')).forEach(c => c.remove());
-
   if (!gs || !gs.teams) {
-    document.getElementById('s-action').innerHTML = `<div class="wait-msg"><div class="pulse"></div><span>等待遊戲狀態同步...</span></div>`;
+    setHud('⏳ 等待遊戲狀態同步...');
     return;
   }
-  
-  const orderArray = gs.playOrder && gs.playOrder.length > 0 ? gs.playOrder : TEAMS.map(t=>t.id);
+  const orderArray = gs.playOrder?.length > 0 ? gs.playOrder : TEAMS.map(t => t.id);
   orderArray.forEach((tid, idx) => {
-    const team = gs.teams[tid];
-    if(!team) return;
-    const t = TEAMS.find(x => x.id == team.id);
-    if(!t) return;
+    const team = gs.teams[tid]; if (!team) return;
+    const t = TEAMS.find(x => x.id == team.id); if (!t) return;
     const chip = document.createElement('div');
     chip.className = 'score-chip' + (team.id == myTeamId ? ' mine' : '');
-    const orderStr = (gs.playOrder && gs.playOrder.length > 0) ? `<span style="opacity:0.6;margin-right:2px">${idx+1}.</span>` : ``;
+    const orderStr = gs.playOrder?.length > 0 ? `<span style="opacity:0.6;margin-right:2px">${idx+1}.</span>` : '';
     chip.innerHTML = `${orderStr}${t.icon} ${team.score}分`;
     sr.appendChild(chip);
   });
-  
-  const sa = document.getElementById('s-action');
-  const rollDash = document.getElementById('s-roll-dashboard');
-  if (rollDash) rollDash.style.display = 'none'; 
-  
-  sa.innerHTML = '';
 
   const curTurn = gs.currentTurn;
-  const isMyTurn = (
-    Number(curTurn) === Number(myTeamId) ||
-    String(curTurn) === String(myTeamId) ||
-    curTurn == myTeamId
-  );
+  const isMyTurn = Number(curTurn) === Number(myTeamId) || String(curTurn) === String(myTeamId) || curTurn == myTeamId;
   const ct = TEAMS.find(t => t.id == gs.currentTurn);
   const myTD = gs.teams[myTeamId] || gs.teams[String(myTeamId)];
 
+  // 等待遮罩
   const overlay = document.getElementById('s-wait-overlay');
-  const showOverlay = (!isMyTurn && gs.phase !== 'order_rolling');
+  const showOverlay = !isMyTurn;
   if (overlay) {
+    overlay.style.display = showOverlay ? 'flex' : 'none';
     if (showOverlay) {
-      overlay.style.display = 'flex';
       const wText = document.getElementById('s-wait-text');
-      if (wText) wText.innerHTML = `請觀看大螢幕<br><span style="font-size:1rem; opacity:0.8; margin-top:12px; display:inline-block; font-weight:normal;">現在是 <strong style="color:var(--yellow)">${ct?.icon || ''} ${ct?.name || ''}</strong> 的回合</span>`;
-    } else {
-      overlay.style.display = 'none';
+      if (wText) wText.innerHTML = `請觀看大螢幕<br><span style="font-size:0.95rem;opacity:0.8;margin-top:8px;display:block;font-weight:normal;">現在是 <strong style="color:var(--yellow)">${ct?.icon||''} ${ct?.name||''}</strong> 的回合</span>`;
     }
   }
 
-  if (gs.phase === 'order_rolling') {
-    if (!gs.orderRolls?.[myTeamId]) {
-      if (rollDash) {
-        rollDash.style.display = 'flex';
-        rollDash.innerHTML = `
-          <div class="dice-preview-box"><div class="dice-mini">🎲</div></div>
-          <button class="btn-round-roll" onclick="rollDice()">擲骰</button>
-        `;
-      }
-      sa.innerHTML = `<div style="color:var(--yellow);font-size:1.1rem;font-weight:900;letter-spacing:1px;animation: pulse 1.5s infinite;">👉 請點擊右下角，擲骰決定順序！</div>`;
+  // ── HUD 內容依 phase 決定 ──
+  removeHudRoll(); // 先清除骰子面板
+
+  if (!isMyTurn) {
+    setHud(`<div style="font-size:0.82rem;color:rgba(255,255,255,0.7);">👀 ${ct?.icon||''} ${ct?.name||''}<br>的回合，請稍候...</div>`);
+
+  } else if (gs.phase === 'waiting_roll') {
+    if (myTD?.skipTurn) {
+      setHud(`<div style="color:var(--red);font-weight:900;font-size:1rem;">⏸ 這回合<br>停止行動！</div>`);
     } else {
-      sa.innerHTML = `<div class="wait-msg"><div class="pulse"></div><span>你們擲出了 ${gs.orderRolls[myTeamId]} 點，等待其他組別...</span></div>`;
+      setHud(`<div style="color:var(--yellow);font-weight:900;font-size:0.9rem;">✨ 輪到你們了！</div>`);
+      setHudRoll(myTD?.extraDice);
     }
-  } 
-  else if (!isMyTurn) {
-    sa.innerHTML = `<div class="wait-msg"><div class="pulse"></div><span>👀 觀看 ${ct?.icon || ''} ${ct?.name || ''} 操作中...</span></div>`;
-  } 
-  else {
-    if (gs.phase === 'waiting_roll') {
-      if (myTD?.skipTurn) {
-        sa.innerHTML = `<div style="font-size:1.2rem;font-weight:900;color:var(--red)">⏸ 這回合停止行動！</div>`;
-      } else {
-        if (rollDash) {
-          rollDash.style.display = 'flex';
-          rollDash.innerHTML = `
-            <div class="dice-preview-box">
-              <div class="dice-mini">🎲</div>
-              ${myTD?.extraDice ? '<div class="dice-mini">🎲</div>' : ''}
-            </div>
-            <button class="btn-round-roll" onclick="rollDice()">擲骰</button>
-          `;
-        }
-        sa.innerHTML = `<div style="color:var(--yellow);font-size:1.1rem;font-weight:900;letter-spacing:1px;animation: pulse 1.5s infinite;">👉 輪到你們了！點擊右下角按鈕擲骰</div>`;
-      }
-    } else if (gs.phase === 'rolled' || gs.phase === 'event') {
-      const d = gs.diceResult;
-      if (d) {
-        const f = ['⚀','⚁','⚂','⚃','⚄','⚅'];
-        sa.innerHTML = `<div style="color:rgba(255,255,255,0.7);font-size:0.9rem;margin-bottom:8px;font-weight:900;">你們擲出了</div>
-          <div class="dice-show"><div class="dice-face">${f[(d.d1||1)-1]}</div>${d.d2?`<div class="dice-face">${f[(d.d2||1)-1]}</div>`:''}</div>
-          <div class="dice-total">共 ${d.total} 步</div>`;
-      }
-    } else if (gs.phase === 'answering') {
-      const q = gs.question;
-      if (!q) {
-        sa.innerHTML = `<div class="ldots"><span></span><span></span><span></span><span style="margin-left:10px">AI 出題中...</span></div>`;
-      } else {
-        sa.innerHTML = `
-          <div style="font-weight:900;font-size:1.1rem;color:var(--yellow);margin-bottom:10px">💬 討論後將答案告訴老師！</div>
-          <div style="font-weight:900;font-size:0.95rem;color:#fff;margin-bottom:10px">${q.question}</div>
-          <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-            <div style="padding:6px 14px;background:rgba(0,229,255,0.15);border:2px solid rgba(0,229,255,0.4);border-radius:10px;font-weight:900;font-size:0.85rem;color:var(--blue)">A．${q.optionA}</div>
-            <div style="padding:6px 14px;background:rgba(255,23,68,0.15);border:2px solid rgba(255,23,68,0.4);border-radius:10px;font-weight:900;font-size:0.85rem;color:var(--red)">B．${q.optionB}</div>
-          </div>`;
-      }
-    } else if (gs.phase === 'revealing') {
-      const q = gs.question; const sa2 = gs.selectedAnswer; const correct = sa2 === q?.answer;
-      sa.innerHTML = `<div style="font-size:2.5rem;margin-bottom:6px">${correct ? '🎉' : '😢'}</div>
-        <div style="font-weight:900;font-size:1.2rem;color:${correct ? 'var(--green)' : 'var(--red)'}">${correct ? '答對了！' : '答錯了...'}</div>
-        <div style="color:rgba(255,255,255,0.6);margin-top:6px;font-size:0.8rem;font-weight:700;">💡 ${q?.explanation || ''}</div>`;
+
+  } else if (gs.phase === 'rolled' || gs.phase === 'event') {
+    const d = gs.diceResult;
+    if (d) {
+      const f = ['⚀','⚁','⚂','⚃','⚄','⚅'];
+      setHud(`<div style="font-size:0.78rem;color:rgba(255,255,255,0.6);margin-bottom:4px;">你們擲出了</div>
+        <div style="font-size:1.8rem;line-height:1;">${f[(d.d1||1)-1]}${d.d2?f[(d.d2||1)-1]:''}</div>
+        <div style="color:var(--yellow);font-weight:900;margin-top:4px;">共 ${d.total} 步</div>`);
+    }
+
+  } else if (gs.phase === 'answering') {
+    const q = gs.question;
+    if (!q) {
+      setHud(`<div class="ldots"><span></span><span></span><span></span><span style="margin-left:8px;font-size:0.82rem;">AI 出題中...</span></div>`);
     } else {
-      sa.innerHTML = `<div class="wait-msg"><div class="pulse"></div><span>等待繼續...</span></div>`;
+      setHud(`<div style="font-size:0.8rem;color:var(--yellow);font-weight:900;margin-bottom:6px;">💬 討論後告訴老師答案！</div>
+        <div style="font-size:0.78rem;color:#fff;margin-bottom:6px;">${q.question}</div>
+        <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;">
+          <div style="padding:4px 10px;background:rgba(0,229,255,0.15);border:1px solid rgba(0,229,255,0.4);border-radius:8px;font-size:0.78rem;color:var(--blue);font-weight:900;">A．${q.optionA}</div>
+          <div style="padding:4px 10px;background:rgba(255,23,68,0.15);border:1px solid rgba(255,23,68,0.4);border-radius:8px;font-size:0.78rem;color:var(--red);font-weight:900;">B．${q.optionB}</div>
+        </div>`);
     }
+
+  } else if (gs.phase === 'revealing') {
+    const q = gs.question; const correct = gs.selectedAnswer === q?.answer;
+    setHud(`<div style="font-size:1.8rem;">${correct ? '🎉' : '😢'}</div>
+      <div style="font-weight:900;color:${correct ? 'var(--green)' : 'var(--red)'};">${correct ? '答對了！' : '答錯了...'}</div>
+      <div style="font-size:0.72rem;color:rgba(255,255,255,0.6);margin-top:4px;">${q?.explanation||''}</div>`);
+
+  } else {
+    setHud(`<div class="wait-msg"><div class="pulse"></div><span>等待繼續...</span></div>`);
   }
 
   centerOnMyPiece();
@@ -1700,33 +1660,23 @@ function makeDice3D(val, index = 0) {
 }
 
 function showDiceAnim(d1, d2, total, onBoard) {
-  const rollDash = document.getElementById('s-roll-dashboard');
-  if (rollDash) rollDash.style.display = 'none';
-
   const spinHtml = `
     <div style="font-size:.8rem;color:rgba(255,255,255,.5);margin-bottom:14px;font-weight:900;">🎲 擲骰中...</div>
-    <div style="display:flex;gap:32px;justify-content:center;padding:20px 0;">${makeDice3D(d1, 0)}${d2?makeDice3D(d2, 1):''}</div>`;
-  
+    <div style="display:flex;gap:32px;justify-content:center;padding:20px 0;">${makeDice3D(d1,0)}${d2?makeDice3D(d2,1):''}</div>`;
   const resultHtml = `
     <div style="font-size:.8rem;color:rgba(255,255,255,.5);margin-bottom:10px;font-weight:900;">🎲 骰子結果</div>
     <div style="display:flex;gap:12px;justify-content:center;margin-bottom:10px;">
       <div class="dice-face">${DICE_FACES[(d1||1)-1]}</div>
       ${d2?`<div class="dice-face">${DICE_FACES[(d2||1)-1]}</div>`:''}
     </div>
-    <div class="dice-total">共 ${total} ${gameState.phase === 'order_rolling' ? '點' : '步'}</div>`;
-
-  const showIn = (boxId, overlayId) => {
-    const box = document.getElementById(boxId);
-    const overlay = document.getElementById(overlayId);
-    if (!box || !overlay) return;
-    box.innerHTML = spinHtml;
-    overlay.style.display = 'flex';
-    setTimeout(() => { box.innerHTML = resultHtml; }, 1450); 
-    setTimeout(() => { overlay.style.display = 'none'; }, 2950);
-  };
-
+    <div class="dice-total">共 ${total} 步</div>`;
   if (onBoard === 's') {
-    showIn('s-dice-box', 's-dice-overlay');
+    const box = document.getElementById('s-dice-box');
+    const ov  = document.getElementById('s-dice-overlay');
+    if (!box || !ov) return;
+    box.innerHTML = spinHtml; ov.style.display = 'flex';
+    setTimeout(() => { box.innerHTML = resultHtml; }, 1450);
+    setTimeout(() => { ov.style.display = 'none'; }, 2950);
   } else {
     const existing = document.getElementById('t-dice-overlay');
     if (existing) existing.remove();
@@ -1743,55 +1693,27 @@ function showDiceAnim(d1, d2, total, onBoard) {
   }
 }
 
+
+
+// 擲骰（正式移動）：骰子 1-6
 function rollDice() {
   if (!gameState) return;
-  
-  if (gameState.phase === 'order_rolling') {
-    if (gameState.orderRolls[myTeamId]) return; 
-    
-    const d1 = Math.ceil(Math.random() * 6);
-    const d2 = Math.ceil(Math.random() * 6);
-    const total = d1 + d2;
-    const action = { type: 'W8_ORDER_ROLL', teamId: myTeamId, diceResult: { d1, d2, total }, ts: Date.now() };
-
-    showDiceAnim(d1, d2, total, 's');
-
-    if (myRole === 'student') {
-      try { window.parent.postMessage({ type: 'W8_ROLL', ...action }, '*'); } catch (e) {}
-      try { localStorage.setItem('W8_ROLL', JSON.stringify(action)); } catch(e) {}
-      try {
-        const roomId = window.parent?.state?.roomId;
-        if (parentDb && roomId) parentDb.collection('rooms').doc(roomId).update({ w8Action: action });
-      } catch(e) {}
-      const sa = document.getElementById('s-action');
-      if (sa) sa.innerHTML = `<div class="wait-msg"><div class="pulse"></div><span>骰子已擲出，等待其他組別...</span></div>`;
-    } else {
-      processAction(action);
-    }
-    return;
-  }
-
-  if (Number(gameState.currentTurn) !== Number(myTeamId)) return;
+  const isMyTurn = Number(gameState.currentTurn) === Number(myTeamId) || gameState.currentTurn == myTeamId;
+  if (!isMyTurn || gameState.phase !== 'waiting_roll') return;
   const team = gameState.teams[myTeamId] || gameState.teams[String(myTeamId)];
   if (!team || team.skipTurn) return;
-  
   const d1 = Math.ceil(Math.random() * 6);
-  let d2 = null; if (team.extraDice) d2 = Math.ceil(Math.random() * 6);
+  const d2 = team.extraDice ? Math.ceil(Math.random() * 6) : null;
   const total = d1 + (d2 || 0);
-  
   const action = { type: 'W8_MOVE_ROLL', teamId: myTeamId, diceResult: { d1, d2, total }, ts: Date.now() };
-
   showDiceAnim(d1, d2, total, 's');
-
+  // HUD 更新
+  setHud(`<div style="font-size:0.78rem;color:rgba(255,255,255,0.6);">骰子已擲出</div>
+    <div style="color:var(--yellow);font-weight:900;font-size:1rem;">請看老師畫面...</div>`);
   if (myRole === 'student') {
-    try { window.parent.postMessage({ type: 'W8_ROLL', ...action }, '*'); } catch (e) {}
+    try { window.parent.postMessage({ type: 'W8_ROLL', ...action }, '*'); } catch(e) {}
     try { localStorage.setItem('W8_ROLL', JSON.stringify(action)); } catch(e) {}
-    try {
-      const roomId = window.parent?.state?.roomId;
-      if (parentDb && roomId) parentDb.collection('rooms').doc(roomId).update({ w8Action: action });
-    } catch(e) {}
-    const sa = document.getElementById('s-action');
-    if (sa) sa.innerHTML = `<div class="wait-msg"><div class="pulse"></div><span>骰子已擲出，請看老師畫面...</span></div>`;
+    try { const roomId = window.parent?.state?.roomId; if (parentDb && roomId) parentDb.collection('rooms').doc(roomId).update({ w8Action: action }); } catch(e) {}
   } else {
     processAction(action);
   }
