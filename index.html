@@ -982,6 +982,13 @@ function startSyncListener() {
                         }
                     }
                 }
+                // W8：收到遊戲狀態更新，推給學生 sg-iframe
+                if (data.w8State && pData.screen === 'screen-student-game' && (window.state.selectedGame === 7 || data.selectedGame === 7)) {
+                    const sgIframe = document.getElementById('sg-iframe');
+                    if (sgIframe && sgIframe.contentWindow) {
+                        try { sgIframe.contentWindow.postMessage({ type: 'W8_STATE', state: data.w8State }, '*'); } catch(e2) {}
+                    }
+                }
             }
         }
         // 老師端：W3 狀態更新推給 tc-w3-iframe
@@ -996,6 +1003,17 @@ function startSyncListener() {
             const tcW5 = document.getElementById('tc-w5-iframe');
             if (tcW5 && tcW5.contentWindow) {
                 try { tcW5.contentWindow.postMessage({ type: 'W5_STATE', data: data.w5state }, '*'); } catch(e2) {}
+            }
+        }
+        // 老師端：W8 Roll（學生擲骰）推給 tc-w8-iframe
+        if (p === 'teacher' && data.w8Action) {
+            const lastTs = window._lastW8ActionTs || 0;
+            if (data.w8Action.ts && data.w8Action.ts !== lastTs) {
+                window._lastW8ActionTs = data.w8Action.ts;
+                const tcW8 = document.getElementById('tc-w8-iframe');
+                if (tcW8 && tcW8.contentWindow) {
+                    try { tcW8.contentWindow.postMessage(data.w8Action, '*'); } catch(e2) {}
+                }
             }
         }
     }, err => console.error('Room sync error:', err));
@@ -1404,15 +1422,23 @@ window.addEventListener('message', (e3) => {
 // ── W8_ROLL 接收：學生擲骰後通知老師，老師 iframe 更新狀態再廣播 ──
 window.addEventListener('message', (e9) => {
     if (!e9.data || e9.data.type !== 'W8_ROLL') return;
-    if (window.state.perspective !== 'teacher') return;
-    // 轉發給老師的 tc-w8-iframe，由老師 iframe 處理移動邏輯
-    const tcW8 = document.getElementById('tc-w8-iframe');
-    if (tcW8 && tcW8.contentWindow) {
-        try { tcW8.contentWindow.postMessage(e9.data, '*'); } catch(e) {}
+    // 學生裝置 postMessage 過來，存入 Firebase 讓老師端的 startSyncListener 收到
+    const rc = window.state.roomCode;
+    const rooms9 = window.getRooms();
+    if (rc && rooms9[rc]) {
+        rooms9[rc].w8Action = e9.data;
+        window.saveRooms(rooms9);
+    }
+    // 同電腦：直接轉發給老師 tc-w8-iframe
+    if (window.state.perspective === 'teacher') {
+        const tcW8 = document.getElementById('tc-w8-iframe');
+        if (tcW8 && tcW8.contentWindow) {
+            try { tcW8.contentWindow.postMessage(e9.data, '*'); } catch(e) {}
+        }
     }
 });
 
-// ── W8_STATE 轉發：老師端 tc-w8-iframe 廣播給學生 sg-iframe ──
+// ── W8_STATE 轉發：老師端 tc-w8-iframe 廣播給學生 sg-iframe + 寫入 Firebase ──
 window.addEventListener('message', (e8) => {
     if (!e8.data || e8.data.type !== 'W8_STATE') return;
     if (window.state.perspective !== 'teacher') return;
@@ -1420,20 +1446,18 @@ window.addEventListener('message', (e8) => {
     if (sgIframe && sgIframe.contentWindow) {
         try { sgIframe.contentWindow.postMessage({ type: 'W8_STATE', state: e8.data.state }, '*'); } catch(e) {}
     }
-    // 同步儲存到 rooms（供結算用分數 + 跨裝置同步 w8State）
+    // 存 w8State 到 Firebase rooms（讓不同裝置的學生透過 startSyncListener 收到）
     if (e8.data.state) {
         const rooms8 = window.getRooms();
-        if (rooms8[window.state.roomCode]) {
-            // 存分數
+        const rc = window.state.roomCode;
+        if (rc && rooms8[rc]) {
+            rooms8[rc].w8State = e8.data.state;
             if (e8.data.state.teams) {
-                if (!rooms8[window.state.roomCode].scores) rooms8[window.state.roomCode].scores = {};
+                if (!rooms8[rc].scores) rooms8[rc].scores = {};
                 Object.values(e8.data.state.teams).forEach(t => {
-                    const teamName = `第${t.id}組`;
-                    rooms8[window.state.roomCode].scores[teamName] = t.score || 0;
+                    rooms8[rc].scores[`第${t.id}組`] = t.score || 0;
                 });
             }
-            // 存完整 w8State（供學生端跨裝置同步）
-            rooms8[window.state.roomCode].w8State = e8.data.state;
             window.saveRooms(rooms8);
         }
     }

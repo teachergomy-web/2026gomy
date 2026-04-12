@@ -918,72 +918,7 @@ let _lastActionTs = 0;
 function attachSync() {
   syncMyTeamId();
 
-  // 從 URL 取得 roomCode
-  const urlP = new URLSearchParams(location.search);
-  const roomCode = urlP.get('room') || (window.parent?.state?.roomCode) || null;
-
-  // ── Firebase 監聽（跨裝置同步主要機制）──
-  let firebaseActive = false;
-  try {
-    // 取得 Firebase db（從父頁面或直接）
-    const fbDb = parentDb?._db || parentDb ||
-      (window.parent?.db) ||
-      (window.parent?.firebase?.firestore?.()) || null;
-
-    if (fbDb && roomCode) {
-      // 嘗試用 Firebase v9 SDK
-      const tryV9 = () => {
-        try {
-          const { doc, onSnapshot } = window.parent?._fsModule || {};
-          if (doc && onSnapshot) {
-            onSnapshot(doc(fbDb, 'rooms', roomCode), (snap) => {
-              const data = snap.data();
-              if (data?.w8State && myRole === 'student') {
-                const str = JSON.stringify(data.w8State);
-                if (str !== _lastStateStr) {
-                  _lastStateStr = str;
-                  gameState = data.w8State;
-                  if (!boardPos?.length) boardPos = getBoardLayout();
-                  if (!document.getElementById('sc-0')) buildBoard();
-                  syncTeamsFromParent(); syncTeamsFromState();
-                  render(); centerOnMyPiece();
-                }
-              }
-            });
-            firebaseActive = true;
-          }
-        } catch(e) {}
-      };
-
-      // 嘗試用 Firebase v8 SDK（Firestore collection API）
-      const tryV8 = () => {
-        try {
-          if (fbDb.collection) {
-            fbDb.collection('rooms').doc(roomCode).onSnapshot(snap => {
-              const data = snap.data();
-              if (data?.w8State && myRole === 'student') {
-                const str = JSON.stringify(data.w8State);
-                if (str !== _lastStateStr) {
-                  _lastStateStr = str;
-                  gameState = data.w8State;
-                  if (!boardPos?.length) boardPos = getBoardLayout();
-                  if (!document.getElementById('sc-0')) buildBoard();
-                  syncTeamsFromParent(); syncTeamsFromState();
-                  render(); centerOnMyPiece();
-                }
-              }
-            });
-            firebaseActive = true;
-          }
-        } catch(e) {}
-      };
-
-      tryV9();
-      if (!firebaseActive) tryV8();
-    }
-  } catch(e) {}
-
-  // ── localStorage + postMessage 備援（同電腦測試用）──
+  // localStorage 輪詢（同電腦/同瀏覽器備援）
   const applyState = (raw) => {
     if (!raw || raw === _lastStateStr) return;
     try {
@@ -999,16 +934,16 @@ function attachSync() {
   };
 
   const pollNow = () => {
-    try {
-      if (myRole === 'student') applyState(localStorage.getItem('W8_STATE'));
-      if (myRole === 'teacher') {
+    if (myRole === 'student') applyState(localStorage.getItem('W8_STATE'));
+    if (myRole === 'teacher') {
+      try {
         const raw = localStorage.getItem('W8_ROLL');
         if (raw) {
           const action = JSON.parse(raw);
           if (action.ts && action.ts !== _lastActionTs) processAction(action);
         }
-      }
-    } catch(e) {}
+      } catch(e) {}
+    }
   };
   pollNow();
   setInterval(pollNow, 400);
@@ -1086,7 +1021,16 @@ window.addEventListener('message', e => {
     }
   }
   if (e.data.type === 'W8_STATE' && myRole === 'student') {
-    gameState = e.data.state; syncTeamsFromParent(); syncTeamsFromState(); render();
+    const incoming = e.data.state;
+    if (!incoming?.teams) return;
+    const str = JSON.stringify(incoming);
+    if (str === _lastStateStr) return;
+    _lastStateStr = str;
+    gameState = incoming;
+    if (!boardPos?.length) boardPos = getBoardLayout();
+    if (!document.getElementById('sc-0')) buildBoard();
+    syncTeamsFromParent(); syncTeamsFromState();
+    render(); centerOnMyPiece();
   }
   if (e.data.type === 'W8_ROLL' && myRole === 'teacher') {
     processAction(e.data);
@@ -1291,32 +1235,13 @@ function makeInit() {
 function broadcast() {
   if (myRole !== 'teacher') return;
   const stateStr = JSON.stringify(gameState);
-  // postMessage 給同頁面的學生 sg-iframe（同電腦）
+  // postMessage 給同頁面學生 iframe
   try { window.parent.postMessage({ type: 'W8_STATE', state: gameState }, '*'); } catch (e) {}
   // localStorage（同電腦備援）
   try {
     localStorage.setItem('W8_STATE', stateStr);
     window.dispatchEvent(new StorageEvent('storage', { key: 'W8_STATE', newValue: stateStr }));
   } catch (e) {}
-  // Firebase（跨裝置主要機制）：透過 parent 的 saveRooms 寫入 rooms.w8State
-  try {
-    const roomCode = new URLSearchParams(location.search).get('room') ||
-                     window.parent?.state?.roomCode;
-    if (roomCode && window.parent && typeof window.parent.getRooms === 'function') {
-      const rooms = window.parent.getRooms();
-      if (rooms[roomCode]) {
-        rooms[roomCode].w8State = gameState;
-        // 同步分數
-        if (gameState.teams) {
-          if (!rooms[roomCode].scores) rooms[roomCode].scores = {};
-          Object.values(gameState.teams).forEach(t => {
-            rooms[roomCode].scores[`第${t.id}組`] = t.score || 0;
-          });
-        }
-        window.parent.saveRooms(rooms);
-      }
-    }
-  } catch(e) {}
 }
 
 function updateState(patch) {
