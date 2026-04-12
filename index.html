@@ -3550,10 +3550,14 @@ function tryRestoreSession() {
             TC.scores = room.scores    || {};
             window.pStates['teacher'].screen = 'screen-teacher-console';
             window.goTo('screen-teacher-console');
+            // 恢復遊戲畫面：W5 和 W8 需要重新呼叫 tcStartGame
             if (room.selectedGame === 5) {
                 TC.isNextLevel = true;
                 tcStartGame();
                 TC.isNextLevel = false;
+            } else if (room.selectedGame === 7) {
+                // W8 大富翁：重新載入老師控制台（iframe 重建）
+                tcStartGame();
             }
         } else {
             window.pStates['teacher'].screen = 'screen-lobby';

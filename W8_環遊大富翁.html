@@ -1916,20 +1916,21 @@ function rollDice() {
   }
   const team = gameState.teams[myTeamId] || gameState.teams[String(myTeamId)];
   if (!team || team.skipTurn) return;
+  // 立刻鎖定 phase，防止重複擲骰
+  gameState.phase = 'rolled';
+  removeHudRoll();
   const d1 = Math.ceil(Math.random() * 6);
   const d2 = team.extraDice ? Math.ceil(Math.random() * 6) : null;
   const total = d1 + (d2 || 0);
   const action = { type: 'W8_MOVE_ROLL', teamId: myTeamId, diceResult: { d1, d2, total }, ts: Date.now() };
-  console.log('[W8] rollDice: myRole=', myRole, 'action=', action);
+  console.log('[W8] rollDice: myRole=', myRole, 'action=', JSON.stringify(action));
   showDiceAnim(d1, d2, total);
   setHud(`<div style="font-size:0.78rem;color:rgba(255,255,255,0.6);">骰子已擲出</div>
     <div style="color:var(--yellow);font-weight:900;font-size:1rem;">請看老師畫面...</div>`);
   if (myRole === 'student') {
     try { window.parent.postMessage({ type: 'W8_ROLL', ...action }, '*'); } catch(e) {}
-    try { localStorage.setItem('W8_ROLL', JSON.stringify(action)); console.log('[W8] W8_ROLL written to localStorage'); } catch(e) {}
-    try { const roomId = window.parent?.state?.roomId; if (parentDb && roomId) parentDb.collection('rooms').doc(roomId).update({ w8Action: action }); } catch(e) {}
+    try { localStorage.setItem('W8_ROLL', JSON.stringify(action)); console.log('[W8] W8_ROLL→localStorage'); } catch(e) {}
   } else {
-    // 老師端直接處理（單機測試）
     processAction(action);
   }
 }
@@ -1938,12 +1939,14 @@ function movePiece() {
   const gs = gameState;
   const tid = gs.currentTurn;
   const tidStr = String(tid);
-  // teams key 在 JSON 序列化後全是字串，優先用字串 key
   const team = gs.teams[tidStr] || gs.teams[tid];
-  if (!team) return;
-  const steps = gs.diceResult?.total || 1;
-  const startPos = team.position;
+  console.log('[W8] movePiece called: tid=', tid, 'team=', team, 'diceResult=', gs.diceResult, 'phase=', gs.phase);
+  if (!team) { console.warn('[W8] movePiece: team not found!'); return; }
+  const steps = gs.diceResult?.total;
+  if (!steps) { console.warn('[W8] movePiece: no diceResult.total!', gs.diceResult); return; }
+  const startPos = Number(team.position || 0);
   const finalPos = (startPos + steps) % TOTAL;
+  console.log('[W8] movePiece: steps=', steps, 'startPos=', startPos, 'finalPos=', finalPos);
 
   let step = 0;
   function moveStep() {
