@@ -8,6 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>W8 環遊大富翁</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <style>
 :root {
   --font: 'Noto Sans TC', 'Nunito', sans-serif;
@@ -320,50 +321,25 @@ body {
 }
 
 /* ══════════════════════════════
-   骰子拋落動畫系統
+   3D 骰子動畫系統（Three.js）
    ══════════════════════════════ */
-
-/* ═══ 骰子動畫 ═══ */
-/* 骰子容器：固定置中顯示 */
-.dice-throw-overlay {
+#dice3d-overlay {
   position: fixed; inset: 0; z-index: 800; pointer-events: none;
-  display: flex; align-items: center; justify-content: center; gap: 24px;
-  background: rgba(0,0,0,0.55);
-  -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
-  animation: diceOverlayIn 0.2s ease both;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.6);
+  -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
 }
-@keyframes diceOverlayIn { from { opacity:0 } to { opacity:1 } }
-
-/* 單顆骰子：飛入+彈跳 */
-.dw {
-  position: relative;
-  animation: dwBounce 0.9s cubic-bezier(0.22,1,0.36,1) both;
+#dice3d-overlay.show { display: flex; }
+#dice3d-canvas-wrap {
+  display: flex; gap: 20px; align-items: flex-end;
 }
-.dw:nth-child(2) { animation-delay: 0.1s; }
-@keyframes dwBounce {
-  0%   { transform: translateY(-600px) rotate(-720deg) scale(0.2); opacity: 0; }
-  60%  { transform: translateY(0)      rotate(0deg)    scale(1.12); opacity: 1; animation-timing-function: cubic-bezier(0.5,0,1,0.4); }
-  75%  { transform: translateY(-32px)  rotate(6deg)    scale(1);    animation-timing-function: cubic-bezier(0,0,0.4,1); }
-  88%  { transform: translateY(0)      rotate(-3deg)   scale(1.04); animation-timing-function: cubic-bezier(0.5,0,1,0.4); }
-  95%  { transform: translateY(-8px)   rotate(0)       scale(1);    animation-timing-function: cubic-bezier(0,0,0.4,1); }
-  100% { transform: translateY(0)      rotate(0)       scale(1); }
+#dice3d-canvas-wrap canvas {
+  border-radius: 16px;
+  filter: drop-shadow(0 10px 30px rgba(0,0,0,0.8));
 }
-
-/* 骰子本體 */
-.dw-face {
-  width: 100px; height: 100px;
-  background: linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%);
-  border-radius: 18px;
-  border: 3px solid #ccc;
-  box-shadow: 0 8px 0 #aaa, 0 14px 20px rgba(0,0,0,0.6), inset 0 2px 4px rgba(255,255,255,0.9);
-  display: grid; place-items: center; padding: 10px;
-  font-size: 4rem;
-}
-
 /* 結果顯示 */
 .dt-result {
-  position: fixed; inset: 0; z-index: 801;
-  pointer-events: none;
+  position: fixed; inset: 0; z-index: 801; pointer-events: none;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
   animation: dtResultIn 0.35s cubic-bezier(0.34,1.56,0.64,1) both;
 }
@@ -373,17 +349,17 @@ body {
 }
 .dt-result-dice-row { display: flex; gap: 16px; align-items: center; }
 .dt-result-face {
-  width: 80px; height: 80px;
+  width: 90px; height: 90px;
   background: linear-gradient(135deg, #fff, #f0f0f0);
-  border: 3px solid #bbb; border-radius: 16px;
+  border: 3px solid #bbb; border-radius: 18px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 3.2rem;
-  box-shadow: 0 5px 0 #999, 0 10px 20px rgba(0,0,0,0.5);
+  font-size: 3.6rem;
+  box-shadow: 0 6px 0 #999, 0 12px 24px rgba(0,0,0,0.5);
 }
 .dt-total-badge {
-  background: rgba(0,0,0,0.82); border: 2px solid var(--yellow);
-  border-radius: 50px; padding: 10px 32px;
-  color: var(--yellow); font-weight: 900; font-size: 1.4rem; letter-spacing: 2px;
+  background: rgba(0,0,0,0.85); border: 2px solid var(--yellow);
+  border-radius: 50px; padding: 12px 36px;
+  color: var(--yellow); font-weight: 900; font-size: 1.5rem; letter-spacing: 2px;
   box-shadow: 0 4px 20px rgba(255,214,0,0.35);
 }
 
@@ -702,6 +678,10 @@ body {
   <div class="r-title">🏆 遊戲結算！</div>
   <div class="r-list" id="r-list"></div>
   <button class="btn-restart" onclick="location.reload()">🔄 再玩一次</button>
+</div>
+<!-- 3D 骰子 canvas 遮罩 -->
+<div id="dice3d-overlay">
+  <div id="dice3d-canvas-wrap"></div>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -1613,42 +1593,268 @@ function renderStudent() {
 
 const DICE_EMOJI = ['⚀','⚁','⚂','⚃','⚄','⚅'];
 
-// 建立單顆骰子動畫 HTML（飛入+彈跳，顯示亂轉中的emoji）
-function makeDiceEl(val, index) {
-  const e = DICE_EMOJI[(val||1)-1];
-  return `<div class="dw" style="animation-delay:${index*0.1}s"><div class="dw-face">${e}</div></div>`;
+// ══════════════════════════════
+// Three.js 3D 骰子系統
+// ══════════════════════════════
+
+// 骰子各面對應旋轉角度（讓該面朝正前方）
+// Three.js 預設：1=front, 2=top, 3=right, 4=left, 5=bottom, 6=back
+const DICE_FACE_ROT = {
+  1: { x: 0,                   y: 0 },
+  2: { x: -Math.PI/2,          y: 0 },
+  3: { x: 0,                   y: -Math.PI/2 },
+  4: { x: 0,                   y:  Math.PI/2 },
+  5: { x:  Math.PI/2,          y: 0 },
+  6: { x:  Math.PI,            y: 0 },
+};
+
+function createDiceScene(canvas, finalVal) {
+  if (!window.THREE) return null;
+  const W = 200, H = 200;
+  canvas.width = W; canvas.height = H;
+
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(W, H);
+  renderer.setClearColor(0x000000, 0);
+  renderer.shadowMap.enabled = true;
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+  camera.position.set(0, 2.5, 5);
+  camera.lookAt(0, 0, 0);
+
+  // 燈光
+  const amb = new THREE.AmbientLight(0xffffff, 0.6);
+  scene.add(amb);
+  const dir = new THREE.DirectionalLight(0xffffff, 1.2);
+  dir.position.set(5, 10, 5);
+  dir.castShadow = true;
+  scene.add(dir);
+  const fill = new THREE.DirectionalLight(0x8888ff, 0.3);
+  fill.position.set(-5, 2, -3);
+  scene.add(fill);
+
+  // 骰子幾何（圓角用 BoxGeometry + 稍微縮小）
+  const geo = new THREE.BoxGeometry(2, 2, 2);
+  
+  // 為每個面建立帶骰點的 canvas 貼圖
+  function makeFaceTex(num) {
+    const c = document.createElement('canvas');
+    c.width = c.height = 256;
+    const ctx = c.getContext('2d');
+    // 背景
+    const r = ctx.createRadialGradient(128,100,10,128,128,180);
+    r.addColorStop(0, '#ffffff');
+    r.addColorStop(1, '#e8e8e8');
+    ctx.fillStyle = r;
+    // 圓角矩形
+    const rad = 32;
+    ctx.beginPath();
+    ctx.moveTo(rad, 0);
+    ctx.lineTo(256-rad, 0);
+    ctx.arcTo(256,0,256,rad,rad);
+    ctx.lineTo(256,256-rad);
+    ctx.arcTo(256,256,256-rad,256,rad);
+    ctx.lineTo(rad,256);
+    ctx.arcTo(0,256,0,256-rad,rad);
+    ctx.lineTo(0,rad);
+    ctx.arcTo(0,0,rad,0,rad);
+    ctx.closePath();
+    ctx.fill();
+    // 點
+    ctx.fillStyle = '#1a1a2e';
+    const dots = {
+      1: [[128,128]],
+      2: [[72,72],[184,184]],
+      3: [[72,72],[128,128],[184,184]],
+      4: [[72,72],[184,72],[72,184],[184,184]],
+      5: [[72,72],[184,72],[128,128],[72,184],[184,184]],
+      6: [[72,72],[184,72],[72,128],[184,128],[72,184],[184,184]],
+    };
+    (dots[num]||dots[1]).forEach(([dx,dy]) => {
+      ctx.beginPath();
+      ctx.arc(dx, dy, 22, 0, Math.PI*2);
+      ctx.fill();
+    });
+    return new THREE.CanvasTexture(c);
+  }
+
+  // 六個面貼圖（BoxGeometry 面順序: +x,-x,+y,-y,+z,-z = 右左上下前後）
+  // 骰子標準：1對6，2對5，3對4
+  const faceMats = [
+    new THREE.MeshPhongMaterial({ map: makeFaceTex(3) }), // +x = 3
+    new THREE.MeshPhongMaterial({ map: makeFaceTex(4) }), // -x = 4
+    new THREE.MeshPhongMaterial({ map: makeFaceTex(2) }), // +y = 2
+    new THREE.MeshPhongMaterial({ map: makeFaceTex(5) }), // -y = 5
+    new THREE.MeshPhongMaterial({ map: makeFaceTex(1) }), // +z = 1 (正面)
+    new THREE.MeshPhongMaterial({ map: makeFaceTex(6) }), // -z = 6
+  ];
+  faceMats.forEach(m => { m.shininess = 80; });
+
+  const dice = new THREE.Mesh(geo, faceMats);
+  dice.castShadow = true;
+  scene.add(dice);
+
+  // 地板（接影子）
+  const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(20,20),
+    new THREE.MeshStandardMaterial({ color:0x111111, transparent:true, opacity:0.3 })
+  );
+  floor.rotation.x = -Math.PI/2;
+  floor.position.y = -1.5;
+  floor.receiveShadow = true;
+  scene.add(floor);
+
+  // 目標旋轉（讓 finalVal 面朝正前方）
+  const target = DICE_FACE_ROT[finalVal] || DICE_FACE_ROT[1];
+
+  // 動畫狀態
+  const state = {
+    phase: 'fall',   // fall → bounce1 → bounce2 → settle
+    t: 0,
+    vy: 8,           // 初速度（向下）
+    y: 6,            // 起始高度
+    spinX: (Math.random()-0.5) * 20,
+    spinY: (Math.random()-0.5) * 20,
+    spinZ: (Math.random()-0.5) * 15,
+    done: false,
+    renderer, scene, camera, dice
+  };
+  return state;
 }
 
-// 骰子動畫：飛入彈跳 → 靜止顯示結果
+function animateDice(state, elapsed) {
+  if (!state || state.done) return;
+  const dt = Math.min(elapsed, 0.05);
+  const { dice } = state;
+
+  if (state.phase === 'fall') {
+    state.vy += dt * 18;
+    state.y -= state.vy * dt;
+    dice.position.y = state.y;
+    dice.rotation.x += state.spinX * dt;
+    dice.rotation.y += state.spinY * dt;
+    dice.rotation.z += state.spinZ * dt;
+    if (state.y <= -0.8) {
+      state.phase = 'bounce1';
+      state.y = -0.8;
+      state.vy = -state.vy * 0.45;
+      state.spinX *= 0.3; state.spinY *= 0.3; state.spinZ *= 0.2;
+    }
+  } else if (state.phase === 'bounce1') {
+    state.vy += dt * 18;
+    state.y -= state.vy * dt;
+    dice.position.y = state.y;
+    dice.rotation.x += state.spinX * dt;
+    dice.rotation.y += state.spinY * dt;
+    if (state.y <= -0.8) {
+      state.phase = 'bounce2';
+      state.y = -0.8;
+      state.vy = -state.vy * 0.3;
+      state.spinX *= 0.15; state.spinY *= 0.15;
+    }
+  } else if (state.phase === 'bounce2') {
+    state.vy += dt * 18;
+    state.y -= state.vy * dt;
+    dice.position.y = state.y;
+    dice.rotation.x += state.spinX * dt;
+    dice.rotation.y += state.spinY * dt;
+    if (state.y <= -0.8) {
+      state.phase = 'settle';
+      state.y = -0.8;
+      state.t = 0;
+    }
+  } else if (state.phase === 'settle') {
+    state.t += dt * 3;
+    const p = Math.min(state.t, 1);
+    const ease = 1 - Math.pow(1-p, 3);
+    // 插值到目標旋轉
+    dice.position.y = -0.8;
+    dice.rotation.x += (state.targetX - dice.rotation.x) * ease * 0.12;
+    dice.rotation.y += (state.targetY - dice.rotation.y) * ease * 0.12;
+    dice.rotation.z += (0 - dice.rotation.z) * ease * 0.15;
+    if (p >= 1 || (Math.abs(dice.rotation.x - state.targetX) < 0.01)) {
+      dice.rotation.x = state.targetX;
+      dice.rotation.y = state.targetY;
+      dice.rotation.z = 0;
+      state.done = true;
+    }
+  }
+  state.renderer.render(state.scene, state.camera);
+}
+
+// 主動畫函式
 function showDiceAnim(d1, d2, total) {
-  document.querySelectorAll('.dice-throw-overlay, .dt-result').forEach(el => el.remove());
+  document.querySelectorAll('.dt-result').forEach(el => el.remove());
 
-  // 飛入動畫（0.9s）
-  const throwEl = document.createElement('div');
-  throwEl.className = 'dice-throw-overlay';
-  throwEl.innerHTML = makeDiceEl(d1, 0) + (d2 ? makeDiceEl(d2, 1) : '');
-  document.body.appendChild(throwEl);
+  if (!window.THREE) {
+    // Three.js 未載入，用 emoji 備援
+    const EMOJI = ['⚀','⚁','⚂','⚃','⚄','⚅'];
+    const r = document.createElement('div');
+    r.className = 'dt-result';
+    r.innerHTML = `<div class="dt-result-dice-row">
+      <div class="dt-result-face">${EMOJI[(d1||1)-1]}</div>
+      ${d2?`<div style="color:#fff;font-size:1.6rem;font-weight:900;">+</div><div class="dt-result-face">${EMOJI[(d2||1)-1]}</div>`:''}
+    </div><div class="dt-total-badge">🎲 ${total} 步</div>`;
+    document.body.appendChild(r);
+    setTimeout(() => { r.style.transition='opacity 0.4s'; r.style.opacity='0'; setTimeout(()=>r.remove(),400); }, 2000);
+    return;
+  }
 
-  const animDur = (d2 ? 900 + 100 : 900) + 200;
+  const overlay = document.getElementById('dice3d-overlay');
+  const wrap = document.getElementById('dice3d-canvas-wrap');
+  wrap.innerHTML = '';
+  overlay.classList.add('show');
 
-  // 動畫結束後：移除飛行骰子，顯示靜態結果
-  setTimeout(() => {
-    throwEl.remove();
-    const resultEl = document.createElement('div');
-    resultEl.className = 'dt-result';
-    resultEl.innerHTML = `
-      <div class="dt-result-dice-row">
-        <div class="dt-result-face">${DICE_EMOJI[(d1||1)-1]}</div>
-        ${d2 ? `<div style="color:#fff;font-size:1.6rem;font-weight:900;padding:0 4px;">+</div><div class="dt-result-face">${DICE_EMOJI[(d2||1)-1]}</div>` : ''}
-      </div>
-      <div class="dt-total-badge">🎲 ${total} 步</div>`;
-    document.body.appendChild(resultEl);
-    setTimeout(() => {
-      resultEl.style.transition = 'opacity 0.4s';
-      resultEl.style.opacity = '0';
-      setTimeout(() => resultEl.remove(), 400);
-    }, 1500);
-  }, animDur);
+  // 建立骰子 canvas
+  const diceData = [];
+  [d1, d2].filter(Boolean).forEach((val, i) => {
+    const canvas = document.createElement('canvas');
+    wrap.appendChild(canvas);
+    const state = createDiceScene(canvas, val);
+    if (state) {
+      const fr = DICE_FACE_ROT[val] || DICE_FACE_ROT[1];
+      state.targetX = fr.x + Math.round(state.dice.rotation.x / (Math.PI*2)) * Math.PI*2;
+      state.targetY = fr.y + Math.round(state.dice.rotation.y / (Math.PI*2)) * Math.PI*2;
+      diceData.push(state);
+    }
+  });
+
+  // 動畫循環
+  let last = performance.now();
+  let rafId;
+  function loop(now) {
+    const dt = (now - last) / 1000;
+    last = now;
+    diceData.forEach(s => animateDice(s, dt));
+    const allDone = diceData.every(s => s.done);
+    if (!allDone) {
+      rafId = requestAnimationFrame(loop);
+    } else {
+      // 全部靜止：顯示1秒後換成結果UI
+      setTimeout(() => {
+        overlay.classList.remove('show');
+        wrap.innerHTML = '';
+        diceData.forEach(s => { try { s.renderer.dispose(); } catch(e){} });
+        // 顯示結果
+        const EMOJI = ['⚀','⚁','⚂','⚃','⚄','⚅'];
+        const r = document.createElement('div');
+        r.className = 'dt-result';
+        r.innerHTML = `<div class="dt-result-dice-row">
+          <div class="dt-result-face">${EMOJI[(d1||1)-1]}</div>
+          ${d2?`<div style="color:#fff;font-size:1.6rem;font-weight:900;padding:0 8px;">+</div><div class="dt-result-face">${EMOJI[(d2||1)-1]}</div>`:''}
+        </div><div class="dt-total-badge">🎲 ${total} 步</div>`;
+        document.body.appendChild(r);
+        setTimeout(() => {
+          r.style.transition = 'opacity 0.4s';
+          r.style.opacity = '0';
+          setTimeout(() => r.remove(), 400);
+        }, 1800);
+      }, 800);
+    }
+  }
+  rafId = requestAnimationFrame(loop);
 }
 
 
