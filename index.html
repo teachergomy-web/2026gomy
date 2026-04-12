@@ -2796,7 +2796,19 @@ function syncJoinDOM() {
     }
 }
 
-function goToJoin() { if (window.pStates[window.state.perspective]) window.pStates[window.state.perspective].joinStep = 1; stopJoinListener(); window.syncJoinDOM(); window.renderRoomList(); window.goTo('screen-join'); }
+function goToJoin() { 
+  if (window.pStates[window.state.perspective]) window.pStates[window.state.perspective].joinStep = 1; 
+  stopJoinListener(); 
+  window.syncJoinDOM(); 
+  window.renderRoomList(); 
+  window.goTo('screen-join'); 
+  // 重設按鈕狀態（防止上次「確認中...」殘留）
+  setTimeout(() => {
+    const btn = document.querySelector('#screen-join .btn-green');
+    if (btn) { btn.disabled = false; btn.textContent = '準備完成！→'; }
+    window._joinRetry = 0;
+  }, 50);
+}
 
 function renderRoomList() {
   const rooms = window.getRooms();
@@ -2998,6 +3010,10 @@ function joinRoom() {
 
 function _finishJoin(groupName, symbol, roomCode) {
   stopJoinListener(); // 加入成功，停止選組監聽
+  // 重設按鈕（以防下次回到加入頁面仍是 disabled）
+  window._joinRetry = 0;
+  const joinBtnEl = document.querySelector('#screen-join .btn-green');
+  if (joinBtnEl) { joinBtnEl.disabled = false; joinBtnEl.textContent = '準備完成！→'; }
   const pData = window.pStates[window.state.perspective];
   if (pData) {
     pData.joined = true;

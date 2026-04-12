@@ -763,12 +763,22 @@ function syncTeamsFromState() {
   if (changed) teamCount = TEAMS.length;
 }
 
-// 全域防呆：確認自己是第幾組
+// 全域防呆：確認自己是第幾組（只在 myTeamId 還是預設值1時作為備援）
 function syncMyTeamId() {
+  // 優先從 URL 讀取（最可靠）
+  try {
+    const p = new URLSearchParams(location.search);
+    const teamParam = p.get('team');
+    if (teamParam) {
+      const parsed = parseInt(String(teamParam).replace(/\D/g, ''));
+      if (!isNaN(parsed) && parsed > 0) { myTeamId = parsed; return; }
+    }
+  } catch(e) {}
+  // 備援：從 localStorage（只在沒有 URL 參數時）
   try {
     const sg = localStorage.getItem('studentGroup');
-    if (sg) {
-      let parsed = parseInt(String(sg).replace(/\D/g, ''));
+    if (sg && myTeamId === 1) { // 不覆蓋已由 URL/PLATFORM_START 設好的值
+      const parsed = parseInt(String(sg).replace(/\D/g, ''));
       if (!isNaN(parsed) && parsed > 0) myTeamId = parsed;
     }
   } catch(e) {}
@@ -1551,7 +1561,11 @@ function renderStudent() {
   sa.innerHTML = '';
 
   const curTurn = gs.currentTurn;
-  const isMyTurn = (Number(curTurn) === Number(myTeamId));
+  const isMyTurn = (
+    Number(curTurn) === Number(myTeamId) ||
+    String(curTurn) === String(myTeamId) ||
+    curTurn == myTeamId
+  );
   const ct = TEAMS.find(t => t.id == gs.currentTurn);
   const myTD = gs.teams[myTeamId] || gs.teams[String(myTeamId)];
 
