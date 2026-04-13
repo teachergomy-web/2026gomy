@@ -263,6 +263,8 @@ body {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   box-shadow: inset 0 0 50px rgba(0,0,0,0.8); border-radius: 16px;
 }
+.center-logo { font-size: 4.5rem; font-weight: 900; color: var(--yellow); text-shadow: 0 5px 15px rgba(0,0,0,0.5); margin-bottom: 10px; }
+.center-sub { font-size: 1.6rem; color: var(--blue); font-weight: 900; letter-spacing: 0.6em; text-shadow: 0 2px 5px rgba(0,0,0,0.5); }
 
 /* 基本格子顏色主題 */
 .cell.type-q { --c-color: var(--p-yellow); }
@@ -419,6 +421,12 @@ let _gameStartTime = Date.now();
 window._isMoving = false; // 動畫防干擾鎖定
 let _lastCamPos = -1;
 let _lastCamTurn = -1;
+let _lastStateStr = '';
+let _lastActionTs = 0;
+let _cameraOffsetX = 0;
+let _cameraOffsetY = 0;
+let _panOffsetX = 0;
+let _panOffsetY = 0;
 
 // 動態組別系統
 let TEAMS = [
@@ -680,7 +688,7 @@ function applyTransform() {
     const tRig = document.getElementById('t-camera-rig');
     if (tRig) tRig.style.transform = `translate(${tx}px, ${ty}px)`;
     const tBoard = document.getElementById('board');
-    if (tBoard) tBoard.style.transform = `scale(${scale}) rotateX(55deg) rotateZ(-45deg)`;
+    if (tBoard) tBoard.style.transform = `perspective(2000px) scale(${scale}) rotateX(55deg) rotateZ(-45deg)`;
   } else {
     // 學生端稍微拉遠到 800 倍率，視野更舒適，且能跟隨棋子移動
     const scale = Math.max(vw, vh) / 800; 
@@ -690,7 +698,7 @@ function applyTransform() {
     const sRig = document.getElementById('s-camera-rig');
     if (sRig) sRig.style.transform = `translate(${tx}px, ${ty}px)`;
     const sBoard = document.getElementById('s-board');
-    if (sBoard) sBoard.style.transform = `scale(${scale}) rotateX(55deg) rotateZ(-45deg)`;
+    if (sBoard) sBoard.style.transform = `perspective(2000px) scale(${scale}) rotateX(55deg) rotateZ(-45deg)`;
   }
 }
 
@@ -1140,7 +1148,7 @@ function makeInit() {
 
   const teams = {};
   TEAMS.forEach(t => {
-    teams[t.id] = { id: t.id, position: 0, score: 3000, extraDice: false, skipTurn: false };
+    teams[t.id] = { id: t.id, position: 0, score: 1000, extraDice: false, skipTurn: false };
   });
 
   const playOrder = [...TEAMS].sort((a, b) => a.id - b.id).map(t => t.id);
@@ -1294,7 +1302,7 @@ function render() {
           html = `<div class="co-title" style="font-size:2.5rem; color:var(--yellow); margin-bottom:16px;">🚀 環遊大富翁</div>
                   <div class="co-desc" style="color:#fff; font-size:1.1rem; line-height:1.6; text-align:left; margin-bottom:24px;">
                       1. 各組輪流擲骰子前進。<br>
-                      2. 停留格子將觸發 <b>機會、命運、或問答挑戰</b>。<br>
+                      2. 停留格子將觸發 <b>幸運事件、突發狀況、機會問答、或特殊事件</b>。<br>
                       3. 答對題目可獲得資金，善用運氣與智慧累積最高財富！
                   </div>`;
           if (isT) html += `<button class="btn-pub" style="display:block; font-size:1.3rem; padding:16px;" onclick="startGame()">🎲 遊戲開始</button>`;
@@ -1312,7 +1320,7 @@ function render() {
       else if (gameState.phase === 'land_reveal') {
           const lt = gameState.landType;
           let i = '❓', t = '機會命運', d = '抽題中...';
-          if (lt === 'start') { i = '🏁'; t = '到達起點'; d = '獲得獎勵！'; }
+          if (lt === 'start') { i = '🏁'; t = '完成一圈'; d = '獲得獎勵！'; }
           else if (lt === 'special') { i = '⭐'; t = '特殊事件'; d = '命運的齒輪轉動...'; }
           else if (lt === 'lucky') { i = '💰'; t = '幸運事件'; d = '好運降臨！'; }
           else if (lt === 'bad') { i = '💸'; t = '突發狀況'; d = '糟糕了...'; }
@@ -1890,20 +1898,6 @@ function triggerEvent(type, finalPos) {
     }, 2500); 
   }
 }
-
-const LUCKY = [
-  { title: '幸運之星！', desc: '+3 分！', fx: (tid, gs) => updateTeam(tid, { score: (Number(gs.teams[tid].score) || 0) + 3 }) },
-  { title: '順風！', desc: '前進 2 格！', fx: (tid, gs) => { updateTeam(tid, { position: (Number(gs.teams[tid].position) + 2) % TOTAL }); } },
-  { title: '全組加分！', desc: '所有組各 +1 分！', fx: (tid, gs) => {
-    const t2 = { ...gs.teams }; Object.values(t2).forEach(t => { t2[t.id] = { ...t2[t.id], score: (Number(t2[t.id].score) || 0) + 1 }; }); updateState({ teams: t2 }); } },
-  { title: '🎲 獲得第二顆骰子！', desc: '之後每回合擲兩顆！', fx: (tid) => updateTeam(tid, { extraDice: true }) },
-  { title: '神秘禮物！', desc: '+2 分！', fx: (tid, gs) => updateTeam(tid, { score: (Number(gs.teams[tid].score) || 0) + 2 }) },
-];
-const BAD = [
-  { title: '倒楣！', desc: '-1 分', fx: (tid, gs) => updateTeam(tid, { score: Math.max(0, (Number(gs.teams[tid].score) || 0) - 1) }) },
-  { title: '滑倒！', desc: '退後 2 格', fx: (tid, gs) => { updateTeam(tid, { position: ((Number(gs.teams[tid].position) - 2) + TOTAL) % TOTAL }); } },
-  { title: '⏸ 停一回合！', desc: '下回合跳過', fx: (tid) => updateTeam(tid, { skipTurn: true }) },
-];
 
 function doLucky(tid) {
   const ev = LUCKY[Math.floor(Math.random() * LUCKY.length)];

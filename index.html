@@ -1457,7 +1457,9 @@ window.addEventListener('message', (e8) => {
             if (e8.data.state.teams) {
                 if (!rooms8[rc8].scores) rooms8[rc8].scores = {};
                 Object.values(e8.data.state.teams).forEach(t => {
-                    rooms8[rc8].scores[`第${t.id}組`] = t.score || 0;
+                    const key = `第 ${t.id} 組`;
+                    rooms8[rc8].scores[key] = t.score || 0;
+                    TC.scores[key] = t.score || 0;
                 });
             }
             window.saveRooms(rooms8);
@@ -3055,7 +3057,7 @@ function _finishJoin(groupName, symbol, roomCode) {
   const room  = rooms[roomCode] || {};
   document.getElementById('sw-code').textContent = roomCode;
   document.getElementById('sw-room-name').textContent = `誰是遊戲王 — 房間 #${room.roomNum || ''}`;
-  document.getElementById('sw-my-group-status').innerHTML = `✅ <b>${groupName}</b> 已連線，等待老師啟動...`;
+  document.getElementById('sw-my-group-status').innerHTML = `✅ 已連線，等待老師啟動...`;
   window.renderLobby();
   window.updateStudentWaitDisplay();
   window.goTo('screen-student-wait');
