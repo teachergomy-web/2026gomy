@@ -627,13 +627,13 @@ const SPECIAL = [
 function getBoardLayout() {
   const path = [];
   path.push({x: 0, y: C + 6*M, type: 'corner', angle: 90}); 
-  for(let i=5; i>=0; i--) path.push({x: 0, y: C + i*M, type: 'left', angle: 90}); 
+  for(let i=5; i>=0; i--) path.push({x: 0, y: C + i*M, type: 'left', angle: -90}); 
   path.push({x: 0, y: 0, type: 'corner', angle: -45}); 
-  for(let i=0; i<6; i++) path.push({x: C + i*M, y: 0, type: 'top', angle: 180}); 
+  for(let i=0; i<6; i++) path.push({x: C + i*M, y: 0, type: 'top', angle: 0}); 
   path.push({x: C + 6*M, y: 0, type: 'corner', angle: 45}); 
-  for(let i=0; i<6; i++) path.push({x: C + 6*M, y: C + i*M, type: 'right', angle: -90}); 
+  for(let i=0; i<6; i++) path.push({x: C + 6*M, y: C + i*M, type: 'right', angle: 90}); 
   path.push({x: C + 6*M, y: C + 6*M, type: 'corner', angle: -45}); 
-  for(let i=5; i>=0; i--) path.push({x: C + i*M, y: C + 6*M, type: 'bottom', angle: 0}); 
+  for(let i=5; i>=0; i--) path.push({x: C + i*M, y: C + 6*M, type: 'bottom', angle: 180}); 
   return path;
 }
 
@@ -1148,7 +1148,7 @@ function makeInit() {
 
   const teams = {};
   TEAMS.forEach(t => {
-    teams[t.id] = { id: t.id, position: 0, score: 1000, extraDice: false, skipTurn: false };
+    teams[t.id] = { id: t.id, position: 0, score: 3000, extraDice: false, skipTurn: false };
   });
 
   const playOrder = [...TEAMS].sort((a, b) => a.id - b.id).map(t => t.id);
@@ -1302,7 +1302,7 @@ function render() {
           html = `<div class="co-title" style="font-size:2.5rem; color:var(--yellow); margin-bottom:16px;">🚀 環遊大富翁</div>
                   <div class="co-desc" style="color:#fff; font-size:1.1rem; line-height:1.6; text-align:left; margin-bottom:24px;">
                       1. 各組輪流擲骰子前進。<br>
-                      2. 停留格子將觸發 <b>幸運事件、突發狀況、機會問答、或特殊事件</b>。<br>
+                      2. 停留格子將觸發 <b>機會、命運、或問答挑戰</b>。<br>
                       3. 答對題目可獲得資金，善用運氣與智慧累積最高財富！
                   </div>`;
           if (isT) html += `<button class="btn-pub" style="display:block; font-size:1.3rem; padding:16px;" onclick="startGame()">🎲 遊戲開始</button>`;
@@ -1320,7 +1320,7 @@ function render() {
       else if (gameState.phase === 'land_reveal') {
           const lt = gameState.landType;
           let i = '❓', t = '機會命運', d = '抽題中...';
-          if (lt === 'start') { i = '🏁'; t = '完成一圈'; d = '獲得獎勵！'; }
+          if (lt === 'start') { i = '🏁'; t = '到達起點'; d = '獲得獎勵！'; }
           else if (lt === 'special') { i = '⭐'; t = '特殊事件'; d = '命運的齒輪轉動...'; }
           else if (lt === 'lucky') { i = '💰'; t = '幸運事件'; d = '好運降臨！'; }
           else if (lt === 'bad') { i = '💸'; t = '突發狀況'; d = '糟糕了...'; }
@@ -1546,6 +1546,19 @@ function renderStudent() {
     if (card) card.style.display = 'block';
   }
 }
+
+window.studentSelectAnswer = function(ans) {
+  if (!gameState || gameState.phase !== 'answering') return;
+  if (gameState.selectedAnswer) return;
+
+  const action = { type: 'W8_ROLL', actionType: 'W8_ANSWER', gameId: gameState.gameId, teamId: myTeamId, answer: ans, ts: Date.now() };
+  if (myRole === 'student') {
+    sendActionToPlatform(action);
+    processAction(action);
+  } else {
+    processAction(action);
+  }
+};
 
 // ══════════════════════════════
 // Three.js 3D 骰子系統
