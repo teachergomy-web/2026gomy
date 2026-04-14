@@ -1107,7 +1107,21 @@ function buildBoard() {
       cell.style.left = bp.x + 'px';
       cell.style.top = bp.y + 'px';
 
-      const contentAngle = isStart ? 0 : bp.angle;
+      // 強制根據格子類型決定朝向，確保底部朝外
+      let contentAngle = 0;
+      if (i === 0) {
+        contentAngle = 0; // 起點保持正向
+      } else if (bp.type === 'left') {
+        contentAngle = 90;  // 左側格子：旋轉 90 度讓底部朝左
+      } else if (bp.type === 'right') {
+        contentAngle = 90; // 右側格子：旋轉 -90 度讓底部朝右
+      } else if (bp.type === 'top') {
+        contentAngle = 0;   // 頂部格子：底部朝上 (正向)
+      } else if (bp.type === 'bottom') {
+        contentAngle = 0; // 底部格子：底部朝下 (反向)
+      } else {
+        contentAngle = bp.angle; // 轉角處沿用原本設定
+      }
 
       const contentHtml = i === 0 
         ? `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;height:100%;padding:5px;">
@@ -1151,7 +1165,7 @@ function makeInit() {
 
   const teams = {};
   TEAMS.forEach(t => {
-    teams[t.id] = { id: t.id, position: 0, score: 3000, extraDice: false, skipTurn: false };
+    teams[t.id] = { id: t.id, position: 0, score: 2000, extraDice: false, skipTurn: false };
   });
 
   const playOrder = [...TEAMS].sort((a, b) => a.id - b.id).map(t => t.id);
