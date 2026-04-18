@@ -472,6 +472,28 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
   <div style="font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);">等待老師繼續...</div>
 </div>
 
+<!-- ═══ W7 學生端規則覆蓋層（每個 Part 開始前顯示）═══ -->
+<div id="w7-rules-overlay" style="
+  display:none; position:fixed; inset:0; z-index:500;
+  background:#0e0e14;
+  flex-direction:column; align-items:center; overflow-y:auto;
+  -webkit-overflow-scrolling:touch;">
+  <div style="width:100%;max-width:540px;padding:20px 20px 14px;flex-shrink:0;border-bottom:1px solid rgba(167,139,250,.25);">
+    <div style="color:rgba(167,139,250,.5);font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:.12em;margin-bottom:3px;">📖 GAME RULES</div>
+    <div id="w7-rules-title" style="color:var(--accent2);font-family:'Space Mono',monospace;font-weight:700;font-size:1.05rem;">記憶力大考驗</div>
+  </div>
+  <div id="w7-rules-content" style="width:100%;max-width:540px;padding:16px 20px;flex:1;"></div>
+  <div style="width:100%;max-width:540px;padding:12px 20px 36px;flex-shrink:0;">
+    <button onclick="w7CloseRules()" style="
+      display:block;width:100%;padding:16px;border-radius:14px;border:none;cursor:pointer;
+      background:linear-gradient(135deg,var(--accent2),#6d28d9);color:#fff;
+      font-family:'Space Mono',monospace;font-weight:700;font-size:.9rem;
+      box-shadow:0 4px 0 #3b0764;-webkit-tap-highlight-color:transparent;">
+      ▶ 了解規則，開始！
+    </button>
+  </div>
+</div>
+
 <script>
 // ════════════════════════════════════
 // 背景星星
@@ -509,6 +531,66 @@ let curPart=0,curLvl=1,score=0,currentRetryCount=0,skipRequested=false;
 // ── 平台模式 ──
 let platformMode=false;  // 是否由平台啟動（iframe 嵌入）
 let platformGroup='';    // 組別名稱
+
+// ── W7 學生端規則資料（≤30字/條）──
+const W7_RULES = [
+  { icon:'🃏', name:'記憶翻牌', color:'#a78bfa', items:[
+    '牌面翻開，記住每張牌的位置（限時）。',
+    '倒數結束蓋牌，翻開找出所有配對。',
+    '翻錯不扣分，越快完成時間分越高。',
+  ]},
+  { icon:'🎪', name:'動果大遊行', color:'#f59e0b', items:[
+    '記住圖案出場順序，結束後依序還原。',
+    '從選項格依序點選，點錯可重填。',
+    '全對滿分，部分正確依比例給分。',
+  ]},
+  { icon:'🔐', name:'金庫解碼', color:'#34d399', items:[
+    '記住轉盤方向與次數（如 ← 3、→ 2）。',
+    '轉完一組按 OK，完成所有指令解鎖！',
+    '方向或次數錯誤需重試，不扣分。',
+  ]},
+];
+
+// 顯示 W7 規則覆蓋層
+function w7ShowRules(part, onDone) {
+  const rule = W7_RULES[(part-1) % 3];
+  const overlay  = document.getElementById('w7-rules-overlay');
+  const titleEl  = document.getElementById('w7-rules-title');
+  const contentEl= document.getElementById('w7-rules-content');
+  if (!overlay) { onDone(); return; }
+
+  if (titleEl) titleEl.textContent = `${rule.icon} ${rule.name}`;
+  if (contentEl) contentEl.innerHTML = `
+    <div style="font-size:2.5rem;text-align:center;margin-bottom:14px;">${rule.icon}</div>
+    <ul style="margin:0;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:12px;">
+      ${rule.items.map(it=>`
+        <li style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+          border-radius:10px;padding:12px 14px;
+          font-size:.84rem;color:rgba(255,255,255,.82);line-height:1.6;
+          font-family:'Noto Sans TC',sans-serif;">${it}</li>
+      `).join('')}
+    </ul>
+    <div style="margin-top:16px;font-size:.7rem;color:rgba(255,255,255,.3);
+      font-family:'Space Mono',monospace;text-align:center;">LV 1–10，越高級題目越難</div>
+  `;
+
+  overlay.style.display = 'flex';
+  overlay.scrollTop = 0;
+  overlay._onDone = onDone;
+}
+
+// 學生按「了解規則，開始！」
+function w7CloseRules() {
+  const overlay = document.getElementById('w7-rules-overlay');
+  if (overlay) {
+    overlay.style.display = 'none';
+    if (typeof overlay._onDone === 'function') {
+      const cb = overlay._onDone;
+      overlay._onDone = null;
+      cb();
+    }
+  }
+}
 
 // PLATFORM_START / PAUSE / RESUME 監聽
 let _pausedByPlatform=false;
@@ -571,7 +653,11 @@ window.addEventListener('message', e=>{
   document.getElementById('ui-header').classList.add('on');
   const leaveBtn=document.querySelector('#ui-header .btn-ghost');
   if(leaveBtn) leaveBtn.style.display='none';
-  startPart(part, platformMode && curPart>0);
+
+  // 先顯示該 Part 規則頁，學生確認後才開始
+  w7ShowRules(part, () => {
+    startPart(part, platformMode && curPart>0);
+  });
 });
 
 function startPart(part, keepScore=false){
