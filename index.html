@@ -726,6 +726,14 @@ body::before {
     </div>
   </div>
 
+  <!-- 玩家踢人列：W3/W5/W8 老師 iframe 無法嵌入踢人，改在此處顯示 -->
+  <div id="tc-kick-bar" style="display:none;flex-shrink:0;padding:6px 14px;border-bottom:1px solid rgba(255,255,255,.08);background:rgba(13,15,26,.9);overflow-x:auto;-webkit-overflow-scrolling:touch;">
+    <div style="display:flex;align-items:center;gap:8px;min-width:max-content;">
+      <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:.62rem;color:rgba(255,255,255,.3);letter-spacing:.08em;flex-shrink:0;">踢除玩家：</div>
+      <div id="tc-kick-bar-players" style="display:flex;gap:6px;"></div>
+    </div>
+  </div>
+
   <!-- 分數/組別狀態區 -->
   <div id="tc-scores-area" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:20px;overflow:hidden">
     <div style="color:rgba(255,255,255,.25);font-family:'Nunito',sans-serif;font-size:.9rem">按「全班開始」後顯示即時分數</div>
@@ -1284,8 +1292,14 @@ function w6RenderTCCards() {
         const statusText  = done ? `✔ ${elapsed}` : rounds > 0 ? `${rounds}/6 進行中` : '等待中';
 
         return `
-        <div style="background:${bgColor};border:1px solid ${borderColor};border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:7px">
-            <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:.82rem;color:white">${p.symbol} ${p.group}</div>
+        <div style="background:${bgColor};border:1px solid ${borderColor};border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:7px;position:relative;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+              <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:.82rem;color:white;flex:1;">${p.symbol} ${p.group}</div>
+              <button onclick="tcKickPlayer('${p.group.replace(/'/g,"\\'")}','${(p.symbol||'').replace(/'/g,"\\'")}',this)"
+                style="flex-shrink:0;background:rgba(232,32,32,.2);border:1px solid rgba(232,32,32,.5);border-radius:6px;
+                color:#ff6b6b;font-size:.58rem;font-weight:900;padding:2px 7px;cursor:pointer;
+                font-family:'Nunito',sans-serif;-webkit-tap-highlight-color:transparent;line-height:1.4;">✕</button>
+            </div>
             <div style="display:flex;gap:5px;align-items:center">${dotHTML}</div>
             <div style="display:flex;justify-content:space-between;align-items:center">
                 <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:.82rem;color:${statusColor}">${statusText}</div>
@@ -1437,7 +1451,13 @@ function w7RenderTCCards() {
         const card = document.createElement('div');
         card.className = 'w7-group-card' + (st.done ? ' done' : ' playing');
         card.innerHTML = `
-            <div style="font-weight:900;font-size:.9rem;color:#fff;margin-bottom:4px">${p.symbol||''} ${p.group}</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:4px;">
+              <div style="font-weight:900;font-size:.88rem;color:#fff;flex:1;">${p.symbol||''} ${p.group}</div>
+              <button onclick="tcKickPlayer('${p.group.replace(/'/g,"\\'")}','${(p.symbol||'').replace(/'/g,"\\'")}',this)"
+                style="flex-shrink:0;background:rgba(232,32,32,.2);border:1px solid rgba(232,32,32,.5);border-radius:6px;
+                color:#ff6b6b;font-size:.58rem;font-weight:900;padding:2px 7px;cursor:pointer;
+                font-family:'Nunito',sans-serif;-webkit-tap-highlight-color:transparent;line-height:1.4;">✕</button>
+            </div>
             <div style="font-size:.75rem;color:${st.done ? '#2ecc71' : 'rgba(255,255,255,.4)'}">
               ${st.done ? `✅ ${st.elapsed}s　+${st.score}分` : '⌛ 進行中...'}
             </div>`;
@@ -1742,29 +1762,59 @@ function tcKickPlayer(groupName, symbol, btnEl) {
     r.playerCount = r.players.length;
 
     // 2. 寫入 kicked 清單，讓學生端 snapshot 偵測到後自動離開
+    //    同時清除已過期（>60秒）的舊踢除紀錄，避免累積
     if (!r.kicked) r.kicked = {};
-    r.kicked[groupName] = { ts: Date.now(), symbol };
+    const now = Date.now();
+    Object.keys(r.kicked).forEach(k => {
+        if (now - (r.kicked[k].ts || 0) > 60000) delete r.kicked[k];
+    });
+    r.kicked[groupName] = { ts: now, symbol };
 
+    // 3. 同步更新記憶體快取（確保 renderLobby 立刻看到新 players）
+    window._allRoomsCache[roomCode] = r;
     window.saveRooms(rooms);
     window.state.players = r.players;
     window.state.takenSymbols = r.players.map(p => p.symbol);
+    window.state.takenGroups  = r.players.map(p => p.group);
 
-    // 3. 清除本機的 pData（若此裝置有該組的 pState）
+    // 4. 清除本機的 pData（若此裝置有該組的 pState）
     Object.keys(window.pStates).forEach(k => {
         if (window.pStates[k].group === groupName) {
             window.pStates[k].joined = false;
             window.pStates[k].group  = '';
+            window.pStates[k].symbol = '';
         }
     });
 
-    // 4. 重新渲染大廳和分數
+    // 5. 重新渲染（大廳 + 控制台 + 踢人列）
     window.renderLobby();
     tcRenderScores();
+    tcRenderKickBar(document.getElementById('tc-kick-bar')?.style.display !== 'none');
     showToast(`🚷 已踢除 ${groupName}`);
 }
 
-// ══════════════════════════════════════════════════════════
-// 規則頁系統
+// ── 渲染 W3/W5/W8 的踢人橫列 ──
+// 這三個遊戲老師端是 iframe，無法在 iframe 裡加踢人按鈕，改在控制台頂部顯示
+function tcRenderKickBar(show) {
+    const bar = document.getElementById('tc-kick-bar');
+    if (!bar) return;
+    if (!show) { bar.style.display = 'none'; return; }
+
+    bar.style.display = '';
+    const cont = document.getElementById('tc-kick-bar-players');
+    if (!cont) return;
+    const players = window.state.players || [];
+    cont.innerHTML = players.map(p => `
+        <button onclick="tcKickPlayer('${p.group.replace(/'/g,"\\'")}','${(p.symbol||'').replace(/'/g,"\\'")}',this)"
+          style="display:inline-flex;align-items:center;gap:5px;
+          background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18);
+          border-radius:8px;color:white;font-family:'Nunito',sans-serif;font-weight:900;
+          font-size:.72rem;padding:4px 9px;cursor:pointer;-webkit-tap-highlight-color:transparent;
+          white-space:nowrap;">
+          <span style="font-size:1rem;">${p.symbol}</span>${p.group}
+          <span style="color:#ff6b6b;font-size:.65rem;margin-left:2px;">✕</span>
+        </button>`).join('');
+}
 // ══════════════════════════════════════════════════════════
 
 // 各遊戲規則內容（依 GAMES 陣列索引 0–7 對應 W1–W8）
@@ -2047,6 +2097,7 @@ function tcStartGame() {
         const nextContainer = document.getElementById('tc-next-level-container');
         if (levelBadge) levelBadge.style.display = 'none';
         if (nextContainer) nextContainer.style.display = 'none';
+        tcRenderKickBar(true); // W3：iframe 模式，用踢人列
         const sa = document.getElementById('tc-scores-area');
         if (sa) {
             sa.style.padding = '0';
@@ -2073,6 +2124,7 @@ function tcStartGame() {
         const nextContainer = document.getElementById('tc-next-level-container');
         if (levelBadge) levelBadge.style.display = 'none';
         if (nextContainer) nextContainer.style.display = 'none';
+        tcRenderKickBar(true); // W5：iframe 模式，用踢人列
         const sa = document.getElementById('tc-scores-area');
         if (sa) {
             sa.style.padding = '0';
@@ -2178,6 +2230,7 @@ function tcStartGame() {
         const nextContainer = document.getElementById('tc-next-level-container');
         if (levelBadge)   { levelBadge.style.display = ''; levelBadge.textContent = '🚀 大富翁'; }
         if (nextContainer) nextContainer.style.display = 'none';
+        tcRenderKickBar(true); // W8：iframe 模式，用踢人列
         const sa = document.getElementById('tc-scores-area');
         if (sa) {
             sa.style.padding = '0';
@@ -2961,10 +3014,11 @@ setInterval(() => {
     }
 
     // 偵測老師踢除此組 → 強制離開並清除 session
+    // 只在 60 秒內的踢除才觸發（超過即視為過期，不影響重新加入）
     if (r.kicked && pData.group && r.kicked[pData.group]) {
         const kickedTs = r.kicked[pData.group].ts || 0;
-        // 只處理最近 30 秒內的踢除（避免舊資料誤觸）
-        if (Date.now() - kickedTs < 30000) {
+        const kickAge  = Date.now() - kickedTs;
+        if (kickAge > 0 && kickAge < 60000) {
             pData.joined = false; pData.group = ''; pData.symbol = '';
             pData.screen = 'screen-home';
             stopSyncListener();
@@ -3449,17 +3503,34 @@ function _finishJoin(groupName, symbol, roomCode) {
     pData.symbol = symbol;
     pData.screen = 'screen-student-wait';
   }
+
+  // ★ 清除 kicked 紀錄：學生重新加入成功後，移除自己在 kicked 清單中的舊紀錄
+  //   這樣 snapshot polling 就不會再偵測到被踢而強制退出
   const rooms = window.getRooms();
   const room  = rooms[roomCode] || {};
+  if (room.kicked && room.kicked[groupName]) {
+    delete room.kicked[groupName];
+    // 同步更新記憶體快取和 Firebase
+    window._allRoomsCache[roomCode] = room;
+    const local = JSON.parse(localStorage.getItem('playroom_rooms') || '{}');
+    local[roomCode] = room;
+    localStorage.setItem('playroom_rooms', JSON.stringify(local));
+    if (isFirebase && db && isFirebaseAuthComplete && fsSet && fsDoc) {
+        fsSet(fsDoc(db, 'rooms', roomCode), room).catch(() => {});
+    }
+  }
+
   document.getElementById('sw-code').textContent = roomCode;
   document.getElementById('sw-room-name').textContent = `誰是遊戲王 — 房間 #${room.roomNum || ''}`;
   document.getElementById('sw-my-group-status').innerHTML = `✅ 已連線，等待老師啟動...`;
   window.renderLobby();
   window.updateStudentWaitDisplay();
   window.goTo('screen-student-wait');
-  // 學生 session：只儲存學生資訊，不含 teacher 標記
+  // 學生 session：改存 localStorage（persistent），關閉頁面後再開仍可恢復
   if (groupName) {
-      sessionStorage.setItem('game_session', JSON.stringify({ perspective: window.state.perspective, roomCode, group: groupName, symbol }));
+      const sessionData = JSON.stringify({ perspective: window.state.perspective, roomCode, group: groupName, symbol });
+      localStorage.setItem('game_session_persistent', sessionData);
+      sessionStorage.setItem('game_session', sessionData);
   }
   window.showToast(`✅ ${groupName} 已加入房間！`);
 }
@@ -4004,6 +4075,18 @@ function tryRestoreSession() {
         pData.joined = true;
         pData.group  = saved.group;
         pData.symbol = saved.symbol || '';
+
+        // ★ 清除 kicked 紀錄（重新加入成功，移除舊的踢除標記，防止 polling 再次觸發踢出）
+        if (room.kicked && room.kicked[saved.group]) {
+            delete room.kicked[saved.group];
+            window._allRoomsCache[saved.roomCode] = room;
+            const _loc = JSON.parse(localStorage.getItem('playroom_rooms') || '{}');
+            _loc[saved.roomCode] = room;
+            localStorage.setItem('playroom_rooms', JSON.stringify(_loc));
+            if (isFirebase && db && isFirebaseAuthComplete && fsSet && fsDoc) {
+                fsSet(fsDoc(db, 'rooms', saved.roomCode), room).catch(() => {});
+            }
+        }
 
         const swStatus = document.getElementById('sw-my-group-status');
         if (swStatus) swStatus.innerHTML = `✅ <b>${saved.group}</b> 已連線，等待老師開始...`;
