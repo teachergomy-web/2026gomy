@@ -138,8 +138,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 }
 .card-back{background:var(--surface2);border:1px solid var(--border);}
 .card-back-canvas{width:100%;height:100%;display:block;border-radius:9px;}
-.card-front{background:var(--surface);border:2px solid var(--border);transform:rotateY(180deg);}
+.card-front{background:var(--surface);border:2px solid var(--border);transform:rotateY(180deg);
+  display:flex;align-items:center;justify-content:center;overflow:hidden;}
 .card-front canvas{display:block;border-radius:8px;}
+.card-front > div{border-radius:9px;overflow:hidden;}
 .card-flipper.matched .card-front{border-color:var(--green);box-shadow:0 0 16px rgba(52,211,153,.35);}
 .card-flipper.wrong .card-front{
   border-color:var(--red)!important;box-shadow:0 0 14px rgba(248,113,113,.4)!important;
@@ -719,26 +721,22 @@ const FLIP_ROWS  =[ 4,  4,  4,  4,  4,  4,  4,  4,  5,  5];
 //   中：同大類但顏色或形狀有明顯差異
 //   難：形狀顏色高度相似，需要仔細辨認
 //
-// 全域 emoji 清單（15種，對應最多 15 對）
+// 全域 emoji 清單（共 18 種，對應最多 15 對 + 備用）
+// 難度軸：易→中→難，由形狀顏色差異大到高度相似
 const CARD_EMOJIS = [
-  // 【易識別】形狀、顏色完全不同
-  '🍎','🍌','⭐','🐶','🏀',   // 0–4：紅蘋果、黃香蕉、星星、狗臉、橘球
-  // 【中識別】同大類，顏色接近但形狀有別
-  '🌸','🌻','🌊','🍇','🦋',   // 5–9：粉花、黃花、藍波、紫葡、蝴蝶
-  // 【難識別】形狀顏色高度相近
-  '😀','😄','😁','❤️','🧡',   // 10–14：笑臉系＋心形系（最難）
+  // 【易識別】形狀、顏色完全不同（0–7）
+  '🍎','🍌','⭐','🐶','🏀','🚀','🌈','🎸',
+  // 【中識別】同大類，顏色接近但形狀有別（8–12）
+  '🌸','🌻','🌊','🍇','🦋',
+  // 【難識別】形狀顏色高度相近（13–17）
+  '😀','😄','😁','❤️','🧡',
 ];
 
-// 各關使用的 emoji 索引範圍（數字越大越難）
-// LV1：6對，只用 0–5（最易識別的前6種）
-// LV2：7對，用 0–6
-// LV3：8對，用 0–7
-// LV4：9對，用 0–8（開始混入中等難度）
-// LV5：10對，用 0–9（全部中等難度以上）
-// LV6–10：12–15對，逐步引入 10–14（難識別）
-const LEVEL_EMOJI_COUNT = [6,7,8,9,10,11,12,12,15,15];
-// 每關從前 N 種 emoji 裡選（N = LEVEL_EMOJI_COUNT[lvIdx]）
-// pairCount 張牌對，從這 N 種循環取
+// 各關使用的 emoji 種數（必須 >= 該關對數，才不會出現重複圖案）
+// LV對數: 6, 8, 8, 10, 10, 12, 12, 14, 15, 15
+// 原設定:  6, 7, 8,  9, 10, 11, 12, 12, 15, 15  ← LV2/4/6/8 不足
+// 修正後:  6, 8, 8, 10, 10, 12, 12, 14, 15, 15  ← 每關剛好夠用，不循環重複
+const LEVEL_EMOJI_COUNT = [6, 8, 8, 10, 10, 12, 12, 14, 15, 15];
 
 // 卡背 canvas：菱形格紋 + 紫青漸層邊框 + 中心圓
 function drawCardBack(canvas,w,h){
@@ -781,21 +779,23 @@ function drawCardBack(canvas,w,h){
   });
 }
 
-// 卡面：用 canvas 畫 emoji（確保清晰不失真）
-function drawCardFront(canvas,w,h,emoji){
-  const ctx=canvas.getContext('2d');
-  canvas.width=w; canvas.height=h;
-  // 背景
-  const bg=ctx.createLinearGradient(0,0,w,h);
-  bg.addColorStop(0,'#1e1e2e'); bg.addColorStop(1,'#16161f');
-  ctx.fillStyle=bg; ctx.fillRect(0,0,w,h);
-  // emoji：用 sans-serif 確保系統 emoji 字型被使用，不指定 serif
-  // 字型大小基於寬度（短邊，因為現在是直向卡片），約佔 55%
-  const fs=Math.floor(w*.55);
-  ctx.font=`${fs}px sans-serif`;
-  ctx.textAlign='center';
-  ctx.textBaseline='middle';
-  ctx.fillText(emoji, w/2, h/2);
+// 卡面：改用 HTML div 顯示 emoji
+// 原本用 canvas fillText，但在 Android/部分平板上字型未載入時會渲染空白
+// 改成純 HTML，讓系統字型直接渲染，完全避免空白問題
+function makeFrontDiv(cellW, cellH, emoji){
+  const div = document.createElement('div');
+  div.style.cssText = `
+    width:${cellW}px;height:${cellH}px;
+    display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,#1e1e2e,#16161f);
+    border-radius:9px;
+    font-size:${Math.floor(cellW*0.52)}px;
+    line-height:1;
+    user-select:none;
+    -webkit-user-select:none;
+  `;
+  div.textContent = emoji;
+  return div;
 }
 
 let flipCards=[],flipFirst=null,flipSecond=null,flipLock=false;
@@ -816,16 +816,26 @@ function startFlip(){
   const rows=FLIP_ROWS[lvIdx];
   const slotCount=cols*rows;
 
-  // 建牌池：各關從前 N 種 emoji 取（N = LEVEL_EMOJI_COUNT[lvIdx]），由易到難
-  const availCount = LEVEL_EMOJI_COUNT[lvIdx]; // 本關可用的 emoji 種數
-  const emojiPool=[];
-  for(let i=0;i<pairCount;i++){
-    const eidx = i % availCount; // 在可用範圍內循環
+  // 建牌池：從前 N 種 emoji 各取一對，確保每種 emoji 剛好出現一次（不重複）
+  // availCount 已確保 >= pairCount（LEVEL_EMOJI_COUNT 已修正）
+  const availCount = LEVEL_EMOJI_COUNT[lvIdx];
+  // 從 0..availCount-1 中取 pairCount 個不重複索引，用 seededRandom 打亂後取前 pairCount 個
+  const idxPool = Array.from({length: availCount}, (_, i) => i);
+  // Fisher-Yates shuffle（seeded，確保同關同組看到一樣的牌）
+  for(let i = idxPool.length - 1; i > 0; i--){
+    const j = Math.floor(seededRandom() * (i + 1));
+    [idxPool[i], idxPool[j]] = [idxPool[j], idxPool[i]];
+  }
+  // 取前 pairCount 個，各配成一對
+  const emojiPool = [];
+  for(let i = 0; i < pairCount; i++){
+    const eidx = idxPool[i];  // 每個 emoji 只出現一次，不循環
     emojiPool.push(eidx, eidx);
   }
-  for(let i=emojiPool.length-1;i>0;i--){
-    const j=Math.floor(seededRandom()*(i+1));
-    [emojiPool[i],emojiPool[j]]=[emojiPool[j],emojiPool[i]];
+  // 再次 shuffle 牌位置（讓配對位置隨機）
+  for(let i = emojiPool.length - 1; i > 0; i--){
+    const j = Math.floor(seededRandom() * (i + 1));
+    [emojiPool[i], emojiPool[j]] = [emojiPool[j], emojiPool[i]];
   }
 
   // 尺寸計算：若 wrap 還沒有尺寸（layout 未完成），保存 pool 後下一幀重試
@@ -897,10 +907,8 @@ function _buildFlipGrid(cols, rows, slotCount, emojiPool, pairCount, lvIdx){
     // 卡面
     const front=document.createElement('div');
     front.className='card-face card-front';
-    const frontCv=document.createElement('canvas');
-    frontCv.style.cssText=`width:${cellW}px;height:${cellH}px;display:block;border-radius:9px;`;
-    drawCardFront(frontCv,cvW,cvH,emoji);
-    front.appendChild(frontCv);
+    const frontContent = makeFrontDiv(cellW, cellH, emoji);
+    front.appendChild(frontContent);
 
     flipper.appendChild(back); flipper.appendChild(front);
     cell.appendChild(flipper); grid.appendChild(cell);

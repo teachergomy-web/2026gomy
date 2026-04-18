@@ -536,92 +536,90 @@ const BAD = BAD_DATA.map(([title, amt]) => ({
   title, desc: `-$${amt}`, fx: (tid, gs) => updateTeam(tid, { score: Math.max(0, (Number(gs.teams[tid].score) || 0) - amt) })
 }));
 
+// ══════════════════════════════
+// 特殊任務挑戰卡（老師裁判制）
+// 分三大類：猜拳類、繞口令類、語詞挑戰類
+// 老師按「完成✅」加 $600，按「失敗❌」扣 $300
+// ══════════════════════════════
+const CHALLENGE_REWARD  = 600;  // 成功獎勵
+const CHALLENGE_PENALTY = 300;  // 失敗罰款
+
 const SPECIAL = [
-  { title: '【大風吹】', desc: '所有人重新洗牌，隨機交換目前在地圖上的位置。', fx: (tid, gs) => {
-     const tIds = Object.keys(gs.teams).filter(k => !isNaN(k));
-     const positions = tIds.map(id => gs.teams[id].position);
-     positions.sort(() => Math.random() - 0.5);
-     const patch = {};
-     tIds.forEach((id, i) => { 
-        patch[id] = { ...gs.teams[id], position: positions[i] }; 
-        patch[String(id)] = patch[id]; 
-     });
-     updateState({ teams: patch });
-  }},
-  { title: '【校慶園遊會】', desc: '向所有對手組別收取每組 $200 的門票費。', fx: (tid, gs) => {
-     const patch = {};
-     let totalGained = 0;
-     const tIds = Object.keys(gs.teams).filter(k => !isNaN(k));
-     tIds.forEach(id => {
-       if (id != tid) {
-         const tScore = Number(gs.teams[id].score) || 0;
-         const deduct = Math.min(200, tScore);
-         patch[id] = { ...gs.teams[id], score: tScore - deduct };
-         patch[String(id)] = patch[id];
-         totalGained += deduct;
-       }
-     });
-     patch[tid] = { ...gs.teams[tid], score: (Number(gs.teams[tid].score)||0) + totalGained };
-     patch[String(tid)] = patch[tid];
-     updateState({ teams: patch });
-  }},
-  { title: '【強烈颱風過境】', desc: '每組損失 $300 修補房屋。', fx: (tid, gs) => {
-     const patch = {};
-     const tIds = Object.keys(gs.teams).filter(k => !isNaN(k));
-     tIds.forEach(id => {
-       const tScore = Number(gs.teams[id].score) || 0;
-       patch[id] = { ...gs.teams[id], score: Math.max(0, tScore - 300) };
-       patch[String(id)] = patch[id];
-     });
-     updateState({ teams: patch });
-  }},
-  { title: '【得腸病毒停課】', desc: '「停課」停走一回合。', fx: (tid) => {
-     updateTeam(tid, { skipTurn: true });
-  }},
-  { title: '【小財神降臨】', desc: '與場上總資產最高的組別交換現金。', fx: (tid, gs) => {
-     let maxT = null; let maxS = -1;
-     const tIds = Object.keys(gs.teams).filter(k => !isNaN(k));
-     tIds.forEach(id => {
-       const t = gs.teams[id];
-       if (id != tid && (Number(t.score)||0) > maxS) { maxS = Number(t.score)||0; maxT = t; }
-     });
-     if (maxT) {
-       const myS = Number(gs.teams[tid].score)||0;
-       const patch = {};
-       patch[tid] = { ...gs.teams[tid], score: maxS };
-       patch[String(tid)] = patch[tid];
-       patch[maxT.id] = { ...gs.teams[maxT.id], score: myS };
-       patch[String(maxT.id)] = patch[maxT.id];
-       updateState({ teams: patch });
-     }
-  }},
-  { title: '【小窮鬼降臨】', desc: '與場上總資產最低的組別交換現金。', fx: (tid, gs) => {
-     let minT = null; let minS = Infinity;
-     const tIds = Object.keys(gs.teams).filter(k => !isNaN(k));
-     tIds.forEach(id => {
-       const t = gs.teams[id];
-       if (id != tid && (Number(t.score)||0) < minS) { minS = Number(t.score)||0; minT = t; }
-     });
-     if (minT && minS !== Infinity) {
-       const myS = Number(gs.teams[tid].score)||0;
-       const patch = {};
-       patch[tid] = { ...gs.teams[tid], score: minS };
-       patch[String(tid)] = patch[tid];
-       patch[minT.id] = { ...gs.teams[minT.id], score: myS };
-       patch[String(minT.id)] = patch[minT.id];
-       updateState({ teams: patch });
-     }
-  }},
-  { title: '【誰亂丟香蕉皮】', desc: '跌倒，倒退兩格。', fx: (tid, gs) => {
-     const p = gs.teams[tid].position;
-     updateTeam(tid, { position: (p - 2 + TOTAL) % TOTAL });
-  }},
-  { title: '【買了新腳踏車】', desc: '獲得第二顆骰子，下回合開始擲兩顆。', fx: (tid) => {
-     updateTeam(tid, { extraDice: true });
-  }},
-  { title: '【放手騎腳踏車】', desc: '(兩顆骰子限定)摔車了，變回一顆骰子。', fx: (tid) => {
-     updateTeam(tid, { extraDice: false });
-  }}
+  // ── 猜拳 / 互動類 ──
+  {
+    icon: '✊',
+    title: '【猜拳決勝負】',
+    desc: '跟老師猜拳，三局兩勝制。\n全組輪流各出一拳，贏老師超過半數即算成功！',
+    hint: '老師裁判：超過半數隊員贏老師 → ✅ 完成',
+  },
+  {
+    icon: '🤝',
+    title: '【黑白配挑戰】',
+    desc: '每位隊員依序和老師玩「黑白配」一局。\n全組需有 **三分之二以上** 的人猜中老師的手指數。',
+    hint: '老師裁判：2/3以上隊員猜中 → ✅ 完成',
+  },
+  {
+    icon: '👆',
+    title: '【心電感應】',
+    desc: '隊員甲在心裡想一個 1–10 的數字，\n隊員乙在 10 秒內猜出，三次機會。',
+    hint: '老師裁判：猜中任一次 → ✅ 完成',
+  },
+  // ── 繞口令類 ──
+  {
+    icon: '👅',
+    title: '【繞口令：四是四】',
+    desc: '全組一起齊聲念出：\n「四是四，十是十，十四是十四，四十是四十。」\n一口氣念完，不可唸錯！',
+    hint: '老師裁判：全組齊聲念完不出錯 → ✅ 完成',
+  },
+  {
+    icon: '👅',
+    title: '【繞口令：吃葡萄】',
+    desc: '指定一位隊員念出：\n「吃葡萄不吐葡萄皮，不吃葡萄倒吐葡萄皮。」\n連念兩遍不出錯！',
+    hint: '老師裁判：連念兩遍不出錯 → ✅ 完成',
+  },
+  {
+    icon: '👅',
+    title: '【繞口令：黑化肥】',
+    desc: '指定一位隊員念出：\n「黑化肥發灰，灰化肥發黑，黑化肥發灰會揮發。」',
+    hint: '老師裁判：念完不出錯 → ✅ 完成',
+  },
+  // ── 語詞挑戰類 ──
+  {
+    icon: '🔤',
+    title: '【ㄇ開頭！2字語詞】',
+    desc: '每位隊員依序說出一個「ㄇ開頭的 2 字語詞」。\n不可重複、不可超過 5 秒思考！',
+    hint: '老師裁判：全員成功說出不重複 → ✅ 完成',
+  },
+  {
+    icon: '🎨',
+    title: '【顏色＋3字語詞】',
+    desc: '每位隊員說出一個「帶顏色的 3 字語詞」。\n例如：紅綠燈、黑名單、藍牙耳機。\n不可重複！',
+    hint: '老師裁判：全員成功說出不重複 → ✅ 完成',
+  },
+  {
+    icon: '1️⃣',
+    title: '【含「一」的四字成語】',
+    desc: '每位隊員說出一個「有「一」字的四字成語」。\n例如：一石二鳥、萬眾一心、一馬當先。\n不可重複！',
+    hint: '老師裁判：全員成功說出不重複 → ✅ 完成',
+  },
+  {
+    icon: '🍎',
+    title: '【水果開頭字接龍】',
+    desc: '以「香蕉」開頭，每位隊員接著說一種以上一個字結尾字開頭的水果。\n例如：香蕉→蕉糖→糖心蘋果…（廣義水果都算）\n接不下去或說錯即失敗！',
+    hint: '老師裁判：全員接龍成功 → ✅ 完成',
+  },
+  {
+    icon: '🏫',
+    title: '【學校相關 3 字詞】',
+    desc: '每位隊員說出一個「與學校相關的 3 字語詞」。\n例如：上課鐘、圖書館、操場跑。\n不可重複！',
+    hint: '老師裁判：全員成功說出不重複 → ✅ 完成',
+  },
+  {
+    icon: '🌍',
+    title: '【國家首都大考驗】',
+    desc: '老師說出一個國家名稱，\n全組 30 秒內一起討論並說出該國首都。\n答對加分，答錯扣分！',
+    hint: '老師裁判：說出正確首都 → ✅ 完成',
+  },
 ];
 
 function getBoardLayout() {
@@ -1107,21 +1105,7 @@ function buildBoard() {
       cell.style.left = bp.x + 'px';
       cell.style.top = bp.y + 'px';
 
-      // 強制根據格子類型決定朝向，確保底部朝外
-      let contentAngle = 0;
-      if (i === 0) {
-        contentAngle = 0; // 起點保持正向
-      } else if (bp.type === 'left') {
-        contentAngle = 90;  // 左側格子：旋轉 90 度讓底部朝左
-      } else if (bp.type === 'right') {
-        contentAngle = 90; // 右側格子：旋轉 -90 度讓底部朝右
-      } else if (bp.type === 'top') {
-        contentAngle = 0;   // 頂部格子：底部朝上 (正向)
-      } else if (bp.type === 'bottom') {
-        contentAngle = 0; // 底部格子：底部朝下 (反向)
-      } else {
-        contentAngle = bp.angle; // 轉角處沿用原本設定
-      }
+      const contentAngle = isStart ? 0 : bp.angle;
 
       const contentHtml = i === 0 
         ? `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;height:100%;padding:5px;">
@@ -1165,7 +1149,7 @@ function makeInit() {
 
   const teams = {};
   TEAMS.forEach(t => {
-    teams[t.id] = { id: t.id, position: 0, score: 2000, extraDice: false, skipTurn: false };
+    teams[t.id] = { id: t.id, position: 0, score: 3000, extraDice: false, skipTurn: false };
   });
 
   const playOrder = [...TEAMS].sort((a, b) => a.id - b.id).map(t => t.id);
@@ -1190,6 +1174,13 @@ window.startGame = function() {
     if (myRole !== 'teacher') return;
     updateState({ phase: 'waiting_roll' });
 }
+
+// 讓 HTML onclick 可以直接呼叫這些函式
+window.challengePass = challengePass;
+window.challengeFail = challengeFail;
+window.nextTurn      = nextTurn;
+window.publishAnswer = publishAnswer;
+window.rollDice      = rollDice;
 
 function broadcast() {
   if (myRole !== 'teacher') return;
@@ -1287,14 +1278,17 @@ function render() {
   
   const isMyTurn = Number(gameState.currentTurn) === Number(myTeamId) || String(gameState.currentTurn) === String(myTeamId) || gameState.currentTurn == myTeamId;
   
-  const showCenterPhaseTeacher = ['intro', 'land_reveal', 'event', 'answering', 'revealing', 'done'].includes(gameState.phase);
-  const showCenterPhaseStudent = ['intro', 'waiting_roll', 'land_reveal', 'event', 'answering', 'revealing', 'done'].includes(gameState.phase);
+  const showCenterPhaseTeacher = ['intro', 'land_reveal', 'event', 'challenge', 'answering', 'revealing', 'done'].includes(gameState.phase);
+  const showCenterPhaseStudent = ['intro', 'waiting_roll', 'land_reveal', 'event', 'challenge', 'answering', 'revealing', 'done'].includes(gameState.phase);
   
   let showCenter = false;
   if (isT) {
       showCenter = showCenterPhaseTeacher;
   } else {
       if (gameState.phase === 'intro') {
+          showCenter = true;
+      } else if (gameState.phase === 'challenge') {
+          // 任務挑戰：所有學生都要看到任務內容（不只是當前組別）
           showCenter = true;
       } else if (isMyTurn) {
           showCenter = showCenterPhaseStudent;
@@ -1338,7 +1332,7 @@ function render() {
           const lt = gameState.landType;
           let i = '❓', t = '機會命運', d = '抽題中...';
           if (lt === 'start') { i = '🏁'; t = '到達起點'; d = '獲得獎勵！'; }
-          else if (lt === 'special') { i = '⭐'; t = '特殊事件'; d = '命運的齒輪轉動...'; }
+          else if (lt === 'special') { i = '⭐'; t = '任務挑戰！'; d = '準備好接受挑戰了嗎？'; }
           else if (lt === 'lucky') { i = '💰'; t = '幸運事件'; d = '好運降臨！'; }
           else if (lt === 'bad') { i = '💸'; t = '突發狀況'; d = '糟糕了...'; }
           else if (lt === 'q') { i = '❓'; t = '機會問答'; d = '準備挑戰！'; }
@@ -1356,6 +1350,41 @@ function render() {
                   <div class="co-desc" style="margin-bottom:20px; color:#fff; font-size:1.1rem;">${ev.desc}</div>`;
           if (isT) html += `<button class="btn-next" style="display:block;" onclick="nextTurn()">➡️ 下一組</button>`;
           else html += `<div class="co-desc" style="font-size:0.9rem;">等待老師繼續...</div>`;
+      }
+      else if (gameState.phase === 'challenge') {
+          // 特殊任務挑戰：老師裁判制
+          const ch = gameState.challenge || {};
+          const chTeam = TEAMS.find(t => t.id == ch.teamId) || {};
+          html = `
+            <div class="co-icon" style="animation:none; font-size:3rem;">${ch.icon || '⭐'}</div>
+            <div class="co-title" style="color:var(--p-purple); font-size:1.3rem;">${ch.title || '特殊任務'}</div>
+            <div style="background:rgba(197,163,255,0.08);border:1px solid rgba(197,163,255,0.25);border-radius:14px;padding:16px 20px;margin:10px 0 16px;width:100%;max-width:480px;text-align:left;">
+              <div style="font-size:1rem;line-height:1.8;color:#fff;white-space:pre-wrap;">${ch.desc || ''}</div>
+            </div>
+            <div style="font-size:0.82rem;color:rgba(197,163,255,0.6);margin-bottom:4px;">挑戰組別：${chTeam.icon||'⭐'} ${chTeam.name||'目前組別'}</div>
+            <div style="font-size:0.8rem;color:rgba(255,255,255,0.35);margin-bottom:18px;">${ch.hint || ''}</div>
+          `;
+          if (isT) {
+            html += `
+              <div style="display:flex;gap:14px;width:100%;max-width:360px;">
+                <button onclick="challengePass()"
+                  style="flex:1;padding:16px;border-radius:12px;border:none;cursor:pointer;
+                    background:linear-gradient(135deg,#00c853,#009624);color:#fff;
+                    font-size:1.1rem;font-weight:900;font-family:var(--font);
+                    box-shadow:0 4px 0 rgba(0,0,0,.4);">
+                  ✅ 完成！<br><span style="font-size:0.75rem;opacity:.8;">+$${CHALLENGE_REWARD}</span>
+                </button>
+                <button onclick="challengeFail()"
+                  style="flex:1;padding:16px;border-radius:12px;border:none;cursor:pointer;
+                    background:linear-gradient(135deg,#d50000,#9b0000);color:#fff;
+                    font-size:1.1rem;font-weight:900;font-family:var(--font);
+                    box-shadow:0 4px 0 rgba(0,0,0,.4);">
+                  ❌ 失敗<br><span style="font-size:0.75rem;opacity:.8;">-$${CHALLENGE_PENALTY}</span>
+                </button>
+              </div>`;
+          } else {
+            html += `<div class="co-desc" style="font-size:0.9rem;color:rgba(197,163,255,0.6);">⏳ 等待老師裁判結果...</div>`;
+          }
       }
       else if (gameState.phase === 'answering') {
           const q = gameState.question;
@@ -1927,6 +1956,45 @@ function triggerEvent(type, finalPos) {
       else updateState({ phase: 'done', event: null });
     }, 2500); 
   }
+}
+
+function doSpecial(tid) {
+  // 隨機抽一張任務卡，進入 challenge 階段等待老師裁判
+  const ch = SPECIAL[Math.floor(Math.random() * SPECIAL.length)];
+  updateState({
+    phase: 'challenge',
+    event: null,
+    challenge: {
+      icon:    ch.icon,
+      title:   ch.title,
+      desc:    ch.desc,
+      hint:    ch.hint,
+      teamId:  tid,
+    }
+  });
+  showToast(`⭐ ${ch.title}`);
+}
+
+function challengePass() {
+  // 老師判定：任務成功 → 加分
+  if (!gameState || gameState.phase !== 'challenge') return;
+  const tid = gameState.challenge?.teamId ?? gameState.currentTurn;
+  const cur = Number(gameState.teams[String(tid)]?.score || gameState.teams[tid]?.score || 0);
+  updateTeam(tid, { score: cur + CHALLENGE_REWARD });
+  showToast(`🎉 挑戰成功！+$${CHALLENGE_REWARD}`);
+  showPop(`+$${CHALLENGE_REWARD}`, 'var(--green)');
+  updateState({ phase: 'done', challenge: null });
+}
+
+function challengeFail() {
+  // 老師判定：任務失敗 → 扣分
+  if (!gameState || gameState.phase !== 'challenge') return;
+  const tid = gameState.challenge?.teamId ?? gameState.currentTurn;
+  const cur = Number(gameState.teams[String(tid)]?.score || gameState.teams[tid]?.score || 0);
+  updateTeam(tid, { score: Math.max(0, cur - CHALLENGE_PENALTY) });
+  showToast(`😢 挑戰失敗！-$${CHALLENGE_PENALTY}`);
+  showPop(`-$${CHALLENGE_PENALTY}`, 'var(--red)');
+  updateState({ phase: 'done', challenge: null });
 }
 
 function doLucky(tid) {
