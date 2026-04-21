@@ -1042,8 +1042,8 @@ function startSyncListener() {
 
         // ★ 老師端：Firebase 快照一到就更新 players 並重繪大廳/踢人列
         //   這樣學生加入或離開後，老師畫面立即反映，不需等 poll
-        const p = window.state.perspective;
-        if (p === 'teacher' && data.players !== undefined) {
+        const snapPerspective = window.state.perspective;
+        if (snapPerspective === 'teacher' && data.players !== undefined) {
             window.state.players      = data.players;
             window.state.takenSymbols = data.players.map(pl => pl.symbol);
             window.state.takenGroups  = data.players.map(pl => pl.group);
@@ -1057,9 +1057,8 @@ function startSyncListener() {
         }
 
         // 學生端：Firebase 資料一到就主動檢查是否需要跳轉
-        const p = window.state.perspective;
-        if (p !== 'teacher') {
-            const pData = window.pStates[p];
+        if (snapPerspective !== 'teacher') {
+            const pData = window.pStates[snapPerspective];
             if (pData && pData.joined) {
                 if (data.status === 'playing' && pData.screen !== 'screen-student-game') {
                     tcLaunchStudentIfNeeded();
@@ -1104,21 +1103,21 @@ function startSyncListener() {
             }
         }
         // 老師端：W3 狀態更新推給 tc-w3-iframe
-        if (p === 'teacher' && data.w3state) {
+        if (snapPerspective === 'teacher' && data.w3state) {
             const tcW3 = document.getElementById('tc-w3-iframe');
             if (tcW3 && tcW3.contentWindow) {
                 try { tcW3.contentWindow.postMessage({ type: 'W3_STATE', data: data.w3state }, '*'); } catch(e2) {}
             }
         }
         // 老師端：W5 狀態更新推給 tc-w5-iframe
-        if (p === 'teacher' && data.w5state) {
+        if (snapPerspective === 'teacher' && data.w5state) {
             const tcW5 = document.getElementById('tc-w5-iframe');
             if (tcW5 && tcW5.contentWindow) {
                 try { tcW5.contentWindow.postMessage({ type: 'W5_STATE', data: data.w5state }, '*'); } catch(e2) {}
             }
         }
         // 老師端：W8 學生擲骰 action 推給 tc-w8-iframe（只推比上次新的）
-        if (p === 'teacher' && data.w8Action) {
+        if (snapPerspective === 'teacher' && data.w8Action) {
             const lastW8Ts = window._lastW8ActionTs || 0;
             if (data.w8Action.ts && data.w8Action.ts > lastW8Ts) {
                 window._lastW8ActionTs = data.w8Action.ts;
