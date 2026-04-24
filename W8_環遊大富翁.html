@@ -509,18 +509,38 @@ const CTYPES = [
 ];
 const CICONS = { q:'❓', lucky:'💰', bad:'💸', special:'⭐' };
 
-const LUCKY_DATA = [
-  ['考卷滿分獎勵', 100], ['幫助學弟妹解答題目', 100], ['擔任一週糾察隊津貼', 200], ['打掃區域被評為最乾淨', 200],
-  ['回答出老師的加分題', 200], ['校外比賽代表學校得獎', 300], ['在操場撿到校長的金幣', 300], ['作業書寫極其工整獲獎', 300],
-  ['全勤獎勵金', 500], ['夏令營期間表現最優異', 500], ['校園路跑獲得第一名', 500],
-  ['拾金不昧交給教務處獎勵', 500], ['製作環保作品獲得環保獎項', 200], ['同樂會抽中頭獎', 300], ['獲選為校園禮貌之星', 300],
-  ['分享個人讀書筆記大受好評', 500], ['修復教室損壞的教具', 300], ['外籍老師稱讚 Good Job 獎勵', 200],
-  ['班級佈置競賽獲得冠軍', 300], ['段考進入全校前十名', 500], ['成功破解老師留下的數學難題', 300], ['擔任課堂小組長帶領奪冠', 300], 
-];
+//const LUCKY_DATA = [
+//  ['考卷滿分獎勵', 100], ['幫助學弟妹解答題目', 100], ['擔任一週糾察隊津貼', 200], ['打掃區域被評為最乾淨', 200],
+//  ['回答出老師的加分題', 200], ['校外比賽代表學校得獎', 300], ['在操場撿到校長的金幣', 300], ['作業書寫極其工整獲獎', 300],
+//  ['全勤獎勵金', 500], ['夏令營期間表現最優異', 500], ['校園路跑獲得第一名', 500],
+//  ['拾金不昧交給教務處獎勵', 500], ['製作環保作品獲得環保獎項', 200], ['同樂會抽中頭獎', 300], ['獲選為校園禮貌之星', 300],
+//  ['分享個人讀書筆記大受好評', 500], ['修復教室損壞的教具', 300], ['外籍老師稱讚 Good Job 獎勵', 200],
+//  ['班級佈置競賽獲得冠軍', 300], ['段考進入全校前十名', 500], ['成功破解老師留下的數學難題', 300], ['擔任課堂小組長帶領奪冠', 300], 
+//];
 
-const LUCKY = LUCKY_DATA.map(([title, amt]) => ({
-  title, desc: `+$${amt}`, fx: (tid, gs) => updateTeam(tid, { score: (Number(gs.teams[tid].score) || 0) + amt })
-}));
+//const LUCKY = LUCKY_DATA.map(([title, amt]) => ({
+//  title, desc: `+$${amt}`, fx: (tid, gs) => updateTeam(tid, { score: (Number(gs.teams[tid].score) || 0) + amt })
+//}));
+
+// ★ 特殊幸運卡：獲得新腳踏車（加入第二顆骰子）
+LUCKY.push({
+  title: '獲得新腳踏車',
+  desc: '🚲 下一回合起可使用兩顆骰子擲骰！',
+  fx: (tid, gs) => {
+    const team = gs.teams[String(tid)] || gs.teams[tid];
+    if (!team) return;
+    if (team.extraDice) {
+      // 已有雙骰子：改給獎金
+      updateTeam(tid, { score: (Number(team.score) || 0) + 500 });
+      showToast('🚲 已有腳踏車！獲得補償金 +$500');
+      return;
+    }
+    const curPos = Number(team.position || 0);
+    // bikeStartPos：記錄獲得時的位置，走完一圈（回到或超過此位置）才可被抽到摔車卡
+    updateTeam(tid, { extraDice: true, bikeStartPos: curPos, bikeActiveLap: false });
+    showToast('🚲 獲得腳踏車！下回合起用兩顆骰子！');
+  }
+});
 
 const BAD_DATA = [
   ['在走廊奔跑不慎撞到人醫藥費', 300], ['弄丟班級公共區域的鑰匙', 250], ['教室電燈沒關被總務處罰款', 350],
@@ -535,6 +555,17 @@ const BAD_DATA = [
 const BAD = BAD_DATA.map(([title, amt]) => ({
   title, desc: `-$${amt}`, fx: (tid, gs) => updateTeam(tid, { score: Math.max(0, (Number(gs.teams[tid].score) || 0) - amt) })
 }));
+
+// ★ 特殊突發卡：腳踏車摔壞了（移除第二顆骰子）
+// 不加入一般 BAD 陣列，doBAD 時特別判斷是否可抽
+const BAD_BIKE = {
+  title: '腳踏車摔壞了',
+  desc: '💔 損失一顆骰子，回到單骰子模式！',
+  fx: (tid, gs) => {
+    updateTeam(tid, { extraDice: false, bikeStartPos: null, bikeActiveLap: false });
+    showToast('🚲💔 腳踏車摔壞了！回到單骰子！');
+  }
+};
 
 // ══════════════════════════════
 // 特殊任務挑戰卡（老師裁判制）
@@ -1143,7 +1174,7 @@ function makeInit() {
 
   const teams = {};
   TEAMS.forEach(t => {
-    teams[t.id] = { id: t.id, position: 0, score: 3000, extraDice: false, skipTurn: false };
+    teams[t.id] = { id: t.id, position: 0, score: 3000, extraDice: false, skipTurn: false, bikeStartPos: null, bikeActiveLap: false };
   });
 
   const playOrder = [...TEAMS].sort((a, b) => a.id - b.id).map(t => t.id);
@@ -1527,10 +1558,13 @@ function renderTeacher() {
     if (!t) return;
     const row = document.createElement('div');
     row.className = 'score-row' + ((team.id === gs.currentTurn && gs.phase !== 'intro') ? ' active' : '');
-    
+    const bikeTag = team.extraDice
+      ? `<span title="${team.bikeActiveLap ? '雙骰子（可被摔車）' : '雙骰子（尚未完成一圈）'}"
+          style="font-size:.75rem;margin-left:4px;">${team.bikeActiveLap ? '🚲' : '🚲🔒'}</span>`
+      : '';
     row.innerHTML = `
       <span class="sc-icon">${t.icon}</span>
-      <span class="sc-name" style="color:${t.color}">${t.name}</span>
+      <span class="sc-name" style="color:${t.color}">${t.name}${bikeTag}</span>
       <span class="sc-pts">$${Number(team.score) || 0}</span>`;
     sc.appendChild(row);
   });
@@ -1549,7 +1583,10 @@ function renderStudent() {
 
   const myTD = gs?.teams?.[myTeamId] || gs?.teams?.[String(myTeamId)];
   const scoreEl = document.getElementById('my-score');
-  if (scoreEl) scoreEl.innerHTML = `$<span style="margin-left: 2px;">${Number(myTD?.score) || 0}</span>`;
+  if (scoreEl) {
+    const bikeIcon = myTD?.extraDice ? ' 🚲' : '';
+    scoreEl.innerHTML = `$<span style="margin-left: 2px;">${Number(myTD?.score) || 0}</span>${bikeIcon}`;
+  }
 
   if (!gs || !gs.teams) {
     setHud('⏳ 等待遊戲狀態同步...');
@@ -1901,6 +1938,15 @@ function movePiece() {
         showPop('+$500', 'var(--green)');
         if (_t) _t.score = (Number(_t.score) || 0) + 500;
         
+        // ★ 持有雙骰子時經過起點 → 標記 bikeActiveLap = true（可被抽到摔車卡）
+        if (_t && _t.extraDice && !_t.bikeActiveLap) {
+            _t.bikeActiveLap = true;
+            if (myRole === 'teacher') {
+                updateTeam(tid, { bikeActiveLap: true });
+                showToast('🚲 腳踏車走完一圈！現在有可能遇到突發事件！');
+            }
+        }
+        
         if (myRole === 'teacher') {
             updateTeam(tid, { score: _t.score });
         } else {
@@ -2002,10 +2048,20 @@ function doLucky(tid) {
   showToast(`🍀 ${ev.title}`); showPop('+', 'var(--green)');
 }
 function doBad(tid) {
-  const ev = BAD[Math.floor(Math.random() * BAD.length)];
+  const team = gameState.teams[String(tid)] || gameState.teams[tid] || {};
+
+  // ★ 若該組持有雙骰子且已完成一圈 → 將摔車卡加入本次抽卡池（約 1/5 機率）
+  const canBike = team.extraDice && team.bikeActiveLap;
+  const pool = [...BAD];
+  if (canBike) {
+    // 加入摔車卡（重複 4 次讓概率約 4/（BAD.length+4） ≈ 1/5）
+    for (let i = 0; i < 4; i++) pool.push(BAD_BIKE);
+  }
+
+  const ev = pool[Math.floor(Math.random() * pool.length)];
   ev.fx(tid, gameState);
   updateState({ phase: 'event', event: { type: 'bad', title: ev.title, desc: ev.desc } });
-  showToast(`💀 ${ev.title}`); showPop('-1', 'var(--red)');
+  showToast(`💀 ${ev.title}`); showPop('-', 'var(--red)');
 }
 
 let cachedQuestions = null;

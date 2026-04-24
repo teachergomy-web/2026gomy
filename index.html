@@ -772,7 +772,24 @@ body::before {
   <iframe id="sg-iframe" style="flex:1;border:none;width:100%;min-height:0;display:block;" allow="autoplay"></iframe>
 </div>
 
-<div id="screen-student-wait" class="screen" style="padding:0;background:#0d0f1a;overflow:hidden;flex-direction:column;">
+<div id="screen-student-wait" class="screen" style="padding:0;background:#0d0f1a;overflow:hidden;flex-direction:column;position:relative;">
+
+    <!-- 規則說明提示：老師開啟規則頁時顯示 -->
+    <div id="student-rules-notice" style="
+        display:none;
+        position:absolute;inset:0;z-index:50;
+        background:#0d0f1a;
+        flex-direction:column;align-items:center;justify-content:center;
+        gap:20px;text-align:center;padding:32px 24px;">
+        <div style="font-size:4rem;animation:heroBounce 1.8s ease-in-out infinite;">📺</div>
+        <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:1.4rem;color:#f5c800;">請看老師螢幕</div>
+        <div style="font-family:'Noto Sans TC',sans-serif;font-size:.95rem;color:rgba(255,255,255,.6);line-height:1.8;">老師正在說明遊戲規則<br>準備好了老師會按開始！</div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+            <div style="width:8px;height:8px;border-radius:50%;background:#f5c800;animation:pulse 1.0s ease-in-out infinite alternate;"></div>
+            <div style="width:8px;height:8px;border-radius:50%;background:#f5c800;animation:pulse 1.0s ease-in-out 0.3s infinite alternate;"></div>
+            <div style="width:8px;height:8px;border-radius:50%;background:#f5c800;animation:pulse 1.0s ease-in-out 0.6s infinite alternate;"></div>
+        </div>
+    </div>
     <div class="kr-header" style="flex-shrink:0;">
         <div style="display:flex;flex-direction:column">
             <div style="color:#f5c800;font-size:.65rem;font-weight:900">🏁 學生大廳</div>
@@ -1853,13 +1870,13 @@ const GAME_RULES = [
     '翻兩張找配對！',
   ]},
   // 7 W8 環遊大富翁
-  //{ icon:'🚀', name:'環遊大富翁', color:'#ff8c00', lines:[
-  //  '❓ 機會問答：冷知識問答',
-  //  '⭐ 任務挑戰：完成特殊任務',
-  //  '💰 幸運：好運降臨',
-  //  '💸 突發：倒楣纏身',
-  //  '經過起點（過一圈）有加分',
-  //]},
+  { icon:'🚀', name:'環遊大富翁', color:'#ff8c00', lines:[
+    '❓ 機會問答：冷知識問答',
+    '⭐ 任務挑戰：完成特殊任務',
+    '💰 幸運：好運降臨',
+    '💸 突發：倒楣纏身',
+    '經過起點（過一圈）有加分',
+  ]},
 ];
 
 // W4 三種玩法（老師端各玩法開始前顯示）
@@ -1959,6 +1976,11 @@ function showRulesOverlay() {
   overlay.style.display = 'flex';
   overlay.classList.add('active');
   setTimeout(() => { overlay.scrollTop = 0; }, 0);
+
+  // 通知學生端顯示「請看老師螢幕」提示
+  const rooms = window.getRooms();
+  const r = rooms[window.state.roomCode];
+  if (r) { r.status = 'rules'; window.saveRooms(rooms); }
 }
 
 // ── 根據當前選擇取得對應規則資料 ──
@@ -1982,12 +2004,16 @@ function _getRuleForCurrentSelection(gIdx) {
 function hideRulesOverlay() {
   const overlay = document.getElementById('rules-overlay');
   if (overlay) { overlay.style.display = 'none'; overlay.classList.remove('active'); }
+  const rooms = window.getRooms(); const r = rooms[window.state.roomCode];
+  if (r && r.status === 'rules') { r.status = 'level_select'; window.saveRooms(rooms); }
 }
 
 // ── 老師端：關閉規則 → 真正開始遊戲 ──
 function closeRulesAndStart() {
   const overlay = document.getElementById('rules-overlay');
   if (overlay) { overlay.style.display = 'none'; overlay.classList.remove('active'); }
+  const rooms = window.getRooms(); const r = rooms[window.state.roomCode];
+  if (r && r.status === 'rules') { r.status = 'level_select'; window.saveRooms(rooms); }
   tcStartGame();
 }
 
@@ -3121,6 +3147,16 @@ setInterval(() => {
     }
 
 
+
+    // 老師開啟規則頁 → 學生顯示「請看老師螢幕」提示
+    const notice = document.getElementById('student-rules-notice');
+    if (notice) {
+        if (r.status === 'rules' && pData.screen === 'screen-student-wait') {
+            notice.style.display = 'flex';
+        } else {
+            notice.style.display = 'none';
+        }
+    }
 
     // 偵測老師按了開始遊戲 或 關卡發生改變 (支援不回大廳直接切換 iframe 網址)
     if (r.status === 'playing') {
