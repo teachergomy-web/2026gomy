@@ -912,6 +912,13 @@
 
         // 時間
         gameState.timeLeft -= dt / 1000;
+
+        // 更新計時器顯示
+        const tSec = Math.max(0, Math.ceil(gameState.timeLeft));
+        const tMin = Math.floor(tSec / 60);
+        const tRemSec = tSec % 60;
+        document.getElementById('timer').textContent =
+            `${tMin}:${String(tRemSec).padStart(2, '0')}`;
         
         // ==========================
         // ⏳ 倒數結束結算區塊

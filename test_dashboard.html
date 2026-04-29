@@ -373,6 +373,7 @@
     <button class="btn btn-green" onclick="startTest()">▶ 開始測試</button>
     <button class="btn btn-yellow" onclick="nextStep()">⏭ 下一步</button>
     <button class="btn btn-ghost" onclick="pauseTest()">⏸ 暫停</button>
+    <button class="btn btn-ghost" style="color:#a855f7;border-color:#a855f7" onclick="stopAllAI()">⏹ 停止AI</button>
     <button class="btn btn-red" onclick="resetTest()">↺ 重置</button>
   </div>
 </div>
@@ -699,25 +700,25 @@ function buildStepList(gameId, numStudents) {
   // ── 8. 確認遊戲畫面 ──
   steps.push({ label: '確認學生端進入遊戲', fn: stepConfirmGameStarted });
 
-  // ── 9. W4 特殊：等第一模式結束 ──
+  // ── 9. 啟動 AI 自動通關 ──
+  steps.push({ label: `🤖 啟動 AI 自動通關（W${gameId}）`, fn: stepStartAI });
+
+  // ── 10. W4 特殊：等第一模式結束 ──
   if (gameId === 4) {
-    steps.push({ label: 'W4：等待模式完成 → 切換下一玩法', fn: stepW4ModeComplete });
+    steps.push({ label: 'W4：等待模式完成 → 切換下一玩法（手動觀察）', fn: stepW4ModeComplete });
   }
 
-  // ── 10. 觀察遊戲 ──
-  steps.push({ label: `觀察遊戲進行 ${STEP_DELAY()*5/1000}s`, fn: stepObserve });
+  // ── 11. 觀察遊戲（長時間，讓 AI 跑） ──
+  steps.push({ label: `👀 觀察 AI 遊玩中（按「⏭ 下一步」可跳過）`, fn: stepObserve });
 
-  // ── 11. 踢人測試 ──
-  steps.push({ label: '老師端：測試踢除學生1', fn: stepKickStudent });
+  // ── 12. 踢人測試（手動）──
+  steps.push({ label: '🖐 手動踢人測試（按「⏭ 下一步」繼續）', fn: stepKickStudent });
 
-  // ── 12. 學生重新加入 ──
+  // ── 13. 學生重新加入 ──
   steps.push({ label: '學生1：重新加入房間', fn: () => stepStudentRejoin(1) });
 
-  // ── 13. 結算 ──
-  steps.push({ label: '老師端：結算遊戲', fn: stepSettle });
-
-  // ── 14. 回大廳 ──
-  steps.push({ label: '老師端：返回大廳', fn: stepReturnLobby });
+  // ── 14. 手動結算（不自動）──
+  steps.push({ label: '🖐 手動操作老師端（結算等），按「⏭ 下一步」結束', fn: stepSettle });
 
   // ── 15. 完成 ──
   steps.push({ label: '✅ 測試完成', fn: stepDone });
@@ -775,65 +776,119 @@ async function stepCreateRoom() {
   await sleep(STEP_DELAY());
 }
 
-async function stepStudentJoin(idx) {
-  const id = `student${idx}`;
+// ── 通用：讓學生 iframe 完整走完加入流程 ──
+async function doStudentJoinFlow(id, groupNum, symbolIdx) {
   const code = window._testRoomCode;
-  if (!code) { log(`找不到房間密碼，跳過學生${idx}`, 'warn'); return; }
+  if (!code) { log(`找不到房間密碼，跳過 ${id}`, 'warn'); return false; }
 
-  log(`學生${idx}：前往加入頁面`, 'action');
-  callFn(id, 'goToJoin');
-  await sleep(STEP_DELAY());
-
-  // 輸入房間密碼
-  setInput(id, '#join-room-code', code);
-  await sleep(300);
-  callFn(id, 'verifyRoomPassword');
-  await sleep(STEP_DELAY());
-
-  // 等選組畫面
-  try {
-    await waitFor(() => {
-      const doc = getDoc(id);
-      return doc && (
-        doc.getElementById('screen-join')?.classList.contains('active') ||
-        doc.querySelector('.group-btn') !== null ||
-        doc.querySelector('[onclick*="pickGroup"]') !== null
-      );
-    }, 8000);
-  } catch(e) {}
-  await sleep(500);
-
-  // 選一個組別（第 idx 組）
-  const doc = getDoc(id);
-  const groupBtns = doc?.querySelectorAll('.group-btn, [onclick*="pickGroup"], [onclick*="onGroupSelect"]');
-  if (groupBtns && groupBtns.length >= idx) {
-    groupBtns[idx - 1].click();
-    log(`學生${idx}：選擇 ${GROUP_NAMES[idx-1]}`, 'action');
-  } else {
-    // 嘗試直接呼叫
-    const win = getWin(id);
-    if (win.pickGroup) {
-      win.pickGroup(GROUP_NAMES[idx-1], GROUP_SYMBOLS[idx-1]);
-    }
-  }
-  await sleep(500);
-
-  // 確認加入
-  const joinBtn = doc?.querySelector('#join-confirm-btn, [onclick*="joinRoom"], .btn-green');
-  if (joinBtn) { joinBtn.click(); log(`學生${idx}：確認加入`, 'action'); }
-  else callFn(id, 'joinRoom');
-
+  // Step 0：等學生 iframe 的 Firebase 快照同步完成（_allRoomsCache 有資料）
+  //   避免 verifyRoomPassword 拿到空的 getRooms() 而顯示「房間已關閉」
+  log(`${id}：等待 Firebase 同步...`, 'info');
   try {
     await waitFor(() => {
       const win = getWin(id);
-      const ps = win.pStates?.[win.state?.perspective];
-      return ps?.joined === true;
-    }, 8000);
-    setSlotStatus(id, `${GROUP_NAMES[idx-1]} 已加入`, 'var(--green)');
-    log(`學生${idx}（${GROUP_NAMES[idx-1]}）成功加入房間`, 'ok');
+      const cache = win?._allRoomsCache;
+      return cache && Object.keys(cache).length > 0;
+    }, 15000);
+    log(`${id}：Firebase 已同步`, 'ok');
   } catch(e) {
-    log(`學生${idx} 加入超時`, 'warn');
+    log(`${id}：Firebase 同步逾時，嘗試繼續`, 'warn');
   }
+  await sleep(300);
+
+  // Step 1：前往加入頁面，等房間卡片出現
+  log(`${id}：前往加入頁面`, 'action');
+  callFn(id, 'goToJoin');
+  await sleep(STEP_DELAY());
+
+  try {
+    await waitFor(() => !!getDoc(id)?.querySelector('.room-card'), 10000);
+  } catch(e) { log(`${id}：等待房間列表逾時`, 'warn'); return false; }
+
+  // 點第一個房間卡片
+  const cards = getDoc(id)?.querySelectorAll('.room-card');
+  if (cards && cards.length > 0) {
+    cards[0].click();
+    log(`${id}：點擊房間`, 'action');
+  } else {
+    const win1 = getWin(id);
+    if (win1.selectRoom) win1.selectRoom(code, '1');
+    else { log(`${id}：找不到房間卡片`, 'error'); return false; }
+  }
+  await sleep(500);
+
+  // Step 1.5：等密碼框 → 輸入密碼 → 確認
+  try {
+    await waitFor(() => {
+      const el = getDoc(id)?.getElementById('room-pw-input');
+      return el && el.offsetParent !== null;
+    }, 5000);
+  } catch(e) { log(`${id}：密碼框未出現`, 'warn'); }
+
+  setInput(id, '#room-pw-input', code);
+  await sleep(300);
+  callFn(id, 'verifyRoomPassword');
+  log(`${id}：輸入密碼 ${code}`, 'action');
+  await sleep(STEP_DELAY());
+
+  // Step 2：等選組畫面出現
+  try {
+    await waitFor(() => {
+      const el = getDoc(id)?.getElementById('join-step-2');
+      return el && el.style.display !== 'none' && el.offsetParent !== null;
+    }, 8000);
+  } catch(e) { log(`${id}：選組畫面未出現`, 'warn'); }
+
+  await sleep(400);
+
+  // 選組別（pickGroup 參數是數字字串）
+  const win2 = getWin(id);
+  if (win2.pickGroup) {
+    win2.pickGroup(String(groupNum));
+    log(`${id}：選擇第 ${groupNum} 組`, 'action');
+  } else {
+    const opts = getDoc(id)?.querySelectorAll('.group-opt:not(.taken)');
+    if (opts && opts.length > 0) opts[Math.min(groupNum-1, opts.length-1)].click();
+  }
+  await sleep(300);
+
+  // 選頭像（從未被選的 SYMBOLS 裡選）
+  const SYMBOLS = win2.SYMBOLS || ['🐶','🐱','🦊','🐸','🐰','🐻','🐼','🐨','🐯','🦁'];
+  const takenSymbols = win2.state?.takenSymbols || [];
+  const available = SYMBOLS.filter(s => !takenSymbols.includes(s));
+  const sym = available[symbolIdx % Math.max(available.length, 1)] || SYMBOLS[0];
+  if (win2.pickSymbol) {
+    win2.pickSymbol(sym);
+    log(`${id}：選擇頭像 ${sym}`, 'action');
+  } else {
+    const symOpts = getDoc(id)?.querySelectorAll('.symbol-opt:not(.taken)');
+    if (symOpts && symOpts.length > 0) symOpts[symbolIdx % symOpts.length]?.click();
+  }
+  await sleep(300);
+
+  // 確認加入
+  callFn(id, 'joinRoom');
+  log(`${id}：確認加入`, 'action');
+
+  // 等待加入成功
+  try {
+    await waitFor(() => {
+      const win = getWin(id);
+      return win?.pStates?.[win?.state?.perspective]?.joined === true;
+    }, 10000);
+    setSlotStatus(id, `第${groupNum}組 已加入`, 'var(--green)');
+    log(`${id}：成功加入（第${groupNum}組 ${sym}）`, 'ok');
+    return true;
+  } catch(e) {
+    log(`${id}：加入逾時`, 'warn');
+    return false;
+  }
+}
+
+async function stepStudentJoin(idx) {
+  const id = `student${idx}`;
+  setSlotStatus(id, '加入中...', 'var(--yellow)');
+  await doStudentJoinFlow(id, idx, idx - 1);
   await sleep(STEP_DELAY());
 }
 
@@ -936,10 +991,16 @@ async function stepW4ModeComplete() {
 }
 
 async function stepObserve() {
-  const observeTime = STEP_DELAY() * 5;
-  log(`觀察遊戲進行 ${observeTime/1000}s...`, 'info');
-  setSlotStatus('teacher', '觀察中...', 'var(--yellow)');
-  await sleep(observeTime);
+  const observeTime = STEP_DELAY() * 20; // AI 跑更長時間
+  log(`AI 遊玩觀察中（${observeTime/1000}s，按「⏭ 下一步」可提前跳過）`, 'info');
+  setSlotStatus('teacher', '🤖 AI 遊玩中', 'var(--purple)');
+  // 分段 sleep，讓「下一步」按鈕可以打斷
+  const chunk = 500;
+  let elapsed = 0;
+  while (elapsed < observeTime && !abortTest) {
+    if (!testPaused) elapsed += chunk;
+    await sleep(chunk);
+  }
   // 讀取老師端分數
   try {
     const tw = getWin('teacher');
@@ -952,84 +1013,247 @@ async function stepObserve() {
 }
 
 async function stepKickStudent() {
-  log('老師端：測試踢除學生1', 'action');
-  const tw = getWin('teacher');
-  const players = tw?.state?.players || [];
-  if (players.length === 0) { log('沒有可踢的玩家', 'warn'); return; }
-
-  const target = players[0];
-  log(`踢除 ${target.symbol} ${target.group}`, 'action');
-  if (tw.tcKickPlayer) {
-    tw.tcKickPlayer(target.group, target.symbol, null);
-    log(`已發送踢除指令：${target.group}`, 'ok');
-    setSlotStatus('student1', '被踢出', 'var(--red)');
-  }
-  await sleep(LONG_DELAY());
-
-  // 確認學生1 被踢出
-  try {
-    await waitFor(() => {
-      const doc = getDoc('student1');
-      const homeScreen = doc?.getElementById('screen-home');
-      return homeScreen?.classList.contains('active');
-    }, 6000);
-    log('學生1 已成功被踢出，返回首頁 ✓', 'ok');
-  } catch(e) {
-    log('學生1 踢出確認逾時', 'warn');
-  }
-  await sleep(STEP_DELAY());
+  // ★ 踢人改為手動操作：提示使用者自行在老師端點「✕ 踢除」
+  log('【手動步驟】請在老師端點擊任一學生的「✕ 踢除」按鈕，完成後按「⏭ 下一步」繼續', 'warn');
+  setSlotStatus('teacher', '⚠️ 等待手動踢人', 'var(--yellow)');
+  testPaused = true; // 自動暫停，等使用者操作後按「下一步」繼續
 }
 
 async function stepStudentRejoin(idx) {
   const id = `student${idx}`;
-  const code = window._testRoomCode;
-  log(`學生${idx}：嘗試重新加入房間 ${code}`, 'action');
+  log(`學生${idx}：被踢後重新加入`, 'action');
   setSlotStatus(id, '重新加入中...', 'var(--yellow)');
-
-  callFn(id, 'goToJoin');
-  await sleep(STEP_DELAY());
-  setInput(id, '#join-room-code', code);
-  await sleep(300);
-  callFn(id, 'verifyRoomPassword');
-  await sleep(STEP_DELAY());
-
-  const doc = getDoc(id);
-  const groupBtns = doc?.querySelectorAll('.group-btn, [onclick*="pickGroup"]');
-  if (groupBtns && groupBtns.length > 0) {
-    groupBtns[0].click();
-    await sleep(400);
-    const joinBtn = doc?.querySelector('#join-confirm-btn, .btn-green');
-    if (joinBtn) joinBtn.click();
-    else callFn(id, 'joinRoom');
-  }
-
-  try {
-    await waitFor(() => {
-      const tw = getWin('teacher');
-      return (tw?.state?.players || []).some(p => p.group === GROUP_NAMES[idx-1]);
-    }, 8000);
-    setSlotStatus(id, '已重新加入 ✓', 'var(--green)');
-    log(`學生${idx} 重新加入成功，老師端應立即更新`, 'ok');
-  } catch(e) {
-    log(`學生${idx} 重新加入逾時`, 'warn');
+  const success = await doStudentJoinFlow(id, idx, idx - 1);
+  if (success) {
+    try {
+      await waitFor(() => {
+        const tw = getWin('teacher');
+        return (tw?.state?.players || []).some(p => p.group === `第 ${idx} 組`);
+      }, 8000);
+      log(`老師端已看到學生${idx}重新加入 ✓`, 'ok');
+    } catch(e) { log(`老師端更新逾時`, 'warn'); }
   }
   await sleep(STEP_DELAY());
 }
 
 async function stepSettle() {
-  log('老師端：執行結算', 'action');
-  callFn('teacher', 'tcSettleGame');
-  setSlotStatus('teacher', '結算中', 'var(--purple)');
-  await sleep(LONG_DELAY());
-  log('結算完成', 'ok');
+  // ★ 結算改為手動：讓使用者自己操作老師端
+  log('【手動步驟】遊戲進行中，請自行操作老師端（結算、返回大廳等）。按「⏭ 下一步」結束測試。', 'warn');
+  setSlotStatus('teacher', '⏳ 等待手動操作', 'var(--yellow)');
+  testPaused = true;
 }
 
 async function stepReturnLobby() {
-  log('老師端：返回大廳', 'action');
-  callFn('teacher', 'exitToLobby');
-  await sleep(STEP_DELAY());
-  setSlotStatus('teacher', '大廳', 'var(--accent)');
-  log('已返回大廳', 'ok');
+  // 由使用者手動操作，這裡只記錄
+  log('測試已移交手動操作', 'info');
+}
+
+
+// ════════════════════════════════════════
+// AI 自動通關模組
+// 每個遊戲注入不同的自動操作腳本到學生 iframe
+// ════════════════════════════════════════
+
+// 在指定 iframe 注入並執行 AI 腳本
+function injectAI(id, scriptFn) {
+  try {
+    const win = getWin(id);
+    if (!win) return;
+    scriptFn(win, getDoc(id));
+  } catch(e) {
+    log(`${id} AI 注入失敗：${e.message}`, 'warn');
+  }
+}
+
+// 停止所有 AI
+function stopAllAI() {
+  window._aiTimers = window._aiTimers || [];
+  window._aiTimers.forEach(t => clearInterval(t));
+  window._aiTimers = [];
+  log('所有 AI 已停止', 'info');
+}
+
+// 安全的 interval（可統一清除）
+function aiInterval(fn, ms) {
+  const t = setInterval(fn, ms);
+  window._aiTimers = window._aiTimers || [];
+  window._aiTimers.push(t);
+  return t;
+}
+
+// ── W1：消除方塊 AI（自動點擊所有可見方塊）──
+function aiW1(id) {
+  injectAI(id, (win, doc) => {
+    log(`${id} W1 AI 啟動`, 'info');
+    aiInterval(() => {
+      try {
+        const canvas = doc?.querySelector('canvas');
+        if (!canvas || !win.state?.active) return;
+        const entities = win.state?.entities || [];
+        entities.forEach(e => {
+          if (e && !e.dead && e.type !== 'ghost' && e.type !== 'bomb') {
+            // 模擬點擊在 canvas 上的物件位置
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width  / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const evt = new MouseEvent('click', {
+              clientX: rect.left + e.x / scaleX,
+              clientY: rect.top  + e.y / scaleY,
+              bubbles: true
+            });
+            canvas.dispatchEvent(evt);
+          }
+        });
+      } catch(e2) {}
+    }, 300);
+  });
+}
+
+// ── W2：能源管線 AI（隨機旋轉管線直到接通）──
+function aiW2(id) {
+  injectAI(id, (win, doc) => {
+    log(`${id} W2 AI 啟動`, 'info');
+    aiInterval(() => {
+      try {
+        // 找所有未通的管線格子點擊
+        const cells = doc?.querySelectorAll('.pipe-cell:not(.connected), [class*="pipe"]:not(.connected)');
+        if (!cells || cells.length === 0) return;
+        // 隨機點一格旋轉
+        const idx = Math.floor(Math.random() * cells.length);
+        cells[idx].click();
+      } catch(e2) {}
+    }, 200);
+  });
+}
+
+// ── W4：節奏合鳴 AI（在正確時機點擊 canvas）──
+function aiW4(id) {
+  injectAI(id, (win, doc) => {
+    log(`${id} W4 AI 啟動`, 'info');
+    aiInterval(() => {
+      try {
+        if (!win.gameState?.active) return;
+        const entities = win.gameState?.entities || [];
+        const canvas = doc?.querySelector('canvas');
+        if (!canvas) return;
+        const rect = canvas.getBoundingClientRect();
+        const mode = win.gameState?.mode || 1;
+
+        entities.forEach(e => {
+          if (!e || e.hit) return;
+          let shouldHit = false;
+
+          if (mode === 1) {
+            // 縮圈：radius 接近 minRadius 時點擊
+            shouldHit = e.type === 'circle' && e.radius && e.minRadius &&
+                        e.radius <= e.minRadius * 2.5;
+          } else if (mode === 2) {
+            // 鋼琴黑塊：y 接近底部時點擊
+            shouldHit = e.type === 'piano' && e.y + e.h >= canvas.height * 0.75;
+          } else if (mode === 3) {
+            // 底線軌道：y 接近底部時按住
+            shouldHit = e.type === 'hold' && e.y + e.h >= canvas.height * 0.75;
+          }
+
+          if (shouldHit) {
+            const cx = rect.left + (e.x || rect.width/2);
+            const cy = rect.top  + (e.y || rect.height*0.85);
+            ['pointerdown','pointerup'].forEach(type => {
+              canvas.dispatchEvent(new PointerEvent(type, { clientX:cx, clientY:cy, bubbles:true }));
+            });
+            e.hit = true;
+          }
+        });
+      } catch(e2) {}
+    }, 100);
+  });
+}
+
+// ── W6：雙人圈圈 AI（模擬搖桿移動游標到圓圈位置）──
+function aiW6(id) {
+  injectAI(id, (win, doc) => {
+    log(`${id} W6 AI 啟動`, 'info');
+    // W6 的搖桿是觸控事件
+    aiInterval(() => {
+      try {
+        const joystick = doc?.querySelector('[id*="joystick"], .joystick, [class*="stick"]');
+        if (!joystick) return;
+        // 隨機搖動搖桿
+        const angle = Math.random() * Math.PI * 2;
+        const r = 30;
+        const rect = joystick.getBoundingClientRect();
+        const cx = rect.left + rect.width/2 + Math.cos(angle)*r;
+        const cy = rect.top  + rect.height/2 + Math.sin(angle)*r;
+        joystick.dispatchEvent(new PointerEvent('pointermove', { clientX:cx, clientY:cy, bubbles:true }));
+      } catch(e2) {}
+    }, 150);
+  });
+}
+
+// ── W7：記憶翻牌 AI（翻開所有牌）──
+function aiW7(id) {
+  injectAI(id, (win, doc) => {
+    log(`${id} W7 AI 啟動`, 'info');
+    aiInterval(() => {
+      try {
+        // 翻牌：點擊所有未翻開的牌
+        const cards = doc?.querySelectorAll('.flip-card:not(.flipped):not(.matched), [class*="card"]:not(.flipped):not(.matched)');
+        if (cards && cards.length > 0) {
+          cards[0].click();
+          if (cards.length > 1) setTimeout(() => cards[1]?.click(), 400);
+        }
+        // 動果遊行：點擊選項
+        const opts = doc?.querySelectorAll('.parade-opt:not(.selected), [class*="parade-choice"]');
+        if (opts && opts.length > 0) opts[0].click();
+        // 金庫解碼：按左轉然後 OK
+        const leftBtn  = doc?.querySelector('[onclick*="left"], [class*="rotate-left"]');
+        const okBtn    = doc?.querySelector('[onclick*="ok"], [onclick*="OK"], [class*="btn-ok"]');
+        if (leftBtn) leftBtn.click();
+        if (okBtn) setTimeout(() => okBtn?.click(), 200);
+      } catch(e2) {}
+    }, 600);
+  });
+}
+
+// ── W8：大富翁 AI（自動擲骰）──
+function aiW8(id) {
+  injectAI(id, (win, doc) => {
+    log(`${id} W8 AI 啟動`, 'info');
+    aiInterval(() => {
+      try {
+        const rollBtn = doc?.querySelector('[onclick*="roll"], .roll-btn, [class*="dice"]');
+        if (rollBtn && !rollBtn.disabled) rollBtn.click();
+      } catch(e2) {}
+    }, 1000);
+  });
+}
+
+// ── 分發 AI 給所有學生 iframe ──
+function startAllAI(gameId) {
+  const numStudents = parseInt(document.getElementById('player-count').value);
+  const aiFns = {
+    1: aiW1, 2: aiW2, 3: null, 4: aiW4,
+    5: null, 6: aiW6, 7: aiW7, 8: aiW8
+  };
+  const fn = aiFns[gameId];
+  if (!fn) {
+    log(`W${gameId} 目前無 AI（W3:五子棋/W5:你畫我猜 需人工操作）`, 'warn');
+    return;
+  }
+  for (let i = 1; i <= numStudents; i++) {
+    fn(`student${i}`);
+  }
+  log(`W${gameId} AI 已啟動（${numStudents} 位學生）`, 'ok');
+}
+
+async function stepStartAI() {
+  const gameId = parseInt(document.getElementById('game-select').value);
+  log(`啟動 W${gameId} AI 自動通關...`, 'step');
+  stopAllAI(); // 先停舊的
+  await sleep(500);
+  startAllAI(gameId);
+  log('AI 持續運行中，可切換視窗觀察各學生端畫面', 'info');
+  // AI 持續跑，不 await，讓流程繼續到下一步
 }
 
 async function stepDone() {
@@ -1118,6 +1342,7 @@ function resetTest() {
   document.getElementById('status-dot').style.background = 'var(--muted)';
   document.getElementById('step-label').textContent = '尚未開始';
   document.getElementById('progress-bar').style.width = '0%';
+  stopAllAI();
   document.getElementById('steps-panel').innerHTML = '';
   buildViewports();
   log('測試已重置', 'warn');
