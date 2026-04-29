@@ -1492,13 +1492,16 @@
 
     const _origStartGame = startGame;
     startGame = function(level) {
-        stopBGM(); // 先停掉舊 BGM
+        stopBGM();
+        // ★ 清掉上一次的 BGM 等待 interval，避免多個競爭
+        if (window._waitBGMTimer) { clearInterval(window._waitBGMTimer); window._waitBGMTimer = null; }
         _origStartGame(level);
-        // BGM 在 startCountdown 的 onDone 之後由 gameLoop 中的 active=true 觸發
-        // 這裡不立刻 startBGM，避免和倒數音效同時播放
-        // 等 active 變 true 後（gameLoop 第一幀）再啟動
-        const _waitBGM = setInterval(() => {
-            if (gameState.active) { clearInterval(_waitBGM); startBGM(); }
+        window._waitBGMTimer = setInterval(() => {
+            if (gameState.active) {
+                clearInterval(window._waitBGMTimer);
+                window._waitBGMTimer = null;
+                startBGM();
+            }
         }, 100);
     };
 
@@ -1605,14 +1608,33 @@
 
 
     // platformLaunch：收到老師的 PLATFORM_START 後直接進遊戲
-    // 規則頁由 index.html 老師端統一控制，學生看完規則老師才按「全班開始！」
+    // ★ 加入防重複鎖：同一個 mode+level 組合在 2 秒內不重複啟動
+    let _lastLaunchKey = '';
+    let _lastLaunchTime = 0;
+
     function platformLaunch(mode, level) {
+        const key = `${mode}-${level}`;
+        const now = Date.now();
+        if (key === _lastLaunchKey && now - _lastLaunchTime < 2000) {
+            console.log('[W4] platformLaunch 防重複：已在 2 秒內啟動過', key);
+            return;
+        }
+        _lastLaunchKey  = key;
+        _lastLaunchTime = now;
+
+        // 停止任何仍在跑的 gameLoop（設 active=false 讓 RAF 自然結束）
+        gameState.active = false;
+
         document.getElementById('platform-wait').classList.add('hidden');
         document.getElementById('main-menu').classList.add('hidden');
         document.getElementById('level-menu').classList.add('hidden');
         document.getElementById('result-screen').classList.add('hidden');
         gameState.mode = mode;
-        startGame(level);
+
+        // 稍等一幀讓舊的 gameLoop 確實停下再啟動新的
+        requestAnimationFrame(() => {
+            startGame(level);
+        });
     }
 
     // 接收大廳 postMessage
