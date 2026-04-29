@@ -125,17 +125,11 @@
   #viewports {
     flex: 1;
     display: grid;
-    gap: 4px;
+    gap: 6px;
     padding: 8px;
     overflow: hidden;
     background: #050709;
-  }
-
-  .vp-col {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    overflow: hidden;
+    /* 動態由 JS 設定 grid-template */
   }
 
   .vp-slot {
@@ -147,6 +141,13 @@
     overflow: hidden;
     position: relative;
     min-height: 0;
+    min-width: 0;
+  }
+
+  /* 老師端突出顯示 */
+  .vp-slot.is-teacher {
+    border-color: rgba(0,229,255,.35);
+    box-shadow: 0 0 0 1px rgba(0,229,255,.15);
   }
 
   .vp-label {
@@ -499,36 +500,36 @@ function buildViewports() {
 
   const numStudents = parseInt(document.getElementById('player-count').value);
   const baseUrl = document.getElementById('base-url').value.trim();
+  const total = 1 + numStudents; // 老師 + 學生
 
-  // 裝置分配
+  // ── 根據總視窗數決定格局 ──
+  // total=2 → 1×2, total=3 → 2+1(跨欄), total=4 → 2×2, total=5 → 2+3
+  let cols, rows;
+  if (total <= 2)      { cols = 2; rows = 1; }
+  else if (total <= 4) { cols = 2; rows = 2; }
+  else                 { cols = 3; rows = 2; }
+
+  container.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  container.style.gridTemplateRows    = `repeat(${rows}, 1fr)`;
+
+  // ── 老師端（放第一格）──
+  const teacherSlot = makeSlot('teacher', '👨‍🏫 老師端', 'badge-teacher', baseUrl, 'teacher');
+  teacherSlot.classList.add('is-teacher');
+  // 老師端佔第一格（不跨格）
+  container.appendChild(teacherSlot);
+
+  // ── 學生端 ──
   const studentDevices = [
-    { type: 'student_desktop', role: 'student', label: '學生1 桌機', badge: 'badge-student' },
-    { type: 'student_tablet',  role: 'student', label: '學生2 iPad', badge: 'badge-tablet' },
-    { type: 'student_mobile',  role: 'student', label: '學生3 iPhone', badge: 'badge-mobile' },
-    { type: 'student_desktop', role: 'student', label: '學生4 桌機', badge: 'badge-student' },
+    { label: '學生1 桌機',  deviceType: 'student_desktop', badge: 'badge-student' },
+    { label: '學生2 iPad',  deviceType: 'student_tablet',  badge: 'badge-tablet'  },
+    { label: '學生3 iPhone',deviceType: 'student_mobile',  badge: 'badge-mobile'  },
+    { label: '學生4 桌機',  deviceType: 'student_desktop', badge: 'badge-student' },
   ].slice(0, numStudents);
 
-  // Layout：左欄老師，右欄學生
-  container.style.gridTemplateColumns = `1fr 1fr`;
-
-  // 左欄：老師端
-  const leftCol = document.createElement('div');
-  leftCol.className = 'vp-col';
-
-  const teacherSlot = makeSlot('teacher', '老師端', 'badge-teacher', baseUrl);
-  leftCol.appendChild(teacherSlot);
-  container.appendChild(leftCol);
-
-  // 右欄：學生
-  const rightCol = document.createElement('div');
-  rightCol.className = 'vp-col';
-  rightCol.style.gap = '4px';
-
   studentDevices.forEach((dev, i) => {
-    const slot = makeSlot(`student${i+1}`, dev.label, dev.badge, baseUrl, dev.type);
-    rightCol.appendChild(slot);
+    const slot = makeSlot(`student${i+1}`, dev.label, dev.badge, baseUrl, dev.deviceType);
+    container.appendChild(slot);
   });
-  container.appendChild(rightCol);
 
   // 稍後調整 iframe 比例
   requestAnimationFrame(scaleIframes);
@@ -538,15 +539,16 @@ function makeSlot(id, label, badgeClass, baseUrl, deviceType = null) {
   const slot = document.createElement('div');
   slot.className = 'vp-slot';
   slot.id = `slot-${id}`;
-  slot.style.flex = '1';
 
   const isTablet = deviceType === 'student_tablet';
   const isMobile = deviceType === 'student_mobile';
+  const preset = DEVICE_PRESETS[deviceType] || {};
+  const deviceLabel = preset.label ? `<span style="color:var(--muted);font-size:.6rem;margin-left:4px;">${preset.label}</span>` : '';
 
   slot.innerHTML = `
     <div class="vp-label">
-      <span class="badge ${badgeClass}">${id === 'teacher' ? '👨‍🏫' : '👤'} ${label}</span>
-      ${deviceType && DEVICE_PRESETS[deviceType] ? `<span style="color:var(--muted);font-size:.62rem">${DEVICE_PRESETS[deviceType].label}</span>` : ''}
+      <span class="badge ${badgeClass}">${label}</span>
+      ${deviceLabel}
       <span id="status-${id}" style="margin-left:auto;font-size:.65rem;color:var(--muted)">待機</span>
     </div>
     <div class="vp-device-frame${isTablet||isMobile?' tablet-frame':''}" id="frame-${id}">
@@ -556,7 +558,6 @@ function makeSlot(id, label, badgeClass, baseUrl, deviceType = null) {
       </iframe>
     </div>`;
 
-  // 儲存 iframe 參考
   setTimeout(() => {
     iframes[id] = document.getElementById(`iframe-${id}`);
     iframes[id]._deviceType = deviceType;
