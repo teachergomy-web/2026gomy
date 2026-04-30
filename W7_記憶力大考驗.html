@@ -511,6 +511,82 @@ let platformMode=false;  // 是否由平台啟動（iframe 嵌入）
 let platformGroup='';    // 組別名稱
 
 // ── W7 學生端規則資料（≤30字/條）──
+
+// ── W7 音效 ──
+(function(){
+  let _ac = null;
+  function ac() {
+    if (!_ac) _ac = new (window.AudioContext||window.webkitAudioContext)();
+    if (_ac.state==='suspended') _ac.resume();
+    return _ac;
+  }
+  // 翻牌：嗖聲
+  window.sfxFlip = function() {
+    try {
+      const ctx = ac(), now = ctx.currentTime;
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.setValueAtTime(300, now);
+      o.frequency.exponentialRampToValueAtTime(600, now+0.06);
+      g.gain.setValueAtTime(0.15, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now+0.1);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(now); o.stop(now+0.12);
+    } catch(e){}
+  };
+  // 配對成功：叮叮
+  window.sfxMatch = function() {
+    try {
+      const ctx = ac(), now = ctx.currentTime;
+      [880,1320].forEach((f,i) => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = 'sine'; o.frequency.value = f;
+        g.gain.setValueAtTime(0.2, now+i*0.07);
+        g.gain.exponentialRampToValueAtTime(0.001, now+i*0.07+0.2);
+        o.connect(g); g.connect(ctx.destination);
+        o.start(now+i*0.07); o.stop(now+i*0.07+0.25);
+      });
+    } catch(e){}
+  };
+  // 配對失敗：低沉咚
+  window.sfxMismatch = function() {
+    try {
+      const ctx = ac(), now = ctx.currentTime;
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sawtooth'; o.frequency.value = 180;
+      g.gain.setValueAtTime(0.15, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now+0.18);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(now); o.stop(now+0.22);
+    } catch(e){}
+  };
+  // 旋轉金庫：機械轉動
+  window.sfxGear = function() {
+    try {
+      const ctx = ac(), now = ctx.currentTime;
+      const buf = ctx.createBuffer(1, ctx.sampleRate*0.05, ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for(let i=0;i<d.length;i++) d[i] = Math.sin(i*0.8) * (1-i/d.length) * 0.5;
+      const src = ctx.createBufferSource(), f = ctx.createBiquadFilter();
+      f.type='bandpass'; f.frequency.value=600; f.Q.value=3;
+      src.buffer=buf; src.connect(f); f.connect(ctx.destination); src.start(now);
+    } catch(e){}
+  };
+  // 解鎖成功
+  window.sfxUnlock = function() {
+    try {
+      const ctx = ac(), now = ctx.currentTime;
+      [523,659,784,1047,1319].forEach((f,i) => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = 'square'; o.frequency.value = f;
+        g.gain.setValueAtTime(0.15, now+i*0.07);
+        g.gain.exponentialRampToValueAtTime(0.001, now+i*0.07+0.15);
+        o.connect(g); g.connect(ctx.destination);
+        o.start(now+i*0.07); o.stop(now+i*0.07+0.2);
+      });
+    } catch(e){}
+  };
+})();
+
 // ★ AI 介面
 window._w7AI = {
     getFlipCards:   () => typeof flipCards !== 'undefined' ? flipCards : [],
@@ -973,6 +1049,7 @@ function _buildFlipGrid(cols, rows, slotCount, emojiPool, pairCount, lvIdx){
 }
 
 function onFlipClick(card){
+  if(typeof sfxFlip==="function") sfxFlip();
   if(_pausedByPlatform) return; // 暫停中禁止操作
   if(flipPhase!=='PLAY') return;
   if(flipLock||card.matched||card.flipped) return;
@@ -1513,6 +1590,7 @@ function waitWithSkip(ms){
 function triggerSkipInstructions(){ skipRequested=true; document.getElementById('safe-skip-btn').classList.add('hidden'); }
 
 function operateGear(dir){
+  if(typeof sfxGear==="function") sfxGear();
   if(_pausedByPlatform) return;
   gearRotation+=dir; userDir=dir; safeSubStep++;
   safeDialAngle+=dir*9; animateDial(safeDialAngle);

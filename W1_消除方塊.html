@@ -577,6 +577,7 @@ function createEntity() {
 
 // ===== HIT =====
 function handleInput(px, py) {
+    if (typeof sfxHit === "function") sfxHit(false);
     if(!state.active) return;
     const now=performance.now();
     for(let i=state.entities.length-1;i>=0;i--){
@@ -869,6 +870,43 @@ function reportScore() {
 }
 
 // 接收平台指令
+
+// ── W1 音效 ──
+(function(){
+  let _ac = null;
+  function ac() {
+    if (!_ac) _ac = new (window.AudioContext||window.webkitAudioContext)();
+    if (_ac.state==='suspended') _ac.resume();
+    return _ac;
+  }
+  // 點擊普通方塊：短促高頻叮
+  window.sfxHit = function(isShield) {
+    try {
+      const ctx = ac(), now = ctx.currentTime;
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = isShield ? 'sawtooth' : 'sine';
+      o.frequency.setValueAtTime(isShield ? 180 : 880, now);
+      o.frequency.exponentialRampToValueAtTime(isShield ? 60 : 440, now + 0.12);
+      g.gain.setValueAtTime(0.3, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(now); o.stop(now + 0.2);
+    } catch(e){}
+  };
+  // 幽靈/炸彈誤點：低沉警告音
+  window.sfxPenalty = function() {
+    try {
+      const ctx = ac(), now = ctx.currentTime;
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'square'; o.frequency.value = 120;
+      g.gain.setValueAtTime(0.25, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(now); o.stop(now + 0.35);
+    } catch(e){}
+  };
+})();
+
 // ★ AI 介面
 window._w1AI = {
     isActive:  () => state?.active === true,

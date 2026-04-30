@@ -243,6 +243,44 @@ let syncTick   = 0;
 // ══════════════════════════════════════════════════
 //  postMessage — 接收 PLATFORM_START
 // ══════════════════════════════════════════════════
+
+// ── W6 音效 ──
+(function(){
+  let _ac = null;
+  function ac() {
+    if (!_ac) _ac = new (window.AudioContext||window.webkitAudioContext)();
+    if (_ac.state==='suspended') _ac.resume();
+    return _ac;
+  }
+  // 游標進入圈圈：柔和叮聲
+  window.sfxEnterCircle = function() {
+    try {
+      const ctx = ac(), now = ctx.currentTime;
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.setValueAtTime(880, now);
+      o.frequency.exponentialRampToValueAtTime(1320, now+0.08);
+      g.gain.setValueAtTime(0.2, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now+0.25);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(now); o.stop(now+0.3);
+    } catch(e){}
+  };
+  // 回合完成：勝利叮叮
+  window.sfxRoundClear = function() {
+    try {
+      const ctx = ac(), now = ctx.currentTime;
+      [784,988,1175].forEach((f,i) => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = 'sine'; o.frequency.value = f;
+        g.gain.setValueAtTime(0.18, now+i*0.08);
+        g.gain.exponentialRampToValueAtTime(0.001, now+i*0.08+0.2);
+        o.connect(g); g.connect(ctx.destination);
+        o.start(now+i*0.08); o.stop(now+i*0.08+0.25);
+      });
+    } catch(e){}
+  };
+})();
+
 // ★ AI 介面
 window._w6AI = {
     isPlaying:  () => gameState === 'PLAYING',

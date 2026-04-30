@@ -399,7 +399,7 @@ function buildBoards(){
     for(let i=0;i<GRID*GRID;i++){
         const cell=document.createElement('div');
         cell.className='cell';cell.dataset.idx=i;
-        cell.addEventListener('click',()=>handleCellClick(_myMi,i));
+        cell.addEventListener('click',()=>{ if(typeof sfxStone==="function") sfxStone(true); _origHandleCellClick(_myMi,i); });
         b.appendChild(cell);
     }
     resizeSoloBoard();
@@ -551,7 +551,7 @@ function hideCountdownOverlay(){
 // ══════════════════════════════════════
 // 落子
 // ══════════════════════════════════════
-function handleCellClick(mi,idx){
+function _origHandleCellClick(mi,idx){
     if (state.paused) return; // 暫停時禁止落子
     initAudio();
     const m=state.matches[mi];
@@ -1082,6 +1082,51 @@ requestWakeLock();
         s.appendChild(el);
     }
 })();
+
+// ── W3 音效 ──
+(function(){
+  let _ac = null;
+  function ac() {
+    if (!_ac) _ac = new (window.AudioContext||window.webkitAudioContext)();
+    if (_ac.state==='suspended') _ac.resume();
+    return _ac;
+  }
+  // 落子：木質叩擊聲
+  window.sfxStone = function(isBlack) {
+    try {
+      const ctx = ac(), now = ctx.currentTime;
+      const freq = isBlack ? 220 : 330;
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'triangle'; o.frequency.value = freq;
+      g.gain.setValueAtTime(0.4, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(now); o.stop(now + 0.12);
+      // 噪音層
+      const buf = ctx.createBuffer(1, ctx.sampleRate*0.05, ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for(let i=0;i<d.length;i++) d[i] = (Math.random()*2-1) * (1-i/d.length) * 0.3;
+      const src = ctx.createBufferSource(), g2 = ctx.createGain();
+      src.buffer = buf; g2.gain.value = 0.3;
+      src.connect(g2); g2.connect(ctx.destination); src.start(now);
+    } catch(e){}
+  };
+  // 五連珠勝利：上升歡呼音
+  window.sfxWin = function() {
+    try {
+      const ctx = ac(), now = ctx.currentTime;
+      [523,659,784,1047].forEach((f,i) => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = 'square'; o.frequency.value = f;
+        g.gain.setValueAtTime(0.2, now+i*0.1);
+        g.gain.exponentialRampToValueAtTime(0.001, now+i*0.1+0.2);
+        o.connect(g); g.connect(ctx.destination);
+        o.start(now+i*0.1); o.stop(now+i*0.1+0.25);
+      });
+    } catch(e){}
+  };
+})();
+
 </script>
 </body>
 </html>

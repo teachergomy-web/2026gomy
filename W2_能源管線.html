@@ -784,6 +784,7 @@
         }
 
         function handleTap(px, py) {
+            if (typeof sfxRotate === "function") sfxRotate();
             if (isLevelComplete || !gameStarted) return;
 
             const rect = canvas.getBoundingClientRect();
@@ -947,6 +948,49 @@ requestWakeLock();
         renderLevelGrid();
 
         // ── PLATFORM BRIDGE ──
+
+// ── W2 音效 ──
+(function(){
+  let _ac = null;
+  function ac() {
+    if (!_ac) _ac = new (window.AudioContext||window.webkitAudioContext)();
+    if (_ac.state==='suspended') _ac.resume();
+    return _ac;
+  }
+  // 旋轉管線：機械"喀"聲
+  window.sfxRotate = function() {
+    try {
+      const ctx = ac(), now = ctx.currentTime;
+      const buf = ctx.createBuffer(1, ctx.sampleRate * 0.06, ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random()*2-1) * (1 - i/d.length);
+      const src = ctx.createBufferSource(), g = ctx.createGain();
+      const f = ctx.createBiquadFilter();
+      f.type = 'bandpass'; f.frequency.value = 800; f.Q.value = 2;
+      src.buffer = buf;
+      g.gain.setValueAtTime(0.35, now);
+      src.connect(f); f.connect(g); g.connect(ctx.destination);
+      src.start(now);
+    } catch(e){}
+  };
+  // 接通成功：電流上升音
+  window.sfxConnect = function() {
+    try {
+      const ctx = ac(), now = ctx.currentTime;
+      [0, 0.08, 0.16].forEach((delay, i) => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = 'sine';
+        o.frequency.setValueAtTime(440 * (i+1), now+delay);
+        o.frequency.exponentialRampToValueAtTime(880 * (i+1), now+delay+0.1);
+        g.gain.setValueAtTime(0.2, now+delay);
+        g.gain.exponentialRampToValueAtTime(0.001, now+delay+0.15);
+        o.connect(g); g.connect(ctx.destination);
+        o.start(now+delay); o.stop(now+delay+0.2);
+      });
+    } catch(e){}
+  };
+})();
+
         window.addEventListener('message', (e) => {            if (!e.data || !e.data.type) return;
             switch(e.data.type) {
                 case 'PLATFORM_START':
