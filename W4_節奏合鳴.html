@@ -804,8 +804,12 @@
         const level = gameState.level;
         if (gameState.mode === 1) {
             const life = getTrackLife(level);
-            // 高關卡（LV7+）有機率同時生成 2 顆
-            const count = (level >= 7 && Math.random() > 0.5) ? 2 : (level >= 4 && Math.random() > 0.7) ? 2 : 1;
+
+            // ★ 每次生成數量：低關卡 1-2 顆，高關卡 2-3 顆
+            const minCount = level <= 3 ? 1 : level <= 6 ? 2 : 2;
+            const maxCount = level <= 3 ? 2 : level <= 6 ? 3 : 4;
+            const count = minCount + Math.floor(Math.random() * (maxCount - minCount + 1));
+
             for (let i = 0; i < count; i++) {
                 const r = 60;
                 gameState.entities.push({
@@ -816,7 +820,12 @@
                     color: COLORS[Math.floor(Math.random()*4)]
                 });
             }
-            return getTrackSpawnInterval(level);
+
+            // ★ 生成間隔 = 2拍（比 life 的 4拍短）→ 畫面上永遠有 2-3 顆重疊
+            const bpm  = TRACK_BPM[Math.max(0, Math.min(9, level - 1))];
+            const beat = 60000 / bpm;
+            const beatsPerSpawn = level <= 2 ? 2 : 1.5; // 每 2 拍或 1.5 拍生成一批
+            return Math.round(beat * beatsPerSpawn);
         } else if (gameState.mode === 2) {
             const track = Math.floor(Math.random() * TRACK_COUNT);
             gameState.entities.push({ type: 'piano', track, y: -150, h: 150, hit: false });
