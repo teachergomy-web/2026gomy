@@ -697,15 +697,21 @@ body::before {
   </div>
 
   <!-- 規則內容（可捲動） -->
-  <div id="rules-content" style="width:100%;max-width:680px;padding:20px 22px 12px;flex:1;min-height:0;"></div>
+  <div id="rules-content" style="width:100%;max-width:680px;padding:20px 22px 12px;flex:1;min-height:0;overflow-y:auto;"></div>
 
-  <!-- 底部開始按鈕（固定，不用 sticky）-->
-  <div style="
-    width:100%;max-width:680px;
-    padding:16px 22px 40px;
-    flex-shrink:0;
-    background:#080a14;">
-    <button onclick="closeRulesAndStart()" style="
+  <!-- ★ 組別就緒清單 -->
+  <div id="rules-ready-list" style="
+    width:100%;max-width:680px;padding:0 22px 10px;flex-shrink:0;">
+    <div style="font-family:'Nunito',sans-serif;font-size:.72rem;font-weight:700;
+      color:rgba(255,255,255,.4);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">
+      🎮 組別準備狀態
+    </div>
+    <div id="rules-ready-slots" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+  </div>
+
+  <!-- 底部開始按鈕 -->
+  <div style="width:100%;max-width:680px;padding:12px 22px 40px;flex-shrink:0;background:#080a14;">
+    <button id="rules-start-btn" onclick="closeRulesAndStart()" style="
       display:block;width:100%;
       padding:18px;border-radius:16px;border:none;cursor:pointer;
       background:linear-gradient(135deg,#22c040,#169030);color:#fff;
@@ -714,6 +720,10 @@ body::before {
       -webkit-tap-highlight-color:transparent;">
       ▶ 關閉規則，全班開始！
     </button>
+    <div id="rules-not-ready-hint" style="display:none;margin-top:8px;text-align:center;
+      font-size:.75rem;color:rgba(255,180,0,.7);font-family:'Nunito',sans-serif;">
+      ⚠️ 部分學生尚未完成音效解鎖（仍可強制開始）
+    </div>
   </div>
 </div>
 
@@ -793,8 +803,26 @@ body::before {
         gap:20px;text-align:center;padding:32px 24px;">
         <div style="font-size:4rem;animation:heroBounce 1.8s ease-in-out infinite;">📺</div>
         <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:1.4rem;color:#f5c800;">請看老師螢幕</div>
-        <div style="font-family:'Noto Sans TC',sans-serif;font-size:.95rem;color:rgba(255,255,255,.6);line-height:1.8;">老師正在說明遊戲規則<br>準備好了老師會按開始！</div>
-        <div style="display:flex;gap:8px;margin-top:8px;">
+        <div style="font-family:'Noto Sans TC',sans-serif;font-size:.95rem;color:rgba(255,255,255,.6);line-height:1.8;">老師正在說明遊戲規則</div>
+
+        <!-- ★ 音效解鎖按鈕 -->
+        <button id="student-audio-unlock-btn" onclick="studentAudioUnlock()"
+          style="padding:16px 32px;border-radius:14px;border:none;cursor:pointer;
+          background:linear-gradient(135deg,#b44fff,#7b2fff);color:#fff;
+          font-family:'Nunito',sans-serif;font-weight:900;font-size:1.05rem;
+          box-shadow:0 4px 0 #4a1a99;
+          animation:pulse 1.5s ease-in-out infinite alternate;">
+          🔊 點我解鎖音效！
+        </button>
+
+        <!-- ★ 已準備好提示（按完後顯示） -->
+        <div id="student-ready-msg" style="display:none;flex-direction:column;align-items:center;gap:10px;">
+            <div style="font-size:2rem;">✅</div>
+            <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:1.1rem;color:#22c040;">已準備好！</div>
+            <div style="font-family:'Noto Sans TC',sans-serif;font-size:.85rem;color:rgba(255,255,255,.5);">等待老師確認所有人就緒後開始</div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:4px;">
             <div style="width:8px;height:8px;border-radius:50%;background:#f5c800;animation:pulse 1.0s ease-in-out infinite alternate;"></div>
             <div style="width:8px;height:8px;border-radius:50%;background:#f5c800;animation:pulse 1.0s ease-in-out 0.3s infinite alternate;"></div>
             <div style="width:8px;height:8px;border-radius:50%;background:#f5c800;animation:pulse 1.0s ease-in-out 0.6s infinite alternate;"></div>
@@ -1058,7 +1086,10 @@ function startSyncListener() {
             }
         }
 
-        // ★ 老師端：偵測 W4 模式完成（學生端把 w4modeComplete 存進 Firebase，老師從 snapshot 觸發）
+        // ★ 老師端：偵測學生就緒狀態（playerReady），更新規則頁清單
+        if (snapPerspective === 'teacher' && data.playerReady !== undefined) {
+            updateRulesReadyList();
+        }
         if (snapPerspective === 'teacher' && window.state.selectedGame === 3 && data.w4modeComplete) {
             if (!window._w4ModeComplete) window._w4ModeComplete = {};
             const players = window.state.players || [];
@@ -2014,11 +2045,17 @@ function showRulesOverlay() {
   overlay.style.display = 'flex';
   overlay.classList.add('active');
   setTimeout(() => { overlay.scrollTop = 0; }, 0);
+  // ★ 初始化就緒清單
+  setTimeout(updateRulesReadyList, 100);
 
-  // 通知學生端顯示「請看老師螢幕」提示
+  // 通知學生端顯示「請看老師螢幕」提示，並重置 playerReady
   const rooms = window.getRooms();
   const r = rooms[window.state.roomCode];
-  if (r) { r.status = 'rules'; window.saveRooms(rooms); }
+  if (r) {
+    r.status = 'rules';
+    r.playerReady = {}; // ★ 每次開規則頁都重置，讓學生重新按解鎖
+    window.saveRooms(rooms);
+  }
 }
 
 // ── 根據當前選擇取得對應規則資料 ──
@@ -2055,7 +2092,72 @@ function closeRulesAndStart() {
   tcStartGame();
 }
 
-// ── 開始遊戲 ──
+// ── 老師端規則頁：更新組別就緒清單 ──
+function updateRulesReadyList() {
+  const overlay = document.getElementById('rules-overlay');
+  if (!overlay || overlay.style.display === 'none') return;
+  const rooms = window.getRooms();
+  const r = rooms[window.state.roomCode];
+  if (!r) return;
+  const players    = window.state.players || [];
+  const ready      = r.playerReady || {};
+  const readyCount = players.filter(p => ready[p.group]).length;
+  const total      = players.length;
+
+  const slotsEl = document.getElementById('rules-ready-slots');
+  if (slotsEl) {
+    slotsEl.innerHTML = players.map(p => {
+      const ok = !!ready[p.group];
+      return `<div style="display:flex;align-items:center;gap:6px;padding:6px 12px;
+        border-radius:10px;background:${ok?'rgba(34,192,64,.12)':'rgba(255,255,255,.05)'};
+        border:1px solid ${ok?'rgba(34,192,64,.4)':'rgba(255,255,255,.1)'};
+        font-family:'Nunito',sans-serif;font-size:.82rem;font-weight:700;
+        color:${ok?'#22c040':'rgba(255,255,255,.4)'};">
+        ${p.symbol||''} ${p.group} ${ok?'✅':'⏳'}</div>`;
+    }).join('');
+  }
+
+  const startBtn = document.getElementById('rules-start-btn');
+  const hint     = document.getElementById('rules-not-ready-hint');
+  if (startBtn) {
+    startBtn.textContent = readyCount >= total && total > 0
+      ? `▶ 全班已就緒，開始！`
+      : `▶ 關閉規則，全班開始！（${readyCount}/${total} 已就緒）`;
+  }
+  if (hint) hint.style.display = (readyCount < total && total > 0) ? 'block' : 'none';
+}
+
+// ── 學生端解鎖音效並通知老師端已就緒 ──
+function studentAudioUnlock() {
+    const pData = window.pStates[window.state.perspective];
+    const group  = pData?.group || window.state.selectedGroup;
+    const code   = window.state.roomCode;
+
+    // 更新 UI：隱藏解鎖按鈕，顯示「已準備好」
+    const btn      = document.getElementById('student-audio-unlock-btn');
+    const readyMsg = document.getElementById('student-ready-msg');
+    if (btn)      { btn.style.display = 'none'; }
+    if (readyMsg) { readyMsg.style.display = 'flex'; }
+
+    // 解鎖 Web Audio（讓瀏覽器允許後續音效播放）
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const g   = ctx.createGain();
+        g.gain.value = 0;
+        osc.connect(g); g.connect(ctx.destination);
+        osc.start(); osc.stop(ctx.currentTime + 0.01);
+    } catch(e) {}
+
+    // 把 playerReady 寫入 Firebase
+    if (!code || !group) return;
+    const rooms = window.getRooms();
+    const r = rooms[code];
+    if (!r) return;
+    if (!r.playerReady) r.playerReady = {};
+    r.playerReady[group] = true;
+    window.saveRooms(rooms);
+}
 function tcStartGame() {
     const players = window.state.players;
     if (!players.length) { showToast('⚠️ 還沒有學生加入！'); return; }
@@ -4560,6 +4662,7 @@ Object.assign(window, {
     tcStartGame, tcPauseGame, tcResumeGame, tcSettleGame, tcEndGame, tcW4NextLevel, exitToLobby, studentLeaveGame, tryRestoreSession,
     tcKickPlayer, w4RenderTCScores, w4ShowModeCompletePanel, tcW4StartNextMode,
     toggleBGMMute, setBGMVolume, startTeacherBGM, stopTeacherBGM,
+    studentAudioUnlock, updateRulesReadyList,
     showToast, setViewTeacher, setViewStudent,
     syncJoinDOM, renderLobby, renderSymbolPicker, renderGroupSelect, renderGroupPicker, renderGroupPicker, updateStudentWaitDisplay,
     getRooms, saveRooms,

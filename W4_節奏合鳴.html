@@ -1699,26 +1699,22 @@
     function platformLaunch(mode, level) {
         const key = `${mode}-${level}`;
         const now = Date.now();
-        if (key === _lastLaunchKey && now - _lastLaunchTime < 2000) {
-            console.log('[W4] platformLaunch 防重複：已在 2 秒內啟動過', key);
-            return;
-        }
+        if (key === _lastLaunchKey && now - _lastLaunchTime < 2000) return;
         _lastLaunchKey  = key;
         _lastLaunchTime = now;
 
-        // 停止任何仍在跑的 gameLoop（設 active=false 讓 RAF 自然結束）
         gameState.active = false;
+        gameState.mode   = mode;
 
-        document.getElementById('platform-wait').classList.add('hidden');
         document.getElementById('main-menu').classList.add('hidden');
         document.getElementById('level-menu').classList.add('hidden');
         document.getElementById('result-screen').classList.add('hidden');
-        gameState.mode = mode;
 
-        // 稍等一幀讓舊的 gameLoop 確實停下再啟動新的
-        requestAnimationFrame(() => {
-            startGame(level);
-        });
+        // ★ 音效已在 index.html 的規則頁解鎖，直接標記為已解鎖並進遊戲
+        _audioUnlocked = true;
+        window._pendingLaunch = null;
+
+        requestAnimationFrame(() => startGame(level));
     }
 
     // 接收大廳 postMessage
