@@ -4551,6 +4551,8 @@ function setBGMVolume(val) {
     }
     if (!_BGM.muted && !_BGM.running) startTeacherBGM();
 }
+
+Object.assign(window, {
     testResetToHome, testSetPerspective, toggleQR, goToTeacherLogin, goToJoin, goTo,
     backToStep1, verifyRoomPassword, backToPassword, onGroupSelect, pickGroup, joinRoom,
     doCloseRoom, selectGame, leaveRoomStudent, teacherLogin, _finishJoin,
