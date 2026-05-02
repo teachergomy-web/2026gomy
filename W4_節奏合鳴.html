@@ -559,26 +559,26 @@
 
     <div class="mode-cards">
         <div class="mode-card card-blue" onclick="showLevelSelect(1)">
-            <span class="mode-icon" style="color:#3498db">◎</span>
+            <span class="mode-icon" style="color:#3498db">▬</span>
             <div class="mode-info">
-                <div class="mode-name">縮圈點擊</div>
-                <div class="mode-desc">MODE 01 · TAP TO BEAT</div>
+                <div class="mode-name">玩法 1</div>
+                <div class="mode-desc">MODE 01 · TILE DROP</div>
             </div>
             <span class="mode-arrow">›</span>
         </div>
         <div class="mode-card card-purple" onclick="showLevelSelect(2)">
-            <span class="mode-icon" style="color:#9b59b6">▬</span>
+            <span class="mode-icon" style="color:#9b59b6">↓</span>
             <div class="mode-info">
-                <div class="mode-name">鋼琴黑塊</div>
-                <div class="mode-desc">MODE 02 · PIANO TILES</div>
+                <div class="mode-name">玩法 2</div>
+                <div class="mode-desc">MODE 02 · HORIZON</div>
             </div>
             <span class="mode-arrow">›</span>
         </div>
         <div class="mode-card card-red" onclick="showLevelSelect(3)">
-            <span class="mode-icon" style="color:#e74c3c">↓</span>
+            <span class="mode-icon" style="color:#e74c3c">◎</span>
             <div class="mode-info">
-                <div class="mode-name">底線軌道</div>
-                <div class="mode-desc">MODE 03 · TRACK RUSH</div>
+                <div class="mode-name">玩法 3</div>
+                <div class="mode-desc">MODE 03 · SCAN BEAT</div>
             </div>
             <span class="mode-arrow">›</span>
         </div>
@@ -719,7 +719,7 @@
         gameState.mode = mode;
         document.getElementById('main-menu').classList.add('hidden');
         document.getElementById('level-menu').classList.remove('hidden');
-        const names = ["縮圈點擊 · MODE 01", "鋼琴黑塊 · MODE 02", "底線軌道 · MODE 03"];
+        const names = ["玩法 1 · MODE 01", "玩法 2 · MODE 02", "玩法 3 · MODE 03"];
         document.getElementById('mode-name').innerText = names[mode-1];
 
         const container = document.getElementById('lvl-container');
@@ -745,15 +745,15 @@
         gameState.maxCombo = 0;
         // ★ Mode 1：時長依音樂長度，其他模式固定 120 秒
         const td = TRACK_DATA[level];
-        gameState.timeLeft = (gameState.mode === 1 && td) ? td.duration : 120;
+        gameState.timeLeft = (gameState.mode === 3 && td) ? td.duration : 120;
         gameState.entities = [];
         gameState.spawnTimer = 0;
         gameState.active   = false;
-        // ★ Cytus 模式初始化
-        if (gameState.mode === 1) initCytusLevel(level);
+        // ★ Cytus 模式初始化（玩法3=縮圈）
+        if (gameState.mode === 3) initCytusLevel(level);
 
         // ★ Mode 2 初始化
-        if (gameState.mode === 2) {
+        if (gameState.mode === 1) { // 玩法1=黑塊
             m2Seed = 42; m2SpawnT = 0; m2MusicTime = 0;
             m2Layout();
             const td2 = TRACK_DATA[level];
@@ -761,7 +761,7 @@
         }
 
         // ★ Mode 3 初始化
-        if (gameState.mode === 3) {
+        if (gameState.mode === 2) {
             m3InitLevel(level);
             const td3 = TRACK_DATA[level];
             gameState.timeLeft = td3 ? td3.duration : 120;
@@ -971,11 +971,11 @@
 
     function spawn() {
         const level = gameState.level;
-        if (gameState.mode === 1) {
+        if (gameState.mode === 3) {
             // Cytus 模式：由 gameLoop 根據 musicTime 從 spawnQueue 觸發
             // spawnTimer 設超長，不走舊的 spawnTimer 路徑
             return 999999;
-        } else if (gameState.mode === 2) {
+        } else if (gameState.mode === 1) {
             // Mode 2 由 gameLoop 的 m2SpawnT 控制，spawn() 不處理
             return 999999;
         } else {
@@ -1189,13 +1189,13 @@
                     btn.style.transform = 'none';
                     btn.style.opacity = '1';
 
-                    if (gameState.level === 10 && gameState.mode === 3) {
+                    if (gameState.level === 10 && gameState.mode === 2) {
                         // 所有模式全部完成
                         btn.innerHTML = '⏳ 所有玩法結束！等待老師結算...';
                         reportScore(true); // 最終分數
                     } else if (gameState.level === 10) {
                         // 當前模式 10 關全通，等老師啟動下一模式
-                        const nextModes = { 1: '鋼琴黑塊', 2: '底線軌道' };
+                        const nextModes = { 1: '玩法 2', 2: '玩法 3' };
                         btn.innerHTML = `⏳ 等待老師啟動下一玩法：${nextModes[gameState.mode] || ''}...`;
                         reportScore(true); // 送出 W4_MODE_COMPLETE（見下方覆寫）
                     } else {
@@ -1227,7 +1227,7 @@
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         // ★ Mode 3：透視軌道背景
-        if (gameState.mode === 3) {
+        if (gameState.mode === 2) {
             m3Layout();
             // 軌道線
             for (let i = 0; i < M3_COLS; i++) {
@@ -1275,7 +1275,7 @@
                 ctx.beginPath(); ctx.arc(p.x,p.y,r,0,Math.PI*2); ctx.stroke(); ctx.restore();
             }
         }
-        if (gameState.mode === 2) {
+        if (gameState.mode === 1) {
             const W2 = canvas.width, H2 = canvas.height;
             const judgeTop = H2 - M2_JUDGE_H;
             for (let i = 0; i < M2_COLS; i++) {
@@ -1319,14 +1319,14 @@
         // 速度依 BPM 線性對應：60BPM → 4px/frame，185BPM → 12px/frame
         const speed = 4 + (bpmNow - 60) / (185 - 60) * 8;
 
-        if (gameState.mode >= 2) {
+        if (gameState.mode >= 1) {
             for (let i = 0; i < TRACK_COUNT; i++) {
                 // 軌道分隔線
                 ctx.strokeStyle = 'rgba(255,255,255,0.06)';
                 ctx.lineWidth = 1;
                 ctx.strokeRect(i * trackWidth, 0, trackWidth, canvas.height);
 
-                if (gameState.mode === 2) {
+                if (gameState.mode === 1) {
                     const baseline = canvas.height - 150;
                     ctx.setLineDash([8, 8]);
                     ctx.strokeStyle = 'rgba(255,255,255,0.15)';
@@ -1354,7 +1354,7 @@
 
         // 實體渲染
         // ★ Cytus Mode 1：更新掃描線時間和節拍生成
-        if (gameState.mode === 1) {
+        if (gameState.mode === 3) {
             musicTime += dt / 1000;
             scanT += dt;
             const scanPeriod = getScanPeriodMs(gameState.level);
@@ -1370,7 +1370,7 @@
         }
 
         // ★ Mode 2：6軌黑塊生成控制
-        if (gameState.mode === 2) {
+        if (gameState.mode === 1) {
             m2MusicTime += dt / 1000;
             m2SpawnT -= dt;
             if (m2SpawnT <= 0) {
@@ -1380,7 +1380,7 @@
         }
 
         // ★ Mode 3：透視軌道生成控制（依節拍時間點）
-        if (gameState.mode === 3) {
+        if (gameState.mode === 2) {
             m3MusicTime += dt / 1000;
             const travelMs = (60000 / (TRACK_DATA[gameState.level]?.bpm || 120)) * M3_TRAVEL_BEATS;
             while (m3SpawnQueue.length > 0) {
@@ -1400,7 +1400,7 @@
         for (let i = gameState.entities.length - 1; i >= 0; i--) {
             const e = gameState.entities[i];
 
-            if (gameState.mode === 1) {
+            if (gameState.mode === 3) {
                 e.life -= dt;
                 if (e.life <= 0) {
                     gameState.combo = 0;
@@ -1473,7 +1473,7 @@
                     ctx.globalAlpha = 1;
                 }
 
-            } else if (gameState.mode === 2 && e.type === 'tile6') {
+            } else if (gameState.mode === 1 && e.type === 'tile6') {
                 // ★ Mode 2 新版：6軌黑塊
                 const H2 = canvas.height;
                 const judgeTop = H2 - M2_JUDGE_H;
@@ -1537,7 +1537,7 @@
                         ctx.fillRect(tx, e.y + e.h - 4, tw2, 4);
                     }
                 }
-            } else if (gameState.mode === 3 && e.type === 'persp') {
+            } else if (gameState.mode === 2 && e.type === 'persp') {
                 // ★ Mode 3 透視音符
                 const trav = (60000 / (TRACK_DATA[gameState.level]?.bpm || 120)) * M3_TRAVEL_BEATS;
                 if (!e.hit && !e.miss) e.progress += dt / trav;
@@ -1620,7 +1620,7 @@
         ctx.textAlign = 'left';
 
         // ★ Cytus 掃描線（Mode 1 專用）
-        if (gameState.mode === 1) {
+        if (gameState.mode === 3) {
             const W = canvas.width;
             // 光暈
             const gH = ctx.createLinearGradient(0, scanY-30, 0, scanY+30);
@@ -2144,7 +2144,7 @@
             level: gameState.level,
             mode:  gameState.mode,
             // W4_MODE_COMPLETE 額外帶 allDone（是否三模式都跑完）
-            allDone: isModeDone && gameState.mode === 3,
+            allDone: isModeDone && gameState.mode === 2,
         }, '*');
     };
 

@@ -547,8 +547,8 @@ body::before {
         <div class="ls-w4-card ls-w4-card-blue" onclick="lsW4SelectMode(1)">
           <span class="ls-w4-card-icon" style="color:#3498db">◎</span>
           <div class="ls-w4-card-info">
-            <div class="ls-w4-card-name" style="color:#3498db">縮圈點擊</div>
-            <div class="ls-w4-card-desc">MODE 01 · TAP TO BEAT</div>
+            <div class="ls-w4-card-name" style="color:#3498db">玩法 3</div>
+            <div class="ls-w4-card-desc">MODE 03 · SCAN BEAT</div>
           </div>
           <span class="ls-w4-card-arrow">›</span>
         </div>
@@ -556,8 +556,8 @@ body::before {
         <div class="ls-w4-card ls-w4-card-purple" onclick="lsW4SelectMode(2)">
           <span class="ls-w4-card-icon" style="color:#9b59b6">▬</span>
           <div class="ls-w4-card-info">
-            <div class="ls-w4-card-name" style="color:#9b59b6">鋼琴黑塊</div>
-            <div class="ls-w4-card-desc">MODE 02 · PIANO TILES</div>
+            <div class="ls-w4-card-name" style="color:#9b59b6">玩法 1</div>
+            <div class="ls-w4-card-desc">MODE 01 · TILE DROP</div>
           </div>
           <span class="ls-w4-card-arrow">›</span>
         </div>
@@ -565,8 +565,8 @@ body::before {
         <div class="ls-w4-card ls-w4-card-red" onclick="lsW4SelectMode(3)">
           <span class="ls-w4-card-icon" style="color:#e74c3c">↓</span>
           <div class="ls-w4-card-info">
-            <div class="ls-w4-card-name" style="color:#e74c3c">底線軌道</div>
-            <div class="ls-w4-card-desc">MODE 03 · TRACK RUSH</div>
+            <div class="ls-w4-card-name" style="color:#e74c3c">玩法 2</div>
+            <div class="ls-w4-card-desc">MODE 02 · HORIZON</div>
           </div>
           <span class="ls-w4-card-arrow">›</span>
         </div>
@@ -1697,7 +1697,7 @@ function lsW2Render() {
 let lsW4SelectedMode  = 0;
 let lsW4SelectedLevel = 0;
 
-const lsW4ModeNames  = ['', '縮圈點擊', '鋼琴黑塊', '底線軌道'];
+const lsW4ModeNames  = ['', '玩法 1', '玩法 2', '玩法 3'];
 const lsW4ModeColors = ['', '#3498db', '#9b59b6', '#e74c3c'];
 
 function lsW4Render() {
@@ -1920,9 +1920,11 @@ const GAME_RULES = [
     '先在棋盤連成五子獲勝！',
     '橫、直、斜都算',
   ]},
-  // 3 W4 縮圈點擊（模式1）
-  { icon:'◎', name:'節奏合鳴 — 縮圈點擊', color:'#b44fff', lines:[
-    '倒數結束時點擊圓圈！',
+  // 3 W4 玩法1
+  { icon:'◎', name:'節奏合鳴', color:'#b44fff', lines:[
+    '掃描線來回移動，掃到圓圈時點擊！',
+    '左右會同時出現圓圈',
+    '掃描線越準，分數越高',
   ]},
   // 4 W5 你畫我猜
   { icon:'🎨', name:'你畫我猜', color:'#34d399', lines:[
@@ -1954,15 +1956,20 @@ const GAME_RULES = [
 
 // W4 三種玩法（老師端各玩法開始前顯示）
 const GAME_RULES_W4 = [
-  { icon:'◎', name:'節奏合鳴 — 縮圈點擊', color:'#b44fff', lines:[
-    '倒數結束時點擊圓圈！',
+  { icon:'▬', name:'節奏合鳴 — 玩法 1', color:'#9b59b6', lines:[
+    '左右各3軌，黑塊落入底部判定區時點擊！',
+    '兩側同時出現，需要合作配合',
+    'PERFECT 100分 / GREAT 60分 / GOOD 30分',
   ]},
-  { icon:'▬', name:'節奏合鳴 — 鋼琴黑塊', color:'#9b59b6', lines:[
-    '方塊滑到底線時點擊！',
+  { icon:'↓', name:'節奏合鳴 — 玩法 2', color:'#e67e22', lines:[
+    '圓圈從遠處往基準線推進',
+    '到達基準線時點擊！',
+    'PERFECT 100分 / GREAT 60分 / GOOD 30分',
   ]},
-  { icon:'↓', name:'節奏合鳴 — 底線軌道', color:'#e67e22', lines:[
-    '方塊進入底線時按住',
-    '離開時放開！',
+  { icon:'◎', name:'節奏合鳴 — 玩法 3', color:'#b44fff', lines:[
+    '掃描線來回移動，掃到圓圈時點擊！',
+    '掃描線越準，分數越高',
+    'PERFECT 100分 / GREAT 60分 / GOOD 30分',
   ]},
 ];
 
