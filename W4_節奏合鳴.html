@@ -1307,7 +1307,7 @@
             ctx.globalAlpha = 1; ctx.textAlign = 'left';
         }
 
-        const bpmNow = TRACK_BPM[Math.max(0, Math.min(9, gameState.level - 1))];
+        const bpmNow = (TRACK_DATA[gameState.level] || {bpm:120}).bpm;
         // 速度依 BPM 線性對應：60BPM → 4px/frame，185BPM → 12px/frame
         const speed = 4 + (bpmNow - 60) / (185 - 60) * 8;
 
