@@ -395,9 +395,7 @@ body::before {
         style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);
         border-radius:8px;color:white;font-size:.9rem;padding:6px 10px;
         cursor:pointer;-webkit-tap-highlight-color:transparent;">🔊</button>
-      <input id="bgm-volume-slider" type="range" min="0" max="100" value="40"
-        oninput="setBGMVolume(this.value)" value="20"
-        style="width:72px;accent-color:#f5c800;cursor:pointer;">
+
     </div>
     <div style="flex:1"></div>
     <!-- 遊戲控制區（遊戲進行中顯示）-->
@@ -742,9 +740,6 @@ body::before {
         style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);
         border-radius:8px;color:white;font-size:.85rem;padding:5px 8px;
         cursor:pointer;-webkit-tap-highlight-color:transparent;flex-shrink:0;">🔊</button>
-      <input id="tc-bgm-vol-slider" type="range" min="0" max="100" value="40"
-        oninput="setBGMVolume(this.value)" value="20"
-        style="width:60px;accent-color:#f5c800;cursor:pointer;flex-shrink:0;">
       <button class="kr-btn kr-btn-ghost" onclick="exitToLobby()" style="font-size:.8rem;padding:7px 10px">← 大廳</button>
     </div>
   </div>
@@ -4546,7 +4541,7 @@ const _BGM_PLAYLIST = ['./music/teacher_bgm.mp3', './music/game_bgm.mp3'];
 let _bgmIdx       = 0;
 let _bgmAudioTC   = null;
 let _bgmMuted     = false;
-let _bgmVolume    = 0.2; // ★ 預設 20%
+let _bgmVolume    = 0.05; // ★ 預設 5% // ★ 預設 20%
 let _bgmActive    = false;
 let _bgmFadeTimer = null;
 
@@ -4594,7 +4589,9 @@ function _bgmPlayCurrent() {
 }
 
 function startTeacherBGM() {
-    if (window.state.selectedGame === 3) return;
+    // W4 遊戲進行中才不播，結束返回大廳後照常播
+    const r = window.getRooms ? (window.getRooms()[window.state?.roomCode] || {}) : {};
+    if (window.state.selectedGame === 3 && r.status === 'playing') return;
     if (_bgmActive) return;
     _bgmActive = true;
     _bgmIdx = 0;
@@ -4614,10 +4611,7 @@ function _syncBGMUI() {
         const btn = document.getElementById(id);
         if (btn) btn.textContent = icon;
     });
-    ['bgm-volume-slider', 'tc-bgm-vol-slider'].forEach(id => {
-        const sl = document.getElementById(id);
-        if (sl) sl.value = Math.round(_bgmVolume * 100);
-    });
+
 }
 
 function toggleBGMMute() {

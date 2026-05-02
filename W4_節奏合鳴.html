@@ -2157,9 +2157,10 @@
     function platformLaunch(mode, level) {
         const key = `${mode}-${level}`;
         const now = Date.now();
-        if (key === _lastLaunchKey && now - _lastLaunchTime < 10000) return;
+        if (key === _lastLaunchKey && now - _lastLaunchTime < 3000) return;
         _lastLaunchKey  = key;
         _lastLaunchTime = now;
+        window._platformStarted = true; // ★ 標記已啟動，停止備援輪詢
 
         gameState.active = false;
         gameState.mode   = mode;
@@ -2244,13 +2245,15 @@
         const badge = document.getElementById('pw-group-badge');
         if (badge && platformGroup) badge.textContent = platformGroup;
 
-        // 備援機制：如果 1 秒後都沒收到 PLATFORM_START，才用 URL 參數自動啟動
+        // ★ 備援機制：輪詢直到 PLATFORM_START 到達，或直接用 URL 參數啟動
         if (_urlMode > 0 && _urlLevel > 0) {
-            setTimeout(() => {
-                if (!window._platformStarted) {
-                    platformLaunch(_urlMode, _urlLevel);
-                }
-            }, 1000);
+            let _backupAttempts = 0;
+            const _backupTimer = setInterval(() => {
+                _backupAttempts++;
+                if (window._platformStarted) { clearInterval(_backupTimer); return; }
+                if (_backupAttempts > 15) { clearInterval(_backupTimer); } // 最多等 3 秒
+                platformLaunch(_urlMode, _urlLevel);
+            }, 200);
         }
     }
 
