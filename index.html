@@ -396,7 +396,7 @@ body::before {
         border-radius:8px;color:white;font-size:.9rem;padding:6px 10px;
         cursor:pointer;-webkit-tap-highlight-color:transparent;">🔊</button>
       <input id="bgm-volume-slider" type="range" min="0" max="100" value="40"
-        oninput="setBGMVolume(this.value)"
+        oninput="setBGMVolume(this.value)" value="20"
         style="width:72px;accent-color:#f5c800;cursor:pointer;">
     </div>
     <div style="flex:1"></div>
@@ -545,28 +545,28 @@ body::before {
       <div style="display:flex;flex-direction:column;gap:10px">
 
         <div class="ls-w4-card ls-w4-card-blue" onclick="lsW4SelectMode(1)">
-          <span class="ls-w4-card-icon" style="color:#3498db">◎</span>
+          <span class="ls-w4-card-icon" style="color:#3498db">▬</span>
           <div class="ls-w4-card-info">
-            <div class="ls-w4-card-name" style="color:#3498db">玩法 3</div>
-            <div class="ls-w4-card-desc">MODE 03 · SCAN BEAT</div>
-          </div>
-          <span class="ls-w4-card-arrow">›</span>
-        </div>
-
-        <div class="ls-w4-card ls-w4-card-purple" onclick="lsW4SelectMode(2)">
-          <span class="ls-w4-card-icon" style="color:#9b59b6">▬</span>
-          <div class="ls-w4-card-info">
-            <div class="ls-w4-card-name" style="color:#9b59b6">玩法 1</div>
+            <div class="ls-w4-card-name" style="color:#3498db">玩法 1</div>
             <div class="ls-w4-card-desc">MODE 01 · TILE DROP</div>
           </div>
           <span class="ls-w4-card-arrow">›</span>
         </div>
 
-        <div class="ls-w4-card ls-w4-card-red" onclick="lsW4SelectMode(3)">
-          <span class="ls-w4-card-icon" style="color:#e74c3c">↓</span>
+        <div class="ls-w4-card ls-w4-card-purple" onclick="lsW4SelectMode(2)">
+          <span class="ls-w4-card-icon" style="color:#9b59b6">↓</span>
           <div class="ls-w4-card-info">
-            <div class="ls-w4-card-name" style="color:#e74c3c">玩法 2</div>
+            <div class="ls-w4-card-name" style="color:#9b59b6">玩法 2</div>
             <div class="ls-w4-card-desc">MODE 02 · HORIZON</div>
+          </div>
+          <span class="ls-w4-card-arrow">›</span>
+        </div>
+
+        <div class="ls-w4-card ls-w4-card-red" onclick="lsW4SelectMode(3)">
+          <span class="ls-w4-card-icon" style="color:#e74c3c">◎</span>
+          <div class="ls-w4-card-info">
+            <div class="ls-w4-card-name" style="color:#e74c3c">玩法 3</div>
+            <div class="ls-w4-card-desc">MODE 03 · SCAN BEAT</div>
           </div>
           <span class="ls-w4-card-arrow">›</span>
         </div>
@@ -715,7 +715,7 @@ body::before {
       font-family:'Nunito',sans-serif;font-weight:900;font-size:1.1rem;
       box-shadow:0 5px 0 #0c4a1a;
       -webkit-tap-highlight-color:transparent;">
-      ▶ 關閉規則，全班開始！
+      ▶ 全班已準備完成，開始！
     </button>
     <div id="rules-not-ready-hint" style="display:none;margin-top:8px;text-align:center;
       font-size:.75rem;color:rgba(255,180,0,.7);font-family:'Nunito',sans-serif;">
@@ -743,7 +743,7 @@ body::before {
         border-radius:8px;color:white;font-size:.85rem;padding:5px 8px;
         cursor:pointer;-webkit-tap-highlight-color:transparent;flex-shrink:0;">🔊</button>
       <input id="tc-bgm-vol-slider" type="range" min="0" max="100" value="40"
-        oninput="setBGMVolume(this.value)"
+        oninput="setBGMVolume(this.value)" value="20"
         style="width:60px;accent-color:#f5c800;cursor:pointer;flex-shrink:0;">
       <button class="kr-btn kr-btn-ghost" onclick="exitToLobby()" style="font-size:.8rem;padding:7px 10px">← 大廳</button>
     </div>
@@ -816,7 +816,7 @@ body::before {
           font-family:'Nunito',sans-serif;font-weight:900;font-size:1.05rem;
           box-shadow:0 4px 0 #4a1a99;
           animation:pulse 1.5s ease-in-out infinite alternate;">
-          🔊 點我解鎖音效！
+          ✋ 我準備好了！
         </button>
 
         <!-- ★ 已準備好提示（按完後顯示） -->
@@ -2133,7 +2133,7 @@ function updateRulesReadyList() {
   if (startBtn) {
     startBtn.textContent = readyCount >= total && total > 0
       ? `▶ 全班已就緒，開始！`
-      : `▶ 關閉規則，全班開始！（${readyCount}/${total} 已就緒）`;
+      : `▶ 全班已準備完成，開始！（${readyCount}/${total} 已就緒）`;
   }
   if (hint) hint.style.display = (readyCount < total && total > 0) ? 'block' : 'none';
 }
@@ -2684,14 +2684,23 @@ function tcLaunchStudentIfNeeded() {
         iframe.src = url;
         
         iframe.onload = () => setTimeout(() => {
-            if (isW4) return;
             try {
                 const rooms2 = window.getRooms();
                 const r2 = rooms2[window.state.roomCode] || {};
                 const isTeacher2 = window.state.perspective === 'teacher';
+                if (isW4) {
+                    // ★ W4 也要發 PLATFORM_START 讓學生端進遊戲
+                    iframe.contentWindow.postMessage({
+                        type: 'PLATFORM_START',
+                        mode:  r2.w4mode  || 1,
+                        level: r2.w4level || 1,
+                        group: myGroup,
+                        isTeacher: isTeacher2,
+                    }, '*');
+                    return;
+                }
                 const w3state = r2.w3state || null;
                 const w5state = r2.w5state || null;
-                // W7：傳入 level（= Part 編號）和 group
                 if (isW7) {
                     iframe.contentWindow.postMessage({
                         type: 'PLATFORM_START', level, group: myGroup,
@@ -2922,10 +2931,15 @@ function exitToLobby() {
         rulesOverlay.style.display = 'none';
         rulesOverlay.classList.remove('active');
     }
-    if (TC.running) tcEndGame(); else {
+    if (TC.running) {
+        tcEndGame();
+    } else {
         window.pStates['teacher'].screen = 'screen-lobby';
         window.renderLobby();
         window.goTo('screen-lobby');
+        // ★ 返回大廳重啟 BGM
+        _bgmActive = false;
+        setTimeout(() => startTeacherBGM(), 300);
     }
 }
 
@@ -4527,30 +4541,58 @@ window.addEventListener('beforeunload',  _handlePageLeave);
 // 老師端 BGM（兩首依序循環：teacher_bgm → game_bgm → teacher_bgm → ...）
 // ══════════════════════════════════════════════════════════
 const _BGM_PLAYLIST = ['./music/teacher_bgm.mp3', './music/game_bgm.mp3'];
-let _bgmIdx     = 0;
-let _bgmAudioTC = null;
-let _bgmMuted   = false;
-let _bgmVolume  = 0.4;
-let _bgmActive  = false;
+let _bgmIdx       = 0;
+let _bgmAudioTC   = null;
+let _bgmMuted     = false;
+let _bgmVolume    = 0.2; // ★ 預設 20%
+let _bgmActive    = false;
+let _bgmFadeTimer = null;
+
+function _bgmFadeIn(audio, targetVol, duration=1500) {
+    audio.volume = 0;
+    const step = 30, inc = targetVol / (duration / step);
+    clearInterval(_bgmFadeTimer);
+    _bgmFadeTimer = setInterval(() => {
+        if (!_bgmActive) { clearInterval(_bgmFadeTimer); return; }
+        audio.volume = Math.min(targetVol, audio.volume + inc);
+        if (audio.volume >= targetVol - 0.001) clearInterval(_bgmFadeTimer);
+    }, step);
+}
+
+function _bgmFadeOut(audio, duration=800, cb) {
+    if (!audio) { if (cb) cb(); return; }
+    const startVol = audio.volume;
+    const step = 30, dec = startVol / (duration / step);
+    clearInterval(_bgmFadeTimer);
+    _bgmFadeTimer = setInterval(() => {
+        audio.volume = Math.max(0, audio.volume - dec);
+        if (audio.volume <= 0) {
+            clearInterval(_bgmFadeTimer);
+            audio.pause(); audio.src = '';
+            if (cb) cb();
+        }
+    }, step);
+}
 
 function _bgmPlayCurrent() {
     if (_bgmMuted || !_bgmActive) return;
     try {
         if (_bgmAudioTC) { _bgmAudioTC.pause(); _bgmAudioTC.src = ''; }
         _bgmAudioTC = new Audio(_BGM_PLAYLIST[_bgmIdx]);
-        _bgmAudioTC.volume = _bgmVolume;
-        _bgmAudioTC.loop   = false;
+        _bgmAudioTC.loop = false;
         _bgmAudioTC.onended = () => {
             if (!_bgmActive) return;
-            _bgmIdx = (_bgmIdx + 1) % _BGM_PLAYLIST.length; // 切下一首
+            _bgmIdx = (_bgmIdx + 1) % _BGM_PLAYLIST.length;
             _bgmPlayCurrent();
         };
-        _bgmAudioTC.play().catch(() => {});
+        _bgmAudioTC.play().then(() => {
+            _bgmFadeIn(_bgmAudioTC, _bgmVolume);
+        }).catch(() => {});
     } catch(e) {}
 }
 
 function startTeacherBGM() {
-    if (window.state.selectedGame === 3) return; // W4 不播
+    if (window.state.selectedGame === 3) return;
     if (_bgmActive) return;
     _bgmActive = true;
     _bgmIdx = 0;
@@ -4559,7 +4601,9 @@ function startTeacherBGM() {
 
 function stopTeacherBGM() {
     _bgmActive = false;
-    if (_bgmAudioTC) { _bgmAudioTC.pause(); _bgmAudioTC.src = ''; _bgmAudioTC = null; }
+    const audio = _bgmAudioTC;
+    _bgmAudioTC = null;
+    _bgmFadeOut(audio, 800);
 }
 
 function _syncBGMUI() {
