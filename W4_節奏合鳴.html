@@ -2233,27 +2233,25 @@
     })();
 
     // 平台模式初始化
-    if (isPlatform) {
-        const badge = document.getElementById('pw-group-badge');
+    (function initPlatform() {
+        if (!isPlatform) return;
+        var badge = document.getElementById('pw-group-badge');
         if (badge && platformGroup) badge.textContent = platformGroup;
         document.getElementById('platform-wait').classList.remove('hidden');
 
-        // ★ 有 URL 參數就直接啟動，不等 PLATFORM_START
         if (_urlMode > 0 && _urlLevel > 0) {
-            // 立即嘗試一次
             platformLaunch(_urlMode, _urlLevel);
-            // 備援：每 500ms 再試，確保 DOM/Audio 已就緒
-            let _retryCount = 0;
-            const _retryTimer = setInterval(() => {
-                _retryCount++;
-                if (window._platformStarted || _retryCount > 6) {
-                    clearInterval(_retryTimer);
+            var retryCount = 0;
+            var retryTimer = setInterval(function() {
+                retryCount++;
+                if (window._platformStarted || retryCount > 6) {
+                    clearInterval(retryTimer);
                     return;
                 }
                 platformLaunch(_urlMode, _urlLevel);
             }, 500);
         }
-    }
+    })();
 
 </script>
 </body>
