@@ -2178,8 +2178,9 @@
         if (!e.data || !e.data.type) return;
         if (e.data.type === 'PLATFORM_START') {
             window._platformStarted = true;
-            const mode  = parseInt(e.data.w4mode  || _urlMode  || 1, 10);
-            const level = parseInt(e.data.w4level || _urlLevel || e.data.level || 1, 10);
+            // ★ 同時接受 mode/w4mode 和 level/w4level（來自不同發送路徑）
+            const mode  = parseInt(e.data.mode  || e.data.w4mode  || _urlMode  || 1, 10);
+            const level = parseInt(e.data.level || e.data.w4level || _urlLevel || 1, 10);
 
             // 分數累計邏輯：
             // 重連帶 rejoinScore → 接續；模式1第一關 → 歸零；其他 → 保留累計

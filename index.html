@@ -2689,11 +2689,13 @@ function tcLaunchStudentIfNeeded() {
                 const r2 = rooms2[window.state.roomCode] || {};
                 const isTeacher2 = window.state.perspective === 'teacher';
                 if (isW4) {
-                    // ★ W4 也要發 PLATFORM_START 讓學生端進遊戲
+                    // ★ W4 發 PLATFORM_START 讓學生端進遊戲
+                    const w4m = parseInt(r2.w4mode  || r.w4mode  || pData.w4mode  || 1, 10);
+                    const w4l = parseInt(r2.w4level || r.w4level || pData.w4level || 1, 10);
                     iframe.contentWindow.postMessage({
                         type: 'PLATFORM_START',
-                        mode:  r2.w4mode  || 1,
-                        level: r2.w4level || 1,
+                        mode:   w4m, w4mode:  w4m,
+                        level:  w4l, w4level: w4l,
                         group: myGroup,
                         isTeacher: isTeacher2,
                     }, '*');
