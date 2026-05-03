@@ -1268,6 +1268,7 @@
             }
         }
         if (gameState.mode === 1) {
+            m2Layout(); // ★ 每幀重新計算版面（確保 canvas 尺寸正確）
             const W2 = canvas.width, H2 = canvas.height;
             const judgeTop = H2 - M2_JUDGE_H;
             for (let i = 0; i < M2_COLS; i++) {
@@ -1311,38 +1312,7 @@
         // 速度依 BPM 線性對應：60BPM → 4px/frame，185BPM → 12px/frame
         const speed = 4 + (bpmNow - 60) / (185 - 60) * 8;
 
-        if (gameState.mode >= 1) {
-            for (let i = 0; i < TRACK_COUNT; i++) {
-                // 軌道分隔線
-                ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(i * trackWidth, 0, trackWidth, canvas.height);
-
-                if (gameState.mode === 1) {
-                    const baseline = canvas.height - 150;
-                    ctx.setLineDash([8, 8]);
-                    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-                    ctx.lineWidth = 1;
-                    ctx.beginPath(); ctx.moveTo(0, baseline); ctx.lineTo(canvas.width, baseline); ctx.stroke();
-                    ctx.setLineDash([]);
-                    // 判定區光暈
-                    const grad = ctx.createLinearGradient(0, baseline - 40, 0, baseline + 80);
-                    grad.addColorStop(0, 'transparent');
-                    grad.addColorStop(0.5, `rgba(${i===0?'231,76,60':i===1?'46,204,113':i===2?'52,152,219':'241,196,15'},0.07)`);
-                    grad.addColorStop(1, 'transparent');
-                    ctx.fillStyle = grad;
-                    ctx.fillRect(i * trackWidth, baseline - 40, trackWidth, 120);
-                } else {
-                    const baseline = canvas.height - 100;
-                    // 判定框
-                    ctx.strokeStyle = COLORS[i];
-                    ctx.lineWidth = 2;
-                    ctx.shadowBlur = 8; ctx.shadowColor = COLORS[i];
-                    ctx.strokeRect(i * trackWidth + 12, baseline - 20, trackWidth - 24, 40);
-                    ctx.shadowBlur = 0;
-                }
-            }
-        }
+        // 各模式有自己的軌道背景繪製（Mode1黑塊/Mode2透視/Mode3縮圈）
 
         // 實體渲染
         // ★ Cytus Mode 1：更新掃描線時間和節拍生成
@@ -2189,7 +2159,8 @@
             platformLaunch(mode, level);
         }
         if (e.data.type === 'PLATFORM_PAUSE') {
-            stopBGM();
+            // ★ 暫停音樂（不停止，保持位置）
+            if (_bgmAudio) _bgmAudio.pause();
             gameState.active = false;
             const po = document.getElementById('pause-overlay');
             const co = document.getElementById('countdown-overlay');
@@ -2204,7 +2175,12 @@
                     gameState.active = true;
                     gameState.lastFrameTime = performance.now();
                     requestAnimationFrame(gameLoop);
-                    startBGM();
+                    // ★ 繼續時接續播放（不從頭）
+                    if (_bgmAudio) {
+                        _bgmAudio.play().catch(() => {});
+                    } else {
+                        startBGM();
+                    }
                 }
             });
         }
