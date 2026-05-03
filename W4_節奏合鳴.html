@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>W4 - 節奏共鳴 ARCADE</title>
+    <title>W4 - 節奏合鳴 ARCADE</title>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -553,7 +553,7 @@
 <div id="main-menu" class="overlay hidden">
     <div class="menu-logo-wrap">
         <div class="menu-subtitle">WEEKLY CHALLENGE · W4</div>
-        <div class="menu-title">節奏共鳴</div>
+        <div class="menu-title">節奏合鳴</div>
     </div>
     <div class="menu-tagline">3 MODES · 10 LEVELS · 2 MIN</div>
 
@@ -860,7 +860,8 @@
         if (gameState.mode === 2) {
             m3InitLevel(level);
             const td3 = TRACK_DATA[level];
-            gameState.timeLeft = td3 ? td3.duration : 120;
+            // ★ 加上 4 秒等待期
+            gameState.timeLeft = (td3 ? td3.duration : 120) + 4.0;
         }
 
         document.getElementById('level-menu').classList.add('hidden');
@@ -881,6 +882,9 @@
             gameState.lastFrameTime = performance.now();
             _loopRunning = true;
             requestAnimationFrame(gameLoop);
+            // 玩法2：BGM 等 m3MusicTime >= 0 時才在 gameLoop 內啟動
+            // 其他玩法立即播放
+            if (gameState.mode !== 2) startBGM();
         });
     }
 
@@ -970,7 +974,7 @@
     const M3_VP_Y_R     = 0.25;   // 消失點 Y 比例
     const M3_BASE_Y_R   = 0.86;   // 基準線 Y 比例
     const M3_NOTE_R     = 0.065;  // 音符半徑（畫面寬比例）
-    const M3_TRAVEL_BEATS = 4;    // 音符 4 拍從頂到底
+    const M3_TRAVEL_BEATS = 6;    // ★ 音符 6 拍從頂到底（速度更均勻）
     let m3VpX=0, m3VpY=0, m3BaseY=0;
     let m3ColBases=[], m3ColTops=[];
     let m3MusicTime=0, m3SpawnQueue=[];
@@ -992,12 +996,21 @@
     }
 
     function m3Proj(track, progress) {
-        const p = Math.max(0, Math.min(1, progress));
-        return {
-            x: m3ColTops[track] + (m3ColBases[track] - m3ColTops[track]) * p,
-            y: m3VpY + (m3BaseY - m3VpY) * p,
-            sc: 0.12 + p * 0.88
-        };
+        // X、scale：clamp 到 [0,1]（不延伸消失點以外）
+        const px = Math.max(0, Math.min(1, progress));
+        const x  = m3ColTops[track] + (m3ColBases[track] - m3ColTops[track]) * px;
+        const sc = 0.12 + px * 0.88;
+
+        // Y：允許超出 [0,1]，負值延伸到畫面上方（長按尾端），>1 延伸到畫面下方
+        // ★ 輕微 ease-in：f(p) = 0.72p + 0.28p² 讓底部視覺速度加快，補償大尺寸慢感
+        let py;
+        if (progress <= 0 || progress >= 1) {
+            py = progress; // 邊界外線性延伸
+        } else {
+            py = 0.72 * progress + 0.28 * progress * progress;
+        }
+        const y = m3VpY + (m3BaseY - m3VpY) * py;
+        return { x, y, sc };
     }
 
     function m3Rand() {
@@ -1008,18 +1021,43 @@
     function m3InitLevel(level) {
         const td = TRACK_DATA[level];
         if (!td) return;
-        m3MusicTime = 0;
+        m3MusicTime = -4.0; // ★ 4秒等待期，音符從頂部自然滑入
         m3Seed = 42;
-        // ★ 每個節拍出 1-2 組（高關卡密度加大）
         const doubleChance = level <= 3 ? 0 : level <= 6 ? 0.25 : 0.5;
+        const holdChance   = level <= 4 ? 0 : level <= 7 ? 0.15 : 0.25;
+        const bpm          = td.bpm || 120;
+        const beatSec      = 60 / bpm;
         m3SpawnQueue = [];
+        let holdBlockUntil = -1; // ★ 長按封鎖時間（這段時間不生成普通音符）
+
         td.spawnTimes.forEach(t => {
-            // 第一組（永遠出現）
-            m3SpawnQueue.push({ time: t, left: Math.floor(m3Rand()*3), right: 3+Math.floor(m3Rand()*3) });
-            // 第二組（機率出現，時間偏移半拍）
-            if (m3Rand() < doubleChance) {
-                const halfBeat = (30000 / (td.bpm || 120));
-                m3SpawnQueue.push({ time: t + halfBeat/1000, left: Math.floor(m3Rand()*3), right: 3+Math.floor(m3Rand()*3) });
+            // 在長按封鎖期內跳過（避免重疊）
+            if (t < holdBlockUntil) return;
+
+            const isHold = m3Rand() < holdChance;
+            const holdBeats = isHold ? (1.5 + Math.floor(m3Rand() * 2)) : 0;
+            const holdDuration = holdBeats * beatSec;
+
+            m3SpawnQueue.push({
+                time: t,
+                left:  Math.floor(m3Rand()*3),
+                right: 3+Math.floor(m3Rand()*3),
+                isHold,
+                holdDuration,
+            });
+
+            if (isHold) {
+                // ★ 長按後封鎖，直到長按結束後再多半拍緩衝
+                holdBlockUntil = t + holdDuration + beatSec * 0.5;
+            } else if (m3Rand() < doubleChance) {
+                const halfBeat = beatSec / 2;
+                m3SpawnQueue.push({
+                    time: t + halfBeat,
+                    left:  Math.floor(m3Rand()*3),
+                    right: 3+Math.floor(m3Rand()*3),
+                    isHold: false,
+                    holdDuration: 0,
+                });
             }
         });
         m3SpawnQueue.sort((a, b) => a.time - b.time);
@@ -1175,7 +1213,6 @@
             });
             if (best) {
                 const { e, p, r } = best;
-                e.hit = true; e.hitAnim = 0;
                 const side  = e.track < 3 ? 0 : 1;
                 const color = side === 0 ? '#00c8ff' : '#00dc78';
                 const dist  = Math.abs(e.progress - 1);
@@ -1184,13 +1221,22 @@
                 else if (dist < 0.15) { pts = 60;  label = 'GREAT';   }
                 else if (dist < 0.24) { pts = 30;  label = 'GOOD';    }
                 else                  { pts = 10;  label = 'OK';       }
-                addScore(pts, p.x, p.y, color, label);
-                floatingTexts.push({ x: p.x, y: p.y, text: '', color, life: 0.55, ripple: true, rippleR: r * 1.8 });
-                floatingTexts.push({ x: p.x, y: p.y, text: '', color: '#fff', life: 0.35, ripple: true, rippleR: r });
-                // ★ 粒子特效
-                const pCount2 = pts >= 100 ? 14 : pts >= 60 ? 10 : 7;
-                spawnHitParticles(p.x, p.y, color, pCount2);
-                spawnHitParticles(p.x, p.y, '#fff', Math.floor(pCount2 * 0.4));
+
+                if (e.isHold) {
+                    // 長按：開始按住，不立即結算
+                    e.holding = true;
+                    floatingTexts.push({ x: p.x, y: p.y, text: 'HOLD!', color, life: 0.5, ripple: false });
+                    spawnHitParticles(p.x, p.y, color, 8);
+                } else {
+                    // 普通音符：直接計分消失
+                    e.hit = true; e.hitAnim = 0;
+                    addScore(pts, p.x, p.y, color, label);
+                    floatingTexts.push({ x: p.x, y: p.y, text: '', color, life: 0.55, ripple: true, rippleR: r * 1.8 });
+                    floatingTexts.push({ x: p.x, y: p.y, text: '', color: '#fff', life: 0.35, ripple: true, rippleR: r });
+                    const pCount2 = pts >= 100 ? 14 : pts >= 60 ? 10 : 7;
+                    spawnHitParticles(p.x, p.y, color, pCount2);
+                    spawnHitParticles(p.x, p.y, '#fff', Math.floor(pCount2 * 0.4));
+                }
                 hit = true;
             }
         } else if (mode === 3) {
@@ -1309,6 +1355,10 @@
 
         // 時間
         gameState.timeLeft -= dt / 1000;
+        // ★ 音樂結束（timeLeft <= 0）時停止BGM，但遊戲繼續跑3秒讓按鍵跑完
+        if (gameState.timeLeft <= 0 && gameState.timeLeft > -3 && gameState.active) {
+            stopBGM();
+        }
 
         // 更新計時器顯示
         const tSec = Math.max(0, Math.ceil(gameState.timeLeft));
@@ -1320,7 +1370,8 @@
         // ==========================
         // ⏳ 倒數結束結算區塊
         // ==========================
-        if (gameState.timeLeft <= 0) {
+        if (gameState.timeLeft <= -3) {
+            // ★ 音樂結束後3秒：顯示結算
             gameState.active = false;
             stopBGM();
             document.getElementById('result-screen').classList.remove('hidden');
@@ -1503,7 +1554,7 @@
             // 從 spawnQueue 取出到時間的項目生成圓圈（最後5秒不生成）
             while (spawnQueue.length > 0 && spawnQueue[0].time <= musicTime) {
                 const item = spawnQueue.shift();
-                if (gameState.timeLeft > 5) spawnCytusCircles(item.count);
+                spawnCytusCircles(item.count);
             }
         }
 
@@ -1512,23 +1563,34 @@
             m2MusicTime += dt / 1000;
             m2SpawnT -= dt;
             if (m2SpawnT <= 0) {
-                if (gameState.timeLeft > 5) m2SpawnTiles(gameState.level);
+                m2SpawnTiles(gameState.level);
                 m2SpawnT += m2SpawnInterval(gameState.level);
             }
         }
 
         // ★ Mode 2：透視軌道生成控制（最後5秒不生成）
         if (gameState.mode === 2) {
+            const prevMusicTime = m3MusicTime;
             m3MusicTime += dt / 1000;
+            // ★ m3MusicTime 從 -4 開始，到 0 時啟動 BGM
+            if (prevMusicTime < 0 && m3MusicTime >= 0 && !_bgmStopped) {
+                startBGM();
+            }
             const travelMs = (60000 / (TRACK_DATA[gameState.level]?.bpm || 120)) * M3_TRAVEL_BEATS;
+            const travSec  = travelMs / 1000;
             while (m3SpawnQueue.length > 0) {
                 const next = m3SpawnQueue[0];
                 if ((next.time - m3MusicTime) * 1000 > travelMs) break;
                 m3SpawnQueue.shift();
-                if (gameState.timeLeft <= 5) continue; // 最後5秒不生成
+                // ★ 所有音符從 progress=0 出發（速度一致）
                 [next.left, next.right].forEach(track => {
                     gameState.entities.push({
                         type: 'persp', track, progress: 0,
+                        isHold: next.isHold || false,
+                        holdDuration: next.holdDuration || 0,
+                        holdProgress: 0,
+                        holding: false,
+                        holdReleased: false,
                         hit: false, miss: false, hitAnim: 0
                     });
                 });
@@ -1675,43 +1737,180 @@
                     }
                 }
             } else if (gameState.mode === 2 && e.type === 'persp') {
-                // ★ Mode 3 透視音符
                 const trav = (60000 / (TRACK_DATA[gameState.level]?.bpm || 120)) * M3_TRAVEL_BEATS;
-                if (!e.hit && !e.miss) e.progress += dt / trav;
-                if (!e.hit && !e.miss && e.progress > 1.12) {
-                    e.miss = true; gameState.combo = 0;
-                }
-                if ((e.miss && e.progress > 1.2) || (e.hit && e.hitAnim > 1)) {
-                    gameState.entities.splice(i, 1); continue;
-                }
-                // ★ 未命中時繼續往下移動超出畫面
-                const prog  = e.progress;
-                // 投影：超過1時在基準線下方線性延伸
-                let pp;
-                if (prog <= 1) {
-                    pp = m3Proj(e.track, prog);
-                } else {
-                    const base = m3Proj(e.track, 1);
-                    const over = (prog - 1) * (m3BaseY - m3VpY);
-                    pp = { x: base.x, y: base.y + over, sc: base.sc };
-                }
-                const nr    = canvas.width * M3_NOTE_R * pp.sc;
                 const side  = e.track < 3 ? 0 : 1;
                 const mainC = side === 0 ? '#00aaff' : '#00dd66';
                 const rgb   = side === 0 ? '0,170,255' : '0,221,102';
 
-                if (e.miss) { /* miss 不畫 */ }
-                else if (e.hit) {
-                    e.hitAnim += 0.12; // ★ 快速消失
+                // ── 移動 ──
+                if (!e.hit && !e.miss) e.progress += dt / trav;
+
+                // ── 長按邏輯 ──
+                if (e.isHold && e.holding) {
+                    e.holdProgress += dt / 1000;
+                    if (Math.random() < 0.4) {
+                        gameState.score += 2;
+                        gameState.stats && gameState.stats.total++;
+                    }
+                    e.headProgress = e.holdProgress / e.holdDuration;
+
+                    // ★ 粒子：大量從基準線點擊處噴出
+                    const baseP  = m3Proj(e.track, 1);
+                    const baseNR = canvas.width * M3_NOTE_R;
+                    for (let pi = 0; pi < 4; pi++) {
+                        if (Math.random() < 0.6) {
+                            const ox = (Math.random() - 0.5) * baseNR * 1.6;
+                            spawnHitParticles(baseP.x + ox, m3BaseY, mainC, 1);
+                        }
+                    }
+                    if (Math.random() < 0.35) spawnHitParticles(baseP.x, m3BaseY, '#fff', 2);
+
+                    // 長按完成：尾端到達基準線
+                    const holdTravelProg2 = e.holdDuration / (trav / 1000);
+                    if (e.progress >= 1 + holdTravelProg2) {
+                        e.hit = true; e.hitAnim = 0;
+                        addScore(100, baseP.x, m3BaseY, mainC, 'PERFECT');
+                        spawnHitParticles(baseP.x, m3BaseY, mainC, 22);
+                        spawnHitParticles(baseP.x, m3BaseY, '#fff', 12);
+                        floatingTexts.push({ x: baseP.x, y: m3BaseY - 40, text: 'PERFECT!', color: '#ffe94a', life: 0.8, ripple: false });
+                        floatingTexts.push({ x: baseP.x, y: m3BaseY, text: '', color: mainC, life: 0.5, ripple: true, rippleR: baseNR * 2 });
+                    }
+                } else if (e.isHold && !e.holding && !e.hit && !e.miss) {
+                    if (e.holdProgress > 0 && !e.holdReleased) e.holdReleased = true;
+                }
+
+                // ── Miss 判定 ──
+                if (!e.hit && !e.miss) {
+                    // 未按長按：和普通音符一樣，progress > 1.4 才 miss
+                    if (e.progress > 1.4 && !e.holding) { e.miss = true; gameState.combo = 0; }
+                    // 中途放開：稍後 miss
+                    if (e.isHold && e.holdReleased && e.progress > 1.2) { e.miss = true; gameState.combo = 0; }
+                }
+
+                // ── 清除 ──
+                if (e.miss || (e.hit && e.hitAnim > 1)) { gameState.entities.splice(i, 1); continue; }
+
+                // ── 繪製 ──
+                const prog      = e.progress;
+                const isGlowing = e.isHold && e.holding;
+                // ★ 頭部：未按住時正常往前跑，按住後固定在基準線
+                const headDispProg = (e.isHold && e.holding) ? 1 : Math.min(prog, 1.5);
+                const pp = m3Proj(e.track, headDispProg);
+                const nr = canvas.width * M3_NOTE_R * m3Proj(e.track, Math.min(prog, 1)).sc;
+
+                if (e.hit) {
+                    e.hitAnim += 0.12;
                     const a = Math.max(0, 1 - e.hitAnim);
                     ctx.save(); ctx.globalAlpha = a * 0.8;
                     ctx.fillStyle = mainC; ctx.shadowColor = mainC; ctx.shadowBlur = 20 * a;
                     ctx.beginPath(); ctx.arc(pp.x, pp.y, nr * (1 + e.hitAnim * 1.5), 0, Math.PI * 2); ctx.fill();
                     ctx.restore();
+
+                } else if (e.isHold) {
+                    // ── 長按音符繪製 ──
+                    const holdTravelProg = e.holdDuration / (trav / 1000);
+
+                    // 頭部：未按住時跟 prog 走，按住後固定在基準線
+                    // 按住時頭固定在基準線；未按時跟 prog 繼續往前
+                    const hProg  = isGlowing ? 1 : prog;
+                    const headP  = m3Proj(e.track, hProg);
+                    const headR  = canvas.width * M3_NOTE_R * headP.sc;
+
+                    // 尾部：從頭往後 holdTravelProg 個進度單位
+                    // ★ 問題3修正：不 clamp 到 0，讓尾巴可以延伸到消失點之前（負值=還在畫面上方）
+                    // ★ tailProg 允許負值 → m3Proj 延伸到畫面上方，canvas 自然裁切
+                    const rawTailProg = prog - holdTravelProg;
+                    const tailP  = m3Proj(e.track, rawTailProg);
+                    const tailScPx   = Math.max(0, rawTailProg);
+                    const tailR  = canvas.width * M3_NOTE_R * (0.12 + tailScPx * 0.88) * 0.55;
+
+                    // 淡入：讓長按從頂部就可見（progress 0~0.12 期間淡入）
+                    const fadeIn    = Math.min(1, prog / 0.12);
+                    const bodyAlpha = (e.holdReleased ? 0.25 : 0.85) * fadeIn;
+
+                    // ★ 長條主體
+                    ctx.save();
+                    ctx.globalAlpha = bodyAlpha;
+                    if (isGlowing) { ctx.shadowColor = mainC; ctx.shadowBlur = 24; }
+                    const barG = ctx.createLinearGradient(tailP.x, tailP.y, headP.x, headP.y);
+                    barG.addColorStop(0,   `rgba(${rgb},0.06)`);
+                    barG.addColorStop(0.35, `rgba(${rgb},${isGlowing ? 0.85 : 0.6})`);
+                    barG.addColorStop(1,   `rgba(${rgb},${isGlowing ? 0.96 : 0.80})`);
+                    ctx.fillStyle = barG;
+                    ctx.beginPath();
+                    ctx.moveTo(tailP.x - tailR, tailP.y);
+                    ctx.lineTo(tailP.x + tailR, tailP.y);
+                    ctx.lineTo(headP.x + headR * 0.52, headP.y);
+                    ctx.lineTo(headP.x - headR * 0.52, headP.y);
+                    ctx.closePath(); ctx.fill();
+                    ctx.restore();
+
+                    // 尾端圓弧
+                    ctx.save();
+                    ctx.globalAlpha = bodyAlpha * 0.5;
+                    ctx.fillStyle = `rgba(${rgb},0.35)`;
+                    ctx.beginPath();
+                    ctx.arc(tailP.x, tailP.y, tailR, Math.PI, 0);
+                    ctx.closePath(); ctx.fill();
+                    ctx.restore();
+
+                    // 邊線
+                    ctx.save();
+                    ctx.globalAlpha = (isGlowing ? 0.75 : 0.28) * fadeIn;
+                    ctx.strokeStyle = isGlowing ? '#fff' : mainC;
+                    ctx.lineWidth = isGlowing ? 2 : 1.5;
+                    if (isGlowing) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 10; }
+                    ctx.beginPath();
+                    ctx.moveTo(tailP.x - tailR, tailP.y);
+                    ctx.lineTo(headP.x - headR * 0.52, headP.y);
+                    ctx.moveTo(tailP.x + tailR, tailP.y);
+                    ctx.lineTo(headP.x + headR * 0.52, headP.y);
+                    ctx.stroke();
+                    ctx.restore();
+
+                    // ★ 頭部圓圈（未按：跟著 prog 走；按住：固定基準線發光）
+                    const nearBase  = hProg > 0.78;
+                    const headAlpha = fadeIn;
+                    // 外發光（接近基準線或按住時）
+                    if (nearBase || isGlowing) {
+                        ctx.save();
+                        ctx.globalAlpha = headAlpha * (isGlowing ? 0.65 : (hProg - 0.78) / 0.22 * 0.5);
+                        ctx.strokeStyle = mainC; ctx.lineWidth = 3;
+                        ctx.shadowColor = mainC; ctx.shadowBlur = isGlowing ? 36 : 22;
+                        ctx.beginPath(); ctx.arc(headP.x, headP.y, headR * 1.5, 0, Math.PI * 2); ctx.stroke();
+                        ctx.restore();
+                    }
+                    // 外環
+                    ctx.save();
+                    ctx.globalAlpha = headAlpha;
+                    ctx.strokeStyle = isGlowing ? '#fff' : mainC;
+                    ctx.lineWidth   = headR * 0.22;
+                    ctx.shadowColor = isGlowing ? '#fff' : mainC;
+                    ctx.shadowBlur  = isGlowing ? 32 : (nearBase ? 18 : 6);
+                    ctx.beginPath(); ctx.arc(headP.x, headP.y, headR * 0.8, 0, Math.PI * 2); ctx.stroke();
+                    // 內圓
+                    const ig2 = ctx.createRadialGradient(headP.x, headP.y, 0, headP.x, headP.y, headR * 0.62);
+                    ig2.addColorStop(0, 'rgba(255,255,255,0.98)');
+                    ig2.addColorStop(0.6, 'rgba(255,255,255,0.82)');
+                    ig2.addColorStop(1, `rgba(${rgb},0.35)`);
+                    ctx.fillStyle = ig2;
+                    ctx.shadowColor = '#fff'; ctx.shadowBlur = isGlowing ? 28 : 10;
+                    ctx.beginPath(); ctx.arc(headP.x, headP.y, headR * 0.6, 0, Math.PI * 2); ctx.fill();
+                    ctx.restore();
+
+                    // 尾端亮圓
+                    ctx.save();
+                    ctx.globalAlpha = bodyAlpha * 0.85;
+                    ctx.strokeStyle = mainC; ctx.lineWidth = tailR * 0.28;
+                    ctx.shadowColor = mainC; ctx.shadowBlur = isGlowing ? 18 : 8;
+                    ctx.beginPath(); ctx.arc(tailP.x, tailP.y, tailR * 0.75, 0, Math.PI * 2); ctx.stroke();
+                    ctx.restore();
+
+
                 } else {
+                    // ── 普通音符繪製 ──
                     const nearBase = prog > 0.82;
-                    // 外發光
-                    if (nearBase) {
+                    if (nearBase && prog <= 1) {
                         ctx.save(); ctx.globalAlpha = (prog - 0.82) / 0.18 * 0.5;
                         ctx.strokeStyle = mainC; ctx.lineWidth = 3;
                         ctx.shadowColor = mainC; ctx.shadowBlur = 22;
@@ -1722,7 +1921,7 @@
                     ctx.save();
                     ctx.strokeStyle = mainC; ctx.lineWidth = nr * 0.2;
                     ctx.shadowColor = mainC; ctx.shadowBlur = nearBase ? 18 : 6;
-                    ctx.globalAlpha = 0.88;
+                    ctx.globalAlpha = prog > 1 ? Math.max(0, 1 - (prog - 1) * 5) : 0.88;
                     ctx.beginPath(); ctx.arc(pp.x, pp.y, nr * 0.8, 0, Math.PI * 2); ctx.stroke();
                     ctx.restore();
                     // 內圓
@@ -1732,7 +1931,8 @@
                     ig.addColorStop(1, `rgba(${rgb},0.35)`);
                     ctx.save();
                     ctx.fillStyle = ig; ctx.shadowColor = '#fff';
-                    ctx.shadowBlur = nearBase ? 22 : 8; ctx.globalAlpha = nearBase ? 1 : 0.85;
+                    ctx.shadowBlur = nearBase ? 22 : 8;
+                    ctx.globalAlpha = prog > 1 ? Math.max(0, 1 - (prog - 1) * 5) : (nearBase ? 1 : 0.85);
                     ctx.beginPath(); ctx.arc(pp.x, pp.y, nr * 0.6, 0, Math.PI * 2); ctx.fill();
                     ctx.restore();
                 }
@@ -2268,13 +2468,28 @@
         }
     }, {passive:false});
     canvas.addEventListener('touchmove',  e => { e.preventDefault(); updateTouchState(e); }, {passive:false});
-    canvas.addEventListener('touchend',   e => { e.preventDefault(); updateTouchState(e); }, {passive:false});
+    canvas.addEventListener('touchend', e => {
+        e.preventDefault(); updateTouchState(e);
+        // 通知長按音符放開
+        for (const e2 of gameState.entities) {
+            if (e2.type === 'persp' && e2.isHold && e2.holding) {
+                e2.holding = false;
+            }
+        }
+    }, {passive:false});
     canvas.addEventListener('mousedown',  e => {
         const {x, y} = _canvasXY(e.clientX, e.clientY);
         const t = Math.floor(x / trackWidth); isTouching[t] = true;
         handleInput(x, y, true);
     });
-    window.addEventListener('mouseup', () => isTouching = [false,false,false,false]);
+    window.addEventListener('mouseup', () => {
+        isTouching = [false,false,false,false];
+        for (const e of gameState.entities) {
+            if (e.type === 'persp' && e.isHold && e.holding) {
+                e.holding = false;
+            }
+        }
+    });
 
     // ══════════════════════════════════
     // ⏱ 3-2-1 倒數函式
