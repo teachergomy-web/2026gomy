@@ -1201,6 +1201,14 @@ window.startGame = function() {
 }
 
 // 讓 HTML onclick 可以直接呼叫這些函式
+// ─── AI 測試介面 ───
+window._w8AI = {
+    canRoll:   () => gameState && gameState.phase === 'waiting_roll',
+    roll:      () => { if (typeof rollDice === 'function') rollDice(); },
+    getPhase:  () => gameState?.phase || '',
+    isStudent: () => myRole === 'student',
+};
+
 window.challengePass = challengePass;
 window.challengeFail = challengeFail;
 window.nextTurn      = nextTurn;

@@ -429,101 +429,213 @@ function injectScript(id, code) {
   }
 }
 
-// W4 AI：依模式自動點擊
-const AI_W4 = [
-  'if(window._aiStop)window._aiStop();',
-  'var _t=setInterval(function(){',
-  '  try{',
-  '    var ai=window._w4AI;',
-  '    if(!ai||!ai.isActive())return;',
-  '    var mode=ai.getMode(),ents=ai.entities();',
-  '    var cv=ai.getCanvas(),H=cv?cv.height:600,W=cv?cv.width:400;',
-  '    ents.forEach(function(e){',
-  '      if(!e||e.hit||e.miss)return;',
-  '      if(mode===3){', // 透視：progress 接近1時點擊
-  '        if(e.progress>0.78&&e.progress<1.08&&!e._ah){',
-  '          var proj=ai.getM3Proj?ai.getM3Proj(e.track,Math.min(e.progress,1)):{x:W/2,y:H*0.86};',
-  '          ai.input(proj.x,proj.y,true);e._ah=true;',
-  '        }',
-  '      }else if(mode===1){', // 黑塊：到判定區時點
-  '        var bl=H-110,by=e.y+(e.h||0);',
-  '        if(by>bl-70&&by<bl+90&&!e._ah){',
-  '          var tx=ai.getM2TrackX?ai.getM2TrackX(e.track):(e.track*W/6+W/12);',
-  '          ai.input(tx,bl+20,true);e._ah=true;',
-  '        }',
-  '      }else if(mode===2){', // 縮圈：掃描線靠近時點
-  '        var sc=ai.getScanY?ai.getScanY():H/2;',
-  '        if(e.x&&Math.abs(e.y-sc)<e.radius*1.5&&!e._ah){',
-  '          ai.input(e.x,e.y,true);e._ah=true;',
-  '        }',
-  '      }',
-  '    });',
-  '  }catch(er){}',
-  '},60);',
-  'window._aiStop=function(){clearInterval(_t);};'
-].join('\n');
+// ── W1 消除方塊 ──
+// 介面：isActive() / entities() / input(px,py)
+// entity: { type, x, y, r, active }  type: 'mineral'=點擊, 'bomb'/'penalty'=避免
+const AI_W1 = `
+if (window._aiStop) window._aiStop();
+var _t = setInterval(function() {
+  try {
+    var ai = window._w1AI;
+    if (!ai || !ai.isActive()) return;
+    var ents = ai.entities();
+    // 找最近底部且是可點擊的實體（mineral/square）
+    var targets = ents.filter(function(e) {
+      return e && e.active !== false && e.type !== 'bomb' && e.type !== 'penalty';
+    });
+    if (targets.length === 0) return;
+    // 按 y 由大到小排序，點最下面的
+    targets.sort(function(a,b){ return b.y - a.y; });
+    var t = targets[0];
+    ai.input(t.x, t.y);
+  } catch(er) {}
+}, 150);
+window._aiStop = function() { clearInterval(_t); };
+`;
 
-// W1 AI
-const AI_W1 = [
-  'if(window._aiStop)window._aiStop();',
-  'var _t=setInterval(function(){',
-  '  try{var ai=window._w1AI;if(!ai||!ai.isActive())return;',
-  '  var ents=ai.entities().filter(function(e){return e&&e.active&&e.type!=="ghost"&&e.type!=="bomb";});',
-  '  if(ents.length>0)ai.input(ents[0].x,ents[0].y);}catch(er){}',
-  '},200);',
-  'window._aiStop=function(){clearInterval(_t);};'
-].join('\n');
+// ── W2 能源管線 ──
+// 介面：isReady() / tapGrid(col,row) / getGrid() / getCols() / getRows()
+// 找未連接的管件旋轉
+const AI_W2 = `
+if (window._aiStop) window._aiStop();
+var _t = setInterval(function() {
+  try {
+    var ai = window._w2AI;
+    if (!ai || !ai.isReady()) return;
+    var g = ai.getGrid();
+    var cols = ai.getCols();
+    var rows = ai.getRows();
+    if (!g) return;
+    // 找可旋轉的格子（非固定端點）
+    var rotatable = [];
+    for (var r = 0; r < rows; r++) {
+      for (var c = 0; c < cols; c++) {
+        var cell = g[r] && g[r][c];
+        if (cell && !['S','D','A','B','E','F'].includes(cell.type)) {
+          rotatable.push({r:r, c:c});
+        }
+      }
+    }
+    if (rotatable.length > 0) {
+      var pick = rotatable[Math.floor(Math.random() * rotatable.length)];
+      ai.tapGrid(pick.c, pick.r);
+    }
+  } catch(er) {}
+}, 300);
+window._aiStop = function() { clearInterval(_t); };
+`;
 
-// W2 AI
-const AI_W2 = [
-  'if(window._aiStop)window._aiStop();',
-  'var _t=setInterval(function(){',
-  '  try{var ai=window._w2AI;if(!ai||!ai.isReady())return;',
-  '  var g=ai.getGrid(),cols=ai.getCols(),rows=ai.getRows();if(!g)return;',
-  '  var rot=[];for(var r=0;r<rows;r++)for(var c=0;c<cols;c++){',
-  '    if(g[r][c]&&["S","D","A","B","E","F"].indexOf(g[r][c].type)<0)rot.push({r:r,c:c});',
-  '  }if(rot.length){var p=rot[Math.floor(Math.random()*rot.length)];ai.tapGrid(p.c,p.r);}',
-  '  }catch(er){}',
-  '},200);',
-  'window._aiStop=function(){clearInterval(_t);};'
-].join('\n');
+// ── W4 節奏合鳴（三種玩法）──
+// 介面：isActive() / getMode() / entities() / input(px,py,isStart)
+//       getM2TrackX(track) / getJudgeY() / getM3Proj(track,progress) / getScanY()
+const AI_W4 = `
+if (window._aiStop) window._aiStop();
+var _t = setInterval(function() {
+  try {
+    var ai = window._w4AI;
+    if (!ai || !ai.isActive()) return;
+    var mode = ai.getMode();
+    var ents = ai.entities();
+    var cv = ai.getCanvas();
+    var H = cv ? cv.height : 600;
+    var W = cv ? cv.width  : 400;
 
-// W6 AI
-const AI_W6 = [
-  'if(window._aiStop)window._aiStop();',
-  'var _t=setInterval(function(){',
-  '  try{var ai=window._w6AI;if(!ai||!ai.isPlaying())return;',
-  '  var js=ai.getJoysticks(),cs=ai.getCursors(),cir=ai.getCircles();if(!js||!cs||!cir)return;',
-  '  js.forEach(function(j,i){var tgt=cir[i]||cir[0],cur=cs[i];if(!tgt||!cur)return;',
-  '    var dx=tgt.x-cur.x,dy=tgt.y-cur.y,d=Math.hypot(dx,dy);',
-  '    if(d<8){ai.setJoystick(i,0,0);}else{ai.setJoystick(i,dx/d,dy/d);}',
-  '  });}catch(er){}',
-  '},50);',
-  'window._aiStop=function(){clearInterval(_t);};'
-].join('\n');
+    ents.forEach(function(e) {
+      if (!e || e.hit || e.miss || e._ah) return;
 
-// W7 AI
-const AI_W7 = [
-  'if(window._aiStop)window._aiStop();',
-  'var _t=setInterval(function(){',
-  '  try{var ai=window._w7AI;if(!ai||ai.isPaused())return;',
-  '  if(ai.getFlipPhase()==="PLAY"&&!ai.isFlipLock()){',
-  '    var cards=ai.getFlipCards(),um=cards.filter(function(c){return !c.matched&&!c.flipped;});',
-  '    if(um.length>=2){ai.clickFlip(um[0]);',
-  '      setTimeout(function(){var s=ai.getFlipCards().filter(function(c){return !c.matched&&!c.flipped;});',
-  '        var p=s.find(function(c){return c.emojiIdx===um[0].emojiIdx;});',
-  '        if(p)ai.clickFlip(p);else if(s[0])ai.clickFlip(s[0]);},450);}',
-  '  }}catch(er){}',
-  '},500);',
-  'window._aiStop=function(){clearInterval(_t);};'
-].join('\n');
+      if (mode === 1) {
+        // 玩法1（黑塊）：tile6 進判定區時點擊
+        if (e.type !== 'tile6') return;
+        var jY = ai.getJudgeY ? ai.getJudgeY() : H - 55;
+        var by = e.y + (e.h || 0);
+        if (by > jY - 90 && by < jY + 80) {
+          var tx = ai.getM2TrackX ? ai.getM2TrackX(e.track) : (e.track * W / 6 + W / 12);
+          ai.input(tx, jY, true);
+          e._ah = true;
+        }
 
-// W8 AI
-const AI_W8 = [
-  'if(window._aiStop)window._aiStop();',
-  'var _t=setInterval(function(){try{if(typeof rollDice==="function")rollDice();}catch(e){}},1500);',
-  'window._aiStop=function(){clearInterval(_t);};'
-].join('\n');
+      } else if (mode === 2) {
+        // 玩法2（透視）：persp 音符接近基準線時點擊
+        if (e.type !== 'persp') return;
+        if (e.progress > 0.72 && e.progress < 1.1) {
+          var proj = ai.getM3Proj ? ai.getM3Proj(e.track, Math.min(e.progress,1)) : {x:W/2, y:H*0.86};
+          ai.input(proj.x, proj.y, true);
+          e._ah = true;
+        }
+
+      } else if (mode === 3) {
+        // 玩法3（縮圈）：circle 掃描線靠近時點擊
+        if (e.type !== 'circle') return;
+        var sY = ai.getScanY ? ai.getScanY() : H / 2;
+        if (Math.abs(sY - e.y) < (e.radius || 30) * 2) {
+          ai.input(e.x, e.y, true);
+          e._ah = true;
+        }
+      }
+    });
+  } catch(er) {}
+}, 50);
+window._aiStop = function() { clearInterval(_t); };
+`;
+
+// ── W6 雙人圈圈 ──
+// 介面：isPlaying() / getJoysticks() / getCursors() / getCircles() / setJoystick(i,dx,dy)
+const AI_W6 = `
+if (window._aiStop) window._aiStop();
+var _t = setInterval(function() {
+  try {
+    var ai = window._w6AI;
+    if (!ai || !ai.isPlaying()) return;
+    var js  = ai.getJoysticks();
+    var cs  = ai.getCursors();
+    var cir = ai.getCircles();
+    if (!js || !cs || !cir) return;
+    js.forEach(function(j, i) {
+      var tgt = cir[i] || cir[0];
+      var cur = cs[i];
+      if (!tgt || !cur) return;
+      var dx = tgt.x - cur.x;
+      var dy = tgt.y - cur.y;
+      var d  = Math.hypot(dx, dy);
+      if (d < 8) { ai.setJoystick(i, 0, 0); }
+      else        { ai.setJoystick(i, dx/d, dy/d); }
+    });
+  } catch(er) {}
+}, 50);
+window._aiStop = function() { clearInterval(_t); };
+`;
+
+// ── W7 記憶大考驗（三個小遊戲）──
+// 介面：getFlipPhase/isFlipLock/clickFlip/getParadePhase/getParadeSeq/getParadeUser/pushParade/submitParade
+//       getSafeCmds/getSafeStep/getSafeSubStep/operateGear/confirmSafe / isPaused()
+const AI_W7 = `
+if (window._aiStop) window._aiStop();
+var _t = setInterval(function() {
+  try {
+    var ai = window._w7AI;
+    if (!ai) return;
+    if (ai.isPaused && ai.isPaused()) return;
+
+    // ① 翻牌配對
+    if (ai.getFlipPhase() === 'PLAY' && !ai.isFlipLock()) {
+      var cards = ai.getFlipCards();
+      var unmatched = cards.filter(function(c){ return !c.matched && !c.flipped; });
+      if (unmatched.length >= 2) {
+        ai.clickFlip(unmatched[0]);
+        setTimeout(function() {
+          var again = ai.getFlipCards().filter(function(c){ return !c.matched && !c.flipped; });
+          var pair  = again.find(function(c){ return c.emojiIdx === unmatched[0].emojiIdx; });
+          if (pair)    ai.clickFlip(pair);
+          else if (again[0]) ai.clickFlip(again[0]);
+        }, 500);
+      }
+    }
+
+    // ② 節奏跟打
+    if (ai.getParadePhase && ai.getParadePhase() === 'INPUT') {
+      var seq  = ai.getParadeSeq();
+      var user = ai.getParadeUser();
+      if (user.length < seq.length) {
+        ai.pushParade(seq[user.length]);
+      } else {
+        ai.submitParade();
+      }
+    }
+
+    // ③ 密碼鎖
+    var cmds    = ai.getSafeCmds ? ai.getSafeCmds() : [];
+    var step    = ai.getSafeStep ? ai.getSafeStep() : 0;
+    var subStep = ai.getSafeSubStep ? ai.getSafeSubStep() : 0;
+    if (cmds.length > 0 && step < cmds.length) {
+      var cmd = cmds[step];
+      var dir = cmd.dir === 'L' ? -1 : 1;
+      if (subStep < cmd.val)    { ai.operateGear(dir); }
+      else if (subStep === cmd.val) { setTimeout(function(){ ai.confirmSafe(); }, 200); }
+    }
+  } catch(er) {}
+}, 500);
+window._aiStop = function() { clearInterval(_t); };
+`;
+
+// ── W8 環遊大富翁 ──
+// 介面：canRoll() / roll() / getPhase()
+const AI_W8 = `
+if (window._aiStop) window._aiStop();
+var _t = setInterval(function() {
+  try {
+    var ai = window._w8AI;
+    if (!ai) {
+      // 備用：直接呼叫 rollDice
+      if (typeof rollDice === 'function' && window.gameState && window.gameState.phase === 'waiting_roll') {
+        rollDice();
+      }
+      return;
+    }
+    if (ai.canRoll()) ai.roll();
+  } catch(er) {}
+}, 1500);
+window._aiStop = function() { clearInterval(_t); };
+`;
 
 const AI_SCRIPTS = { 1:AI_W1, 2:AI_W2, 3:null, 4:AI_W4, 5:null, 6:AI_W6, 7:AI_W7, 8:AI_W8 };
 
@@ -1054,28 +1166,36 @@ async function stepInjectAI() {
       try {
         const w = getWin(id);
         let ready = false;
-
-        if (gameId === 4) {
-          // W4：檢查 game-ui 可見（遊戲已啟動）
-          const doc = getDoc(id);
-          const gameUi = doc?.getElementById('game-ui');
-          const canvas = doc?.getElementById('gameCanvas');
-          ready = gameUi && !gameUi.classList.contains('hidden') && canvas;
-          if (!ready) ready = w?._w4AI?.isActive?.() === true;
-        } else if (gameId === 1) {
-          ready = w?._w1AI?.isActive?.() === true;
-        } else if (gameId === 2) {
-          ready = w?._w2AI?.isReady?.() === true;
-        } else if (gameId === 6) {
-          ready = w?._w6AI?.isPlaying?.() === true;
-        } else if (gameId === 7) {
-          ready = (w?._w7AI?.getFlipCards?.()?.length > 0 || w?._w7AI?.getSafeCmds?.()?.length > 0);
-        } else if (gameId === 8) {
-          ready = w?.gameState?.phase === 'waiting_roll';
-        } else {
-          const gui = getDoc(id)?.getElementById('game-ui');
-          ready = gui && !gui.classList.contains('hidden');
-        }
+        try {
+          if (gameId === 4) {
+            // W4：game-ui 可見就注入（AI 腳本內部等 active）
+            const doc = getDoc(id);
+            const gameUi = doc?.getElementById('game-ui');
+            ready = gameUi && !gameUi.classList.contains('hidden');
+          } else if (gameId === 1) {
+            // W1：AI 介面存在且 isActive
+            ready = w?._w1AI?.isActive?.() === true;
+            // 若 isActive 一直是 false，改檢查 game-ui
+            if (!ready) {
+              const gui = getDoc(id)?.getElementById('game-ui');
+              ready = gui && !gui.classList.contains('hidden');
+            }
+          } else if (gameId === 2) {
+            ready = w?._w2AI?.isReady?.() === true;
+          } else if (gameId === 6) {
+            ready = w?._w6AI?.isPlaying?.() === true;
+          } else if (gameId === 7) {
+            const f7 = w?._w7AI?.getFlipCards?.() || [];
+            const s7 = w?._w7AI?.getSafeCmds?.() || [];
+            ready = f7.length > 0 || s7.length > 0 || w?._w7AI?.getFlipPhase?.() !== '';
+          } else if (gameId === 8) {
+            // W8：有 _w8AI 就注入（腳本內部等 canRoll）
+            ready = !!w?._w8AI || w?.gameState?.phase === 'waiting_roll';
+          } else {
+            const gui = getDoc(id)?.getElementById('game-ui');
+            ready = gui && !gui.classList.contains('hidden');
+          }
+        } catch(ex) { ready = false; }
 
         if (ready) {
           const ok = injectScript(id, script);
