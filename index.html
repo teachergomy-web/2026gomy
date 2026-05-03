@@ -757,9 +757,9 @@ body::before {
     <div style="color:rgba(255,255,255,.25);font-family:'Nunito',sans-serif;font-size:.9rem">按「全班開始」後顯示即時分數</div>
   </div>
 
-  <!-- 下一關按鈕（W4 專用）-->
+  <!-- 下一關/下一玩法按鈕（W4 專用）-->
   <div id="tc-next-level-container" style="display:none;padding-bottom:8px;text-align:center;flex-shrink:0;">
-    <button class="kr-btn kr-btn-blue" onclick="tcW4NextLevel()" style="font-size:1rem;padding:12px 36px;box-shadow:0 4px 0 var(--blue2);border-radius:16px;font-weight:900;">🎵 直接進行下一關 (M<span id="nl-mode"></span>-LV<span id="nl-level"></span>)</button>
+    <button class="kr-btn kr-btn-blue" id="tc-next-level-btn" onclick="tcW4NextLevelOrMode()" style="font-size:1rem;padding:12px 36px;box-shadow:0 4px 0 var(--blue2);border-radius:16px;font-weight:900;">🎵 直接進行下一關 (M<span id="nl-mode"></span>-LV<span id="nl-level"></span>)</button>
   </div>
 
   <!-- 底部操作列：暫停 / 繼續 / 結算（統一放這裡，永遠看得到）-->
@@ -1951,20 +1951,13 @@ const GAME_RULES = [
 
 // W4 三種玩法（老師端各玩法開始前顯示）
 const GAME_RULES_W4 = [
-  { icon:'▬', name:'節奏合鳴 — 玩法 1', color:'#9b59b6', lines:[
-    '左右各3軌，黑塊落入底部判定區時點擊！',
-    '兩側同時出現，需要合作配合',
+  { icon:'🎵', name:'節奏合鳴 — 遊戲規則', color:'#b44fff', lines:[
+    '本遊戲共有三種玩法，依序進行',
+    '▬ 玩法1：左右各3軌，黑塊落入底部判定區時點擊',
+    '↓ 玩法2：圓圈從遠處推進，到達基準線時點擊',
+    '◎ 玩法3：掃描線來回，掃到圓圈時點擊',
     'PERFECT 100分 / GREAT 60分 / GOOD 30分',
-  ]},
-  { icon:'↓', name:'節奏合鳴 — 玩法 2', color:'#e67e22', lines:[
-    '圓圈從遠處往基準線推進',
-    '到達基準線時點擊！',
-    'PERFECT 100分 / GREAT 60分 / GOOD 30分',
-  ]},
-  { icon:'◎', name:'節奏合鳴 — 玩法 3', color:'#b44fff', lines:[
-    '掃描線來回移動，掃到圓圈時點擊！',
-    '掃描線越準，分數越高',
-    'PERFECT 100分 / GREAT 60分 / GOOD 30分',
+    '準確點擊提高 Combo，累計最高分！',
   ]},
 ];
 
@@ -2069,9 +2062,8 @@ function showRulesOverlay() {
 // W7：依選擇的 Part 顯示對應規則
 function _getRuleForCurrentSelection(gIdx) {
   if (gIdx === 3) {
-    // W4：依目前選擇的模式
-    const mode = lsW4SelectedMode || 1;
-    return GAME_RULES_W4[(mode - 1)] || GAME_RULES_W4[0];
+    // W4：通用規則（三玩法說明合一）
+    return GAME_RULES_W4[0];
   }
   if (gIdx === 6) {
     // W7：依目前選擇的 Part
@@ -2392,16 +2384,27 @@ function tcStartGame() {
             badge.textContent = `M${lsW4SelectedMode} · LV${lsW4SelectedLevel}`;
             badge.style.display = '';
         }
-        // 下一關按鈕：LV1-9 顯示，LV10 由 w4ShowModeCompletePanel 的按鈕接手
+        // 下一關/下一玩法按鈕：永遠顯示（最後玩法最後關才隱藏）
         const nextContainer = document.getElementById('tc-next-level-container');
-        if (nextContainer) {
-            const canNext = lsW4SelectedLevel < 10;
-            nextContainer.style.display = canNext ? 'block' : 'none';
-            if (canNext) {
-                const elMode  = document.getElementById('nl-mode');
-                const elLevel = document.getElementById('nl-level');
-                if (elMode)  elMode.textContent  = lsW4SelectedMode;
-                if (elLevel) elLevel.textContent = lsW4SelectedLevel + 1;
+        const nextBtn       = document.getElementById('tc-next-level-btn');
+        const elMode        = document.getElementById('nl-mode');
+        const elLevel       = document.getElementById('nl-level');
+        const curMode  = lsW4SelectedMode  || 1;
+        const curLevel = lsW4SelectedLevel || 1;
+        const isLastAll = curMode >= 3 && curLevel >= 10; // 玩法3 LV10 = 全部結束
+        if (nextContainer) nextContainer.style.display = isLastAll ? 'none' : 'block';
+        if (!isLastAll && nextBtn) {
+            if (curLevel < 10) {
+                // LV1-9：下一關
+                nextBtn.style.background = '';
+                nextBtn.style.boxShadow  = '0 4px 0 var(--blue2)';
+                nextBtn.textContent = '';
+                nextBtn.innerHTML = `🎵 直接進行下一關 (M${curMode}-LV${curLevel + 1})`;
+            } else {
+                // LV10：下一玩法
+                nextBtn.style.background = 'linear-gradient(135deg,#b44fff,#7b2fff)';
+                nextBtn.style.boxShadow  = '0 4px 0 #4a1a99';
+                nextBtn.textContent = `▶ 玩法 ${curMode + 1} 開始`;
             }
         }
         // 新模式開始時重置各組完成記錄
@@ -2538,11 +2541,27 @@ function tcW4StartNextMode(nextMode) {
     // 重置完成記錄（等待下一模式各組完成）
     window._w4ModeComplete = window._w4ModeComplete || {};
     window.state.players.forEach(p => { delete window._w4ModeComplete[p.group]; });
-    // 顯示老師端規則覆蓋層（讓老師確認規則後按「全班開始！」）
-    showRulesOverlay();
+    // ★ 直接啟動，不跳規則頁
+    tcStartGame();
+    showToast(`🎵 玩法 ${nextMode} 開始！`);
 }
 
-// ── W4 下一關（LV1-9 用，LV10 由 w4ShowModeCompletePanel 的按鈕接手）──
+// ── W4 下一關或下一玩法（統一入口）──
+function tcW4NextLevelOrMode() {
+    const curMode  = parseInt(lsW4SelectedMode  || 1, 10);
+    const curLevel = parseInt(lsW4SelectedLevel || 1, 10);
+    if (curLevel < 10) {
+        // LV1-9：直接下一關
+        tcW4NextLevel();
+    } else if (curMode < 3) {
+        // LV10 且非最後玩法：切換到下一玩法
+        tcW4StartNextMode(curMode + 1);
+    } else {
+        showToast('已完成所有玩法！');
+    }
+}
+
+// ── W4 下一關（LV1-9）──
 function tcW4NextLevel() {
     const rooms = window.getRooms();
     const r = rooms[window.state.roomCode];
@@ -2557,11 +2576,8 @@ function tcW4NextLevel() {
         TC.level = currentLevel + 1;
         TC.isNextLevel = true;
         tcStartGame();
-    } else if (currentMode < 3) {
-        // LV10：由「下一玩法」按鈕觸發，這裡提示等待
-        showToast('本模式已完成！等待全組完成後再切換玩法');
     } else {
-        showToast('已是最後一模式的最後一關！');
+        // LV10：由 tcW4NextLevelOrMode 處理
     }
 }
 
@@ -4635,7 +4651,7 @@ Object.assign(window, {
     backToStep1, verifyRoomPassword, backToPassword, onGroupSelect, pickGroup, joinRoom,
     doCloseRoom, selectGame, leaveRoomStudent, teacherLogin, _finishJoin,
     openTeacherConsole, changeLevel, jumpToPhase, updateLevelDisplay,
-    tcStartGame, tcPauseGame, tcResumeGame, tcSettleGame, tcEndGame, tcW4NextLevel, exitToLobby, studentLeaveGame, tryRestoreSession,
+    tcStartGame, tcPauseGame, tcResumeGame, tcSettleGame, tcEndGame, tcW4NextLevel, tcW4NextLevelOrMode, exitToLobby, studentLeaveGame, tryRestoreSession,
     tcKickPlayer, w4RenderTCScores, w4ShowModeCompletePanel, tcW4StartNextMode,
     toggleBGMMute, setBGMVolume, startTeacherBGM, stopTeacherBGM,
     studentAudioUnlock, updateRulesReadyList,
