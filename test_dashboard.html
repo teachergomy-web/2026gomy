@@ -382,93 +382,265 @@ const TEACHER_PW = '3758';
 const STEP_DELAY = () => parseInt(document.getElementById('speed-select').value);
 const LONG_DELAY = () => STEP_DELAY() * 3;
 
-let iframes = {}; // { teacher, student1, student2, ... }
+let iframes     = {};
 let testRunning = false;
 let testPaused  = false;
 let currentStepIdx = 0;
-let stepList = [];
-let abortTest = false;
+let stepList    = [];
+let abortTest   = false;
 
 // ════════════════════════════════════════
 // 遊戲定義
 // ════════════════════════════════════════
 const GAMES = {
-  1: { name:'消除方塊',   icon:'⭐', file:'W1_消除方塊.html',     hasLevel: true  },
-  2: { name:'能源管線',   icon:'⚡', file:'W2_能源管線.html',     hasLevel: true  },
-  3: { name:'五子棋對戰', icon:'⚫', file:'W3_五子棋對戰.html',   hasLevel: false },
-  4: { name:'節奏合鳴',   icon:'🎵', file:'W4_節奏合鳴.html',     hasLevel: true  },
-  5: { name:'你畫我猜',   icon:'🎨', file:'W5_你畫我猜.html',     hasLevel: false },
-  6: { name:'雙人圈圈',   icon:'⭕', file:'W6_雙人圈圈.html',     hasLevel: true  },
-  7: { name:'記憶大考驗', icon:'🧠', file:'W7_記憶力大考驗.html', hasLevel: true  },
-  8: { name:'環遊大富翁', icon:'🚀', file:'W8_環遊大富翁.html',   hasLevel: false },
+  1: { name:'消除方塊',   icon:'⭐', hasLevel: true  },
+  2: { name:'能源管線',   icon:'⚡', hasLevel: true  },
+  3: { name:'五子棋對戰', icon:'⚫', hasLevel: false },
+  4: { name:'節奏合鳴',   icon:'🎵', hasLevel: true  },
+  5: { name:'你畫我猜',   icon:'🎨', hasLevel: false },
+  6: { name:'雙人圈圈',   icon:'⭕', hasLevel: true  },
+  7: { name:'記憶大考驗', icon:'🧠', hasLevel: true  },
+  8: { name:'環遊大富翁', icon:'🚀', hasLevel: false },
 };
 
-const GROUP_NAMES = ['第1組', '第2組', '第3組', '第4組'];
-const GROUP_SYMBOLS = ['🐻', '🐼', '🦊', '🐸'];
+// ════════════════════════════════════════
+// AI 腳本（每個遊戲自動操作）
+// ════════════════════════════════════════
+function stopAllAI() {
+  Object.keys(iframes).forEach(id => {
+    try {
+      const w = getWin(id);
+      if (w && typeof w._aiStop === 'function') w._aiStop();
+    } catch(e) {}
+  });
+}
+
+function injectScript(id, code) {
+  try {
+    const win = getWin(id);
+    if (!win) { log(id + ' iframe 不可存取', 'warn'); return false; }
+    if (typeof win._aiStop === 'function') win._aiStop();
+    const fn = new win.Function(code);
+    fn.call(win);
+    return true;
+  } catch(e) {
+    log(id + ' AI 注入失敗：' + e.message, 'error');
+    return false;
+  }
+}
+
+// W4 AI：依模式自動點擊
+const AI_W4 = [
+  'if(window._aiStop)window._aiStop();',
+  'var _t=setInterval(function(){',
+  '  try{',
+  '    var ai=window._w4AI;',
+  '    if(!ai||!ai.isActive())return;',
+  '    var mode=ai.getMode(),ents=ai.entities();',
+  '    var cv=ai.getCanvas(),H=cv?cv.height:600,W=cv?cv.width:400;',
+  '    ents.forEach(function(e){',
+  '      if(!e||e.hit||e.miss)return;',
+  '      if(mode===3){', // 透視：progress 接近1時點擊
+  '        if(e.progress>0.78&&e.progress<1.08&&!e._ah){',
+  '          var proj=ai.getM3Proj?ai.getM3Proj(e.track,Math.min(e.progress,1)):{x:W/2,y:H*0.86};',
+  '          ai.input(proj.x,proj.y,true);e._ah=true;',
+  '        }',
+  '      }else if(mode===1){', // 黑塊：到判定區時點
+  '        var bl=H-110,by=e.y+(e.h||0);',
+  '        if(by>bl-70&&by<bl+90&&!e._ah){',
+  '          var tx=ai.getM2TrackX?ai.getM2TrackX(e.track):(e.track*W/6+W/12);',
+  '          ai.input(tx,bl+20,true);e._ah=true;',
+  '        }',
+  '      }else if(mode===2){', // 縮圈：掃描線靠近時點
+  '        var sc=ai.getScanY?ai.getScanY():H/2;',
+  '        if(e.x&&Math.abs(e.y-sc)<e.radius*1.5&&!e._ah){',
+  '          ai.input(e.x,e.y,true);e._ah=true;',
+  '        }',
+  '      }',
+  '    });',
+  '  }catch(er){}',
+  '},60);',
+  'window._aiStop=function(){clearInterval(_t);};'
+].join('\n');
+
+// W1 AI
+const AI_W1 = [
+  'if(window._aiStop)window._aiStop();',
+  'var _t=setInterval(function(){',
+  '  try{var ai=window._w1AI;if(!ai||!ai.isActive())return;',
+  '  var ents=ai.entities().filter(function(e){return e&&e.active&&e.type!=="ghost"&&e.type!=="bomb";});',
+  '  if(ents.length>0)ai.input(ents[0].x,ents[0].y);}catch(er){}',
+  '},200);',
+  'window._aiStop=function(){clearInterval(_t);};'
+].join('\n');
+
+// W2 AI
+const AI_W2 = [
+  'if(window._aiStop)window._aiStop();',
+  'var _t=setInterval(function(){',
+  '  try{var ai=window._w2AI;if(!ai||!ai.isReady())return;',
+  '  var g=ai.getGrid(),cols=ai.getCols(),rows=ai.getRows();if(!g)return;',
+  '  var rot=[];for(var r=0;r<rows;r++)for(var c=0;c<cols;c++){',
+  '    if(g[r][c]&&["S","D","A","B","E","F"].indexOf(g[r][c].type)<0)rot.push({r:r,c:c});',
+  '  }if(rot.length){var p=rot[Math.floor(Math.random()*rot.length)];ai.tapGrid(p.c,p.r);}',
+  '  }catch(er){}',
+  '},200);',
+  'window._aiStop=function(){clearInterval(_t);};'
+].join('\n');
+
+// W6 AI
+const AI_W6 = [
+  'if(window._aiStop)window._aiStop();',
+  'var _t=setInterval(function(){',
+  '  try{var ai=window._w6AI;if(!ai||!ai.isPlaying())return;',
+  '  var js=ai.getJoysticks(),cs=ai.getCursors(),cir=ai.getCircles();if(!js||!cs||!cir)return;',
+  '  js.forEach(function(j,i){var tgt=cir[i]||cir[0],cur=cs[i];if(!tgt||!cur)return;',
+  '    var dx=tgt.x-cur.x,dy=tgt.y-cur.y,d=Math.hypot(dx,dy);',
+  '    if(d<8){ai.setJoystick(i,0,0);}else{ai.setJoystick(i,dx/d,dy/d);}',
+  '  });}catch(er){}',
+  '},50);',
+  'window._aiStop=function(){clearInterval(_t);};'
+].join('\n');
+
+// W7 AI
+const AI_W7 = [
+  'if(window._aiStop)window._aiStop();',
+  'var _t=setInterval(function(){',
+  '  try{var ai=window._w7AI;if(!ai||ai.isPaused())return;',
+  '  if(ai.getFlipPhase()==="PLAY"&&!ai.isFlipLock()){',
+  '    var cards=ai.getFlipCards(),um=cards.filter(function(c){return !c.matched&&!c.flipped;});',
+  '    if(um.length>=2){ai.clickFlip(um[0]);',
+  '      setTimeout(function(){var s=ai.getFlipCards().filter(function(c){return !c.matched&&!c.flipped;});',
+  '        var p=s.find(function(c){return c.emojiIdx===um[0].emojiIdx;});',
+  '        if(p)ai.clickFlip(p);else if(s[0])ai.clickFlip(s[0]);},450);}',
+  '  }}catch(er){}',
+  '},500);',
+  'window._aiStop=function(){clearInterval(_t);};'
+].join('\n');
+
+// W8 AI
+const AI_W8 = [
+  'if(window._aiStop)window._aiStop();',
+  'var _t=setInterval(function(){try{if(typeof rollDice==="function")rollDice();}catch(e){}},1500);',
+  'window._aiStop=function(){clearInterval(_t);};'
+].join('\n');
+
+const AI_SCRIPTS = { 1:AI_W1, 2:AI_W2, 3:null, 4:AI_W4, 5:null, 6:AI_W6, 7:AI_W7, 8:AI_W8 };
 
 // ════════════════════════════════════════
-// 裝置模擬尺寸
+// iframe / DOM 工具
 // ════════════════════════════════════════
 const DEVICE_PRESETS = {
-  teacher: { label:'老師端（桌機）', w: null, h: null, isScaled: false },
-  student_desktop: { label:'學生（桌機）', w: null, h: null, isScaled: false },
-  student_tablet:  { label:'學生（iPad 11"）', w: 1194, h: 834, isScaled: true, badge:'tablet' },
-  student_mobile:  { label:'學生（iPhone 14）', w: 390, h: 844, isScaled: true, badge:'mobile' },
+  teacher:         { label:'老師端（桌機）' },
+  student_desktop: { label:'學生（桌機）'  },
+  student_tablet:  { label:'學生（iPad 11"）', w:1194, h:834 },
+  student_mobile:  { label:'學生（iPhone 14）', w:390,  h:844 },
 };
+
+function getWin(id) {
+  const fr = iframes[id];
+  if (!fr) return null;
+  try { return fr.contentWindow; } catch(e) { return null; }
+}
+function getDoc(id) {
+  try { return getWin(id)?.document; } catch(e) { return null; }
+}
+function clickIn(id, selector) {
+  try {
+    const el = getDoc(id)?.querySelector(selector);
+    if (el) { el.click(); return true; }
+  } catch(e) {}
+  return false;
+}
+function setInput(id, selector, value) {
+  try {
+    const el = getDoc(id)?.querySelector(selector);
+    if (!el) return false;
+    el.value = value;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    return true;
+  } catch(e) { return false; }
+}
+function callFn(id, fn, ...args) {
+  const win = getWin(id);
+  if (win && typeof win[fn] === 'function') { win[fn](...args); return true; }
+  return false;
+}
+function waitFor(cond, timeout=8000) {
+  return new Promise((res, rej) => {
+    const start = Date.now();
+    const check = () => {
+      if (abortTest) { rej(new Error('已中止')); return; }
+      try { if (cond()) { res(); return; } } catch(e) {}
+      if (Date.now() - start > timeout) { rej(new Error('逾時')); return; }
+      setTimeout(check, 120);
+    };
+    check();
+  });
+}
+function sleep(ms) {
+  return new Promise(resolve => {
+    const poll = setInterval(() => {
+      if (!testPaused) { clearInterval(poll); setTimeout(resolve, ms); }
+    }, 100);
+    if (!testPaused) { clearInterval(poll); setTimeout(resolve, ms); }
+  });
+}
+function setSlotStatus(id, text, color='var(--muted)') {
+  const el = document.getElementById('status-' + id);
+  if (el) { el.textContent = text; el.style.color = color; }
+}
 
 // ════════════════════════════════════════
 // 日誌
 // ════════════════════════════════════════
-function log(msg, type = 'info') {
+function log(msg, type='info') {
   const body = document.getElementById('log-body');
   const icons = { ok:'✅', warn:'⚠️', error:'❌', info:'ℹ️', step:'▶', action:'🖱️' };
-  const now = new Date().toLocaleTimeString('zh-TW', { hour12: false, hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  const now = new Date().toLocaleTimeString('zh-TW',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
   const entry = document.createElement('div');
-  entry.className = `log-entry log-${type}`;
-  entry.innerHTML = `<span class="log-time">${now}</span><span class="log-icon">${icons[type]||'·'}</span><span class="log-msg">${msg}</span>`;
+  entry.className = 'log-entry log-' + type;
+  entry.innerHTML = '<span class="log-time">' + now + '</span><span class="log-icon">' + (icons[type]||'·') + '</span><span class="log-msg">' + msg + '</span>';
   body.appendChild(entry);
   body.scrollTop = body.scrollHeight;
 }
 function clearLog() { document.getElementById('log-body').innerHTML = ''; }
 
 // ════════════════════════════════════════
-// 步驟顯示
+// 步驟 UI
 // ════════════════════════════════════════
 function renderSteps() {
   const panel = document.getElementById('steps-panel');
   panel.innerHTML = '<div style="font-size:.62rem;color:var(--muted);font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:0 4px 4px">測試步驟</div>';
   stepList.forEach((s, i) => {
     const div = document.createElement('div');
-    div.id = `step-${i}`;
+    div.id = 'step-' + i;
     div.className = 'step-row pending';
-    div.innerHTML = `<span class="step-icon">○</span><span>${s.label}</span>`;
+    div.innerHTML = '<span class="step-icon">○</span><span>' + s.label + '</span>';
     panel.appendChild(div);
   });
 }
-
 function setStepState(idx, state) {
-  const el = document.getElementById(`step-${idx}`);
+  const el = document.getElementById('step-' + idx);
   if (!el) return;
   const icons = { active:'▶', done:'✓', failed:'✗', pending:'○' };
-  el.className = `step-row ${state}`;
+  el.className = 'step-row ' + state;
   el.querySelector('.step-icon').textContent = icons[state] || '○';
-  if (state === 'active') el.scrollIntoView({ behavior:'smooth', block:'nearest' });
-  // 更新 header
   if (state === 'active') {
+    el.scrollIntoView({ behavior:'smooth', block:'nearest' });
     document.getElementById('step-label').textContent = stepList[idx]?.label || '';
   }
 }
-
 function updateProgress() {
   const done = stepList.filter((_, i) => {
-    const el = document.getElementById(`step-${i}`);
+    const el = document.getElementById('step-' + i);
     return el && el.classList.contains('done');
   }).length;
-  document.getElementById('progress-bar').style.width = `${(done / Math.max(stepList.length, 1)) * 100}%`;
+  document.getElementById('progress-bar').style.width = ((done / Math.max(stepList.length, 1)) * 100) + '%';
 }
 
 // ════════════════════════════════════════
-// iframe 建立
+// Viewport 建立
 // ════════════════════════════════════════
 function buildViewports() {
   const container = document.getElementById('viewports');
@@ -479,216 +651,116 @@ function buildViewports() {
   const baseUrl = document.getElementById('base-url').value.trim();
   const total = 1 + numStudents;
 
-  let cols, rows;
-  if (total <= 2)      { cols = 2; rows = 1; }
-  else if (total <= 4) { cols = 2; rows = 2; }
-  else                 { cols = 3; rows = 2; }
+  let cols = total <= 2 ? 2 : total <= 4 ? 2 : 3;
+  let rows = total <= 2 ? 1 : total <= 4 ? 2 : 2;
+  container.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
+  container.style.gridTemplateRows    = 'repeat(' + rows + ', 1fr)';
 
-  container.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-  container.style.gridTemplateRows    = `repeat(${rows}, 1fr)`;
-
-  const teacherSlot = makeSlot('teacher', '👨‍🏫 老師端', 'badge-teacher', baseUrl, 'teacher');
+  const teacherSlot = makeSlot('teacher', '👨\u200D🏫 老師端', 'badge-teacher', baseUrl);
   teacherSlot.classList.add('is-teacher');
   container.appendChild(teacherSlot);
 
-  const studentDevices = [
-    { label: '學生1 桌機',  deviceType: 'student_desktop', badge: 'badge-student' },
-    { label: '學生2 iPad',  deviceType: 'student_tablet',  badge: 'badge-tablet'  },
-    { label: '學生3 iPhone',deviceType: 'student_mobile',  badge: 'badge-mobile'  },
-    { label: '學生4 桌機',  deviceType: 'student_desktop', badge: 'badge-student' },
+  const devs = [
+    { label:'學生1 桌機',   dt:'student_desktop', badge:'badge-student' },
+    { label:'學生2 IPAD',   dt:'student_tablet',  badge:'badge-tablet'  },
+    { label:'學生3 IPHONE', dt:'student_mobile',  badge:'badge-mobile'  },
+    { label:'學生4 桌機',   dt:'student_desktop', badge:'badge-student' },
   ].slice(0, numStudents);
 
-  studentDevices.forEach((dev, i) => {
-    const slot = makeSlot(`student${i+1}`, dev.label, dev.badge, baseUrl, dev.deviceType);
-    container.appendChild(slot);
+  devs.forEach((dev, i) => {
+    container.appendChild(makeSlot('student' + (i + 1), dev.label, dev.badge, baseUrl, dev.dt));
   });
 
   requestAnimationFrame(scaleIframes);
 }
 
-function makeSlot(id, label, badgeClass, baseUrl, deviceType = null) {
+function makeSlot(id, label, badgeClass, baseUrl, deviceType) {
   const slot = document.createElement('div');
-  slot.className = 'vp-slot';
-  slot.id = `slot-${id}`;
+  slot.className = 'vp-slot' + (id === 'teacher' ? ' is-teacher' : '');
+  slot.id = 'slot-' + id;
 
-  const isTablet = false; // 統一用自適應，不加裝置框
-  const isMobile = false;
   const preset = DEVICE_PRESETS[deviceType] || {};
-  const deviceLabel = preset.label ? `<span style="color:var(--muted);font-size:.6rem;margin-left:4px;">${preset.label}</span>` : '';
+  const devLabel = preset.label ? '<span style="color:var(--muted);font-size:.6rem;margin-left:4px;">' + preset.label + '</span>' : '';
 
-  const onloadAttr = id === 'teacher'
-    ? `onload="setTimeout(()=>{ try{ const w=this.contentWindow; if(w.testSetPerspective) w.testSetPerspective('teacher'); else if(w.goToTeacherLogin) w.goToTeacherLogin(); } catch(e){} scaleIframes(); }, 500)"`
-    : `onload="setTimeout(scaleIframes, 300)"`;
-
-  slot.innerHTML = `
-    <div class="vp-label">
-      <span class="badge ${badgeClass}">${label}</span>
-      ${deviceLabel}
-      <span id="status-${id}" style="margin-left:auto;font-size:.65rem;color:var(--muted)">待機</span>
-    </div>
-    <div class="vp-device-frame" id="frame-${id}">
-      <iframe id="iframe-${id}" src="${baseUrl}"
-        allow="autoplay; microphone; camera"
-        sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
-        ${onloadAttr}>
-      </iframe>
-    </div>`;
+  slot.innerHTML = '<div class="vp-label">' +
+    '<span class="badge ' + badgeClass + '">' + label + '</span>' + devLabel +
+    '<span id="status-' + id + '" style="margin-left:auto;font-size:.65rem;color:var(--muted)">待機</span>' +
+    '</div><div class="vp-device-frame" id="frame-' + id + '">' +
+    '<iframe id="iframe-' + id + '" src="' + baseUrl + '" allow="autoplay; microphone" ' +
+    'sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals" ' +
+    'onload="onIframeLoad(\'' + id + '\')"></iframe></div>';
 
   setTimeout(() => {
-    iframes[id] = document.getElementById(`iframe-${id}`);
-    iframes[id]._deviceType = deviceType;
+    iframes[id] = document.getElementById('iframe-' + id);
+    if (iframes[id]) iframes[id]._deviceType = deviceType;
   }, 0);
 
   return slot;
 }
 
-// 遊戲設計尺寸（index.html 設計給平板/桌機）
-const GAME_DESIGN_W = 1024;
-const GAME_DESIGN_H = 768;
-
-function scaleIframes() {
-  Object.keys(iframes).forEach(id => {
-    const f = iframes[id];
-    if (!f) return;
-    const frame = document.getElementById(`frame-${id}`);
-    if (!frame) return;
-
-    const fw = frame.clientWidth;
-    const fh = frame.clientHeight;
-    if (!fw || !fh) return;
-
-    const scale = Math.min(fw / GAME_DESIGN_W, fh / GAME_DESIGN_H);
-
-    // iframe 用設計尺寸，然後縮放到格子大小
-    f.style.width  = GAME_DESIGN_W + 'px';
-    f.style.height = GAME_DESIGN_H + 'px';
-    f.style.transform = `scale(${scale})`;
-    f.style.transformOrigin = 'top left';
-    // 置中：剩餘空間平均分配
-    const offsetX = Math.max(0, (fw - GAME_DESIGN_W * scale) / 2);
-    const offsetY = Math.max(0, (fh - GAME_DESIGN_H * scale) / 2);
-    f.style.left = offsetX + 'px';
-    f.style.top  = offsetY + 'px';
-    f.classList.remove('iframe-full');
-  });
+function onIframeLoad(id) {
+  setTimeout(() => {
+    scaleIframes();
+    if (id === 'teacher') {
+      try {
+        const w = getWin('teacher');
+        if (w && w.goToTeacherLogin) w.goToTeacherLogin();
+      } catch(e) {}
+    }
+  }, 600);
 }
 
+const GAME_DESIGN_W = 1024, GAME_DESIGN_H = 768;
+function scaleIframes() {
+  Object.keys(iframes).forEach(id => {
+    const fr = iframes[id];
+    if (!fr) return;
+    const frame = document.getElementById('frame-' + id);
+    if (!frame) return;
+    const fw = frame.clientWidth, fh = frame.clientHeight;
+    if (!fw || !fh) return;
+    const preset = DEVICE_PRESETS[fr._deviceType] || {};
+    const iw = preset.w || GAME_DESIGN_W;
+    const ih = preset.h || GAME_DESIGN_H;
+    const scale = Math.min(fw / iw, fh / ih);
+    fr.style.width  = iw + 'px';
+    fr.style.height = ih + 'px';
+    fr.style.transform = 'scale(' + scale + ')';
+    fr.style.transformOrigin = 'top left';
+    fr.style.left = ((fw - iw * scale) / 2) + 'px';
+    fr.style.top  = ((fh - ih * scale) / 2) + 'px';
+  });
+}
 window.addEventListener('resize', scaleIframes);
 
 // ════════════════════════════════════════
-// iframe 操作助手
-// ════════════════════════════════════════
-function getWin(id) {
-  const f = iframes[id];
-  if (!f) throw new Error(`iframe ${id} 不存在`);
-  try { return f.contentWindow; } catch(e) { throw new Error(`無法存取 ${id} contentWindow: ${e.message}`); }
-}
-
-function getDoc(id) {
-  const f = iframes[id];
-  if (!f) return null;
-  try { return f.contentDocument || f.contentWindow.document; } catch(e) { return null; }
-}
-
-// 在 iframe 中找元素並點擊
-function clickIn(id, selector) {
-  const doc = getDoc(id);
-  if (!doc) { log(`❌ 找不到 ${id} 的 document`, 'error'); return false; }
-  const el = doc.querySelector(selector);
-  if (!el) { log(`⚠️ 在 ${id} 找不到 ${selector}`, 'warn'); return false; }
-  el.click();
-  return true;
-}
-
-// 在 iframe 中設定 input 值
-function setInput(id, selector, value) {
-  const doc = getDoc(id);
-  if (!doc) return false;
-  const el = doc.querySelector(selector);
-  if (!el) return false;
-  el.value = value;
-  el.dispatchEvent(new Event('input', { bubbles: true }));
-  return true;
-}
-
-// 在 iframe 中執行函式
-function callFn(id, fn, ...args) {
-  const win = getWin(id);
-  if (typeof win[fn] === 'function') {
-    win[fn](...args);
-    return true;
-  }
-  return false;
-}
-
-// 等待某個條件成立
-function waitFor(condition, timeout = 8000) {
-  return new Promise((resolve, reject) => {
-    const start = Date.now();
-    const check = () => {
-      if (abortTest) { reject(new Error('測試已中止')); return; }
-      try {
-        if (condition()) { resolve(); return; }
-      } catch(e) {}
-      if (Date.now() - start > timeout) { reject(new Error(`等待逾時 (${timeout}ms)`)); return; }
-      setTimeout(check, 100);
-    };
-    check();
-  });
-}
-
-function sleep(ms) {
-  return new Promise(resolve => {
-    const check = setInterval(() => {
-      if (!testPaused) { clearInterval(check); setTimeout(resolve, 0); }
-    }, 100);
-    if (!testPaused) { clearInterval(check); setTimeout(resolve, ms); }
-  });
-}
-
-function setSlotStatus(id, text, color = 'var(--muted)') {
-  const el = document.getElementById(`status-${id}`);
-  if (el) { el.textContent = text; el.style.color = color; }
-}
-
-// ════════════════════════════════════════
-// 建立測試步驟
+// 步驟流程（全自動）
 // ════════════════════════════════════════
 function buildStepList(gameId, numStudents) {
   const g = GAMES[gameId];
   const steps = [];
 
-  // ── 1. 等待頁面載入 ──
-  steps.push({ label: '等待頁面載入', fn: stepWaitLoaded });
+  steps.push({ label:'等待頁面載入',               fn: stepWaitLoaded });
+  steps.push({ label:'老師端：登入並建立房間',      fn: stepTeacherLogin });
+  steps.push({ label:'老師端：等待房間建立',         fn: stepCreateRoom });
 
-  // ── 2. 老師建房 ──
-  steps.push({ label: '老師端：登入並建立房間', fn: stepTeacherLogin });
-  steps.push({ label: '老師端：等待房間建立', fn: stepCreateRoom });
-
-  // ── 3. 學生依序自動加入 ──
   for (let i = 1; i <= numStudents; i++) {
-    steps.push({ label: `學生${i}：自動加入房間`, fn: (idx => () => stepStudentJoin(idx))(i) });
+    steps.push({ label:'學生' + i + '：自動加入房間', fn: (idx => () => stepStudentJoin(idx))(i) });
   }
 
-  // ── 4. 等所有學生進入大廳 ──
-  steps.push({ label: '確認所有學生進入大廳', fn: stepWaitLobby });
+  steps.push({ label:'確認所有學生進入大廳',              fn: stepWaitLobby });
+  steps.push({ label:'自動選擇遊戲：' + g.icon + ' ' + g.name, fn: () => stepSelectGame(gameId) });
+  steps.push({ label:'自動開啟規則頁',                    fn: stepOpenRules });
+  steps.push({ label:'自動模擬學生解鎖音效',              fn: stepUnlockStudents });
+  steps.push({ label:'老師端：自動按「全班已準備完成，開始！」', fn: stepAutoStart });
+  steps.push({ label:'🤖 偵測遊戲啟動，自動注入 AI',     fn: stepInjectAI });
 
-  // ── 5. 移交給你手動操作 ──
-  steps.push({ label: '🖐 請在老師端：選遊戲 → 看規則 → 開始。準備好後按「⏭ 下一步」', fn: stepHandoverToTeacher });
-
-  // ── 6. 自動等遊戲啟動 → 注入 AI ──
-  steps.push({ label: `🤖 偵測遊戲啟動，自動注入 AI（${g.icon} ${g.name}）`, fn: stepStartAI });
-
-  // ── 7. W4 持續監測模式完成 ──
   if (gameId === 4) {
-    steps.push({ label: '🔍 W4：監測模式完成，出現「下一玩法」時通知你', fn: stepWatchW4Progress });
+    steps.push({ label:'🔍 W4：監測玩法完成，自動繼續',  fn: stepWatchW4Progress });
   }
 
-  // ── 8. 等你手動結算 ──
-  steps.push({ label: '✅ AI 持續運行中。請自由操作老師端，結算後按「⏭ 下一步」', fn: stepWaitForManualEnd });
-
-  // ── 9. 完成 ──
-  steps.push({ label: '🎉 測試完成', fn: stepDone });
+  steps.push({ label:'✅ AI 運行中，結算後按「⏭ 下一步」', fn: stepWaitForManualEnd });
+  steps.push({ label:'🎉 測試完成',                       fn: stepDone });
 
   return steps;
 }
@@ -698,135 +770,119 @@ function buildStepList(gameId, numStudents) {
 // ════════════════════════════════════════
 
 async function stepWaitLoaded() {
-  log('等待所有 iframe 載入中...', 'info');
+  log('等待所有 iframe 載入...', 'info');
   await sleep(2000);
-  const ids = Object.keys(iframes);
-  for (const id of ids) {
+  for (const id of Object.keys(iframes)) {
     try {
-      await waitFor(() => {
-        const doc = getDoc(id);
-        return doc && doc.readyState === 'complete';
-      }, 15000);
+      await waitFor(() => { const d = getDoc(id); return d && d.readyState === 'complete'; }, 15000);
       setSlotStatus(id, '已載入', 'var(--green)');
-      log(`${id} 頁面載入完成`, 'ok');
-    } catch(e) {
-      log(`${id} 載入逾時`, 'warn');
-    }
+      log(id + ' 載入完成', 'ok');
+    } catch(e) { log(id + ' 載入逾時', 'warn'); }
   }
   await sleep(STEP_DELAY());
 }
 
 async function stepTeacherLogin() {
-  log('老師端：前往登入頁面', 'action');
-  // 點擊「老師登入」
-  await sleep(500);
-  clickIn('teacher', '[onclick="goToTeacherLogin()"]') ||
-    callFn('teacher', 'goToTeacherLogin');
+  log('老師端：前往登入', 'action');
+  await sleep(600);
+  callFn('teacher', 'goToTeacherLogin') || clickIn('teacher', '[onclick*="goToTeacherLogin"]');
   await sleep(STEP_DELAY());
   setInput('teacher', '#tl-pw', TEACHER_PW);
   await sleep(300);
   callFn('teacher', 'teacherLogin');
+  log('老師端：登入完成', 'ok');
   setSlotStatus('teacher', '已登入', 'var(--accent)');
-  log('老師端：登入成功', 'ok');
   await sleep(STEP_DELAY());
 }
 
 async function stepCreateRoom() {
-  log('老師端：正在建立房間...', 'action');
-  // teacherLogin 完成後自動建房，等待 roomCode 出現
+  log('等待房間建立...', 'info');
   const tw = getWin('teacher');
-  await waitFor(() => tw.state && tw.state.roomCode, 10000);
-  const code = tw.state.roomCode;
-  window._testRoomCode = code;
-  log(`✅ 房間建立成功，密碼：${code}`, 'ok');
-  setSlotStatus('teacher', `房間 #${code}`, 'var(--yellow)');
+  try {
+    await waitFor(() => tw && tw.state && tw.state.roomCode, 12000);
+    window._testRoomCode = tw.state.roomCode;
+    log('房間密碼：' + window._testRoomCode, 'ok');
+    setSlotStatus('teacher', '房間 #' + window._testRoomCode, 'var(--yellow)');
+  } catch(e) { log('房間建立逾時', 'warn'); }
   await sleep(STEP_DELAY());
 }
 
-// ── 通用：讓學生 iframe 完整走完加入流程 ──
 async function doStudentJoinFlow(id, groupNum, symbolIdx) {
   const code = window._testRoomCode;
-  if (!code) { log(`找不到房間密碼，跳過 ${id}`, 'warn'); return false; }
+  if (!code) { log('找不到房間密碼', 'warn'); return false; }
 
-  // Step 0：等學生 iframe 的 Firebase 快照同步完成（_allRoomsCache 有資料）
-  //   避免 verifyRoomPassword 拿到空的 getRooms() 而顯示「房間已關閉」
-  log(`${id}：等待 Firebase 同步...`, 'info');
+  // 等 Firebase 同步
+  log(id + '：等待 Firebase 同步...', 'info');
   try {
     await waitFor(() => {
-      const win = getWin(id);
-      const cache = win?._allRoomsCache;
-      return cache && Object.keys(cache).length > 0;
+      const w = getWin(id);
+      return w && w._allRoomsCache && Object.keys(w._allRoomsCache).length > 0;
     }, 15000);
-    log(`${id}：Firebase 已同步`, 'ok');
-  } catch(e) {
-    log(`${id}：Firebase 同步逾時，嘗試繼續`, 'warn');
-  }
+    log(id + '：Firebase 已同步', 'ok');
+  } catch(e) { log(id + '：Firebase 同步逾時，繼續嘗試', 'warn'); }
   await sleep(300);
 
-  // Step 1：前往加入頁面，等房間卡片出現
-  log(`${id}：前往加入頁面`, 'action');
+  // 前往加入頁
   callFn(id, 'goToJoin');
   await sleep(STEP_DELAY());
 
+  // 等房間卡片
   try {
     await waitFor(() => !!getDoc(id)?.querySelector('.room-card'), 10000);
-  } catch(e) { log(`${id}：等待房間列表逾時`, 'warn'); return false; }
+  } catch(e) { log(id + '：房間列表未出現', 'warn'); return false; }
 
-  // 點第一個房間卡片
+  // 點房間
   const cards = getDoc(id)?.querySelectorAll('.room-card');
   if (cards && cards.length > 0) {
     cards[0].click();
-    log(`${id}：點擊房間`, 'action');
+    log(id + '：點擊房間', 'action');
   } else {
-    const win1 = getWin(id);
-    if (win1.selectRoom) win1.selectRoom(code, '1');
-    else { log(`${id}：找不到房間卡片`, 'error'); return false; }
+    const w1 = getWin(id);
+    if (w1 && w1.selectRoom) w1.selectRoom(code, '1');
+    else { log(id + '：找不到房間卡片', 'error'); return false; }
   }
   await sleep(500);
 
-  // Step 1.5：等密碼框 → 輸入密碼 → 確認
+  // 密碼
   try {
     await waitFor(() => {
       const el = getDoc(id)?.getElementById('room-pw-input');
       return el && el.offsetParent !== null;
     }, 5000);
-  } catch(e) { log(`${id}：密碼框未出現`, 'warn'); }
-
+  } catch(e) { log(id + '：密碼框未出現', 'warn'); }
   setInput(id, '#room-pw-input', code);
   await sleep(300);
   callFn(id, 'verifyRoomPassword');
-  log(`${id}：輸入密碼 ${code}`, 'action');
+  log(id + '：輸入密碼', 'action');
   await sleep(STEP_DELAY());
 
-  // Step 2：等選組畫面出現
+  // 選組
   try {
     await waitFor(() => {
       const el = getDoc(id)?.getElementById('join-step-2');
       return el && el.style.display !== 'none' && el.offsetParent !== null;
     }, 8000);
-  } catch(e) { log(`${id}：選組畫面未出現`, 'warn'); }
-
+  } catch(e) { log(id + '：選組畫面未出現', 'warn'); }
   await sleep(400);
 
-  // 選組別（pickGroup 參數是數字字串）
-  const win2 = getWin(id);
-  if (win2.pickGroup) {
-    win2.pickGroup(String(groupNum));
-    log(`${id}：選擇第 ${groupNum} 組`, 'action');
+  const w2 = getWin(id);
+  if (w2 && w2.pickGroup) {
+    w2.pickGroup(String(groupNum));
+    log(id + '：選擇第 ' + groupNum + ' 組', 'action');
   } else {
     const opts = getDoc(id)?.querySelectorAll('.group-opt:not(.taken)');
-    if (opts && opts.length > 0) opts[Math.min(groupNum-1, opts.length-1)].click();
+    if (opts && opts.length > 0) opts[Math.min(groupNum - 1, opts.length - 1)].click();
   }
   await sleep(300);
 
-  // 選頭像（從未被選的 SYMBOLS 裡選）
-  const SYMBOLS = win2.SYMBOLS || ['🐶','🐱','🦊','🐸','🐰','🐻','🐼','🐨','🐯','🦁'];
-  const takenSymbols = win2.state?.takenSymbols || [];
-  const available = SYMBOLS.filter(s => !takenSymbols.includes(s));
-  const sym = available[symbolIdx % Math.max(available.length, 1)] || SYMBOLS[0];
-  if (win2.pickSymbol) {
-    win2.pickSymbol(sym);
-    log(`${id}：選擇頭像 ${sym}`, 'action');
+  // 選頭像
+  const SYMBOLS = (w2 && w2.SYMBOLS) || ['🐶','🐱','🦊','🐸','🐰','🐻','🐼','🐨','🐯','🦁'];
+  const taken = (w2 && w2.state?.takenSymbols) || [];
+  const avail = SYMBOLS.filter(s => !taken.includes(s));
+  const sym = avail[symbolIdx % Math.max(avail.length, 1)] || SYMBOLS[0];
+  if (w2 && w2.pickSymbol) {
+    w2.pickSymbol(sym);
+    log(id + '：選頭像 ' + sym, 'action');
   } else {
     const symOpts = getDoc(id)?.querySelectorAll('.symbol-opt:not(.taken)');
     if (symOpts && symOpts.length > 0) symOpts[symbolIdx % symOpts.length]?.click();
@@ -835,25 +891,24 @@ async function doStudentJoinFlow(id, groupNum, symbolIdx) {
 
   // 確認加入
   callFn(id, 'joinRoom');
-  log(`${id}：確認加入`, 'action');
+  log(id + '：確認加入', 'action');
 
-  // 等待加入成功
   try {
     await waitFor(() => {
-      const win = getWin(id);
-      return win?.pStates?.[win?.state?.perspective]?.joined === true;
+      const w = getWin(id);
+      return w?.pStates?.[w?.state?.perspective]?.joined === true;
     }, 10000);
-    setSlotStatus(id, `第${groupNum}組 已加入`, 'var(--green)');
-    log(`${id}：成功加入（第${groupNum}組 ${sym}）`, 'ok');
+    setSlotStatus(id, '第' + groupNum + '組 已加入', 'var(--green)');
+    log(id + '：成功加入（第' + groupNum + '組 ' + sym + '）', 'ok');
     return true;
   } catch(e) {
-    log(`${id}：加入逾時`, 'warn');
+    log(id + '：加入逾時', 'warn');
     return false;
   }
 }
 
 async function stepStudentJoin(idx) {
-  const id = `student${idx}`;
+  const id = 'student' + idx;
   setSlotStatus(id, '加入中...', 'var(--yellow)');
   await doStudentJoinFlow(id, idx, idx - 1);
   await sleep(STEP_DELAY());
@@ -861,176 +916,212 @@ async function stepStudentJoin(idx) {
 
 async function stepWaitLobby() {
   const numStudents = parseInt(document.getElementById('player-count').value);
-  log(`等待 ${numStudents} 位學生全部進入大廳...`, 'info');
+  log('等待 ' + numStudents + ' 位學生全部進入大廳...', 'info');
   try {
     await waitFor(() => {
       const tw = getWin('teacher');
       const players = tw?.state?.players || [];
       return players.length >= numStudents;
-    }, 15000);
-    const tw = getWin('teacher');
-    log(`大廳確認：${tw.state.players.length} 位學生就位`, 'ok');
-  } catch(e) {
-    log('等待大廳逾時，繼續下一步', 'warn');
-  }
+    }, 20000);
+    log('大廳就緒：' + (getWin('teacher')?.state?.players?.length || 0) + ' 位學生', 'ok');
+  } catch(e) { log('等待大廳逾時，繼續', 'warn'); }
   await sleep(STEP_DELAY());
 }
 
 async function stepSelectGame(gameId) {
   const g = GAMES[gameId];
-  log(`老師端：選擇遊戲 ${g.icon} ${g.name}`, 'action');
-  // 切到 level-select 並選遊戲
-  callFn('teacher', 'selectGame', gameId - 1);
-  await sleep(STEP_DELAY());
-  // W4 額外選模式和關卡
-  if (gameId === 4) {
-    const tw = getWin('teacher');
-    if (tw.lsW4SelectMode) { tw.lsW4SelectMode(1); await sleep(300); }
-    if (tw.lsW4SelectLevel) { tw.lsW4SelectLevel(1); }
-    await sleep(300);
+  log('老師端：選擇遊戲 ' + g.icon + ' ' + g.name, 'action');
+  const tw = getWin('teacher');
+  if (!tw) { log('老師端無法存取', 'error'); return; }
+
+  // 嘗試進入大廳的遊戲選擇流程
+  // index.html 的函式：selectGame(idx) 或 openGameMenu()
+  if (tw.openGameMenu) tw.openGameMenu();
+  await sleep(400);
+
+  // 點遊戲卡片（0-indexed）
+  const gameCards = getDoc('teacher')?.querySelectorAll('.game-card, .kr-game-card, [data-game-id]');
+  if (gameCards && gameCards[gameId - 1]) {
+    gameCards[gameId - 1].click();
+    log('點擊遊戲卡片', 'action');
+  } else if (tw.selectGame) {
+    tw.selectGame(gameId - 1);
+  } else {
+    // 直接設定 state
+    if (tw.state) tw.state.selectedGame = gameId;
+    if (tw.renderLobby) tw.renderLobby();
   }
-  // 其他遊戲選關卡（如有）
-  const g2 = GAMES[gameId];
-  if (g2.hasLevel && gameId !== 4) {
-    const tw = getWin('teacher');
+  await sleep(STEP_DELAY());
+
+  // W4：選玩法1 LV1
+  if (gameId === 4) {
+    await sleep(400);
+    if (tw.lsW4SelectMode) { tw.lsW4SelectMode(1); await sleep(300); }
+    if (tw.lsW4SelectLevel) { tw.lsW4SelectLevel(1); await sleep(300); }
+    log('W4：選玩法1 LV1', 'ok');
+  } else if (GAMES[gameId].hasLevel) {
+    await sleep(300);
     if (tw.changeLevel) tw.changeLevel(1);
     await sleep(300);
   }
-  log(`已選擇 ${g.name}`, 'ok');
+  log('已選擇 ' + g.name, 'ok');
   await sleep(STEP_DELAY());
 }
 
-async function stepStartWithRules() {
+async function stepOpenRules() {
   log('老師端：開啟規則頁', 'action');
   const tw = getWin('teacher');
-  if (tw.showRulesOverlay) {
+  if (tw && tw.showRulesOverlay) {
     tw.showRulesOverlay();
-    setSlotStatus('teacher', '規則頁開啟', 'var(--purple)');
-    log('老師端：規則頁已開啟，學生端應顯示等待提示', 'ok');
-    await sleep(LONG_DELAY());
-    log('老師端：關閉規則頁，全班開始！', 'action');
-    tw.closeRulesAndStart();
+    setSlotStatus('teacher', '📋 規則頁', 'var(--purple)');
+    log('規則頁已開啟，等待學生解鎖...', 'ok');
   } else {
-    log('找不到 showRulesOverlay，直接呼叫 tcStartGame', 'warn');
-    if (tw.tcStartGame) tw.tcStartGame();
+    log('找不到 showRulesOverlay', 'warn');
   }
-  setSlotStatus('teacher', '遊戲進行中', 'var(--green)');
   await sleep(STEP_DELAY());
 }
 
-async function stepConfirmGameStarted() {
+async function stepUnlockStudents() {
   const numStudents = parseInt(document.getElementById('player-count').value);
-  log('確認學生端進入遊戲畫面...', 'info');
-  let confirmed = 0;
+  log('自動模擬學生解鎖音效...', 'action');
   for (let i = 1; i <= numStudents; i++) {
-    const id = `student${i}`;
+    const id = 'student' + i;
     try {
-      await waitFor(() => {
-        const doc = getDoc(id);
-        const gameScreen = doc?.getElementById('screen-student-game');
-        return gameScreen?.classList.contains('active');
-      }, 8000);
-      confirmed++;
-      setSlotStatus(id, '遊戲中 ▶', 'var(--accent)');
-      log(`學生${i} 進入遊戲畫面 ✓`, 'ok');
-    } catch(e) {
-      log(`學生${i} 未能確認進入遊戲（可能還在 iframe 內）`, 'warn');
-    }
+      const w = getWin(id);
+      if (w && typeof w.studentAudioUnlock === 'function') {
+        w.studentAudioUnlock();
+        log(id + '：解鎖成功', 'ok');
+      } else {
+        // 嘗試點按鈕
+        const btn = getDoc(id)?.querySelector('#student-audio-unlock-btn, [onclick*="studentAudioUnlock"], [onclick*="audioUnlock"]');
+        if (btn) { btn.click(); log(id + '：點擊解鎖按鈕', 'action'); }
+        else log(id + '：找不到解鎖函式，跳過', 'warn');
+      }
+    } catch(e) { log(id + '：解鎖跳過', 'warn'); }
+    await sleep(300);
   }
-  log(`${confirmed}/${numStudents} 位學生確認進入遊戲`, confirmed === numStudents ? 'ok' : 'warn');
   await sleep(STEP_DELAY());
 }
 
-// ── 移交手動：暫停等使用者操作 ──
-async function stepHandoverToTeacher() {
-  log('🖐 請在老師端：選擇遊戲 → 查看規則 → 按「全班開始！」', 'warn');
-  log('準備好後，按上方「⏭ 下一步」繼續', 'warn');
-  setSlotStatus('teacher', '⏳ 等待你操作', 'var(--yellow)');
-  testPaused = true;
+async function stepAutoStart() {
+  log('老師端：按「全班已準備完成，開始！」', 'action');
+  const tw = getWin('teacher');
+  if (!tw) { log('老師端無法存取', 'error'); return; }
+
+  // 嘗試各種開始方式
+  let started = false;
+  if (tw.closeRulesAndStart) {
+    tw.closeRulesAndStart(); started = true;
+    log('已呼叫 closeRulesAndStart()', 'ok');
+  } else if (tw.tcStartGame) {
+    tw.tcStartGame(); started = true;
+    log('已呼叫 tcStartGame()', 'ok');
+  } else {
+    // 直接點按鈕
+    const btn = getDoc('teacher')?.querySelector(
+      '#rules-start-btn, [onclick*="closeRulesAndStart"], [onclick*="tcStartGame"], [onclick*="全班開始"]'
+    );
+    if (btn) { btn.click(); started = true; log('已點擊開始按鈕', 'ok'); }
+    else log('找不到開始函式或按鈕', 'warn');
+  }
+
+  if (started) setSlotStatus('teacher', '🎮 遊戲進行中', 'var(--green)');
+  await sleep(STEP_DELAY());
 }
 
-// ── 等待遊戲啟動後持續偵測並注入 AI ──
-async function stepStartAI() {
-  const gameId = parseInt(document.getElementById('game-select').value);
+async function stepInjectAI() {
+  const gameId     = parseInt(document.getElementById('game-select').value);
   const numStudents = parseInt(document.getElementById('player-count').value);
   const script = AI_SCRIPTS[gameId];
 
   if (!script) {
-    log(`W${gameId} 無 AI（W3 五子棋 / W5 你畫我猜 需人工操作）`, 'warn');
+    log('W' + gameId + ' 無 AI（W3/W5 需人工操作）', 'warn');
     return;
   }
 
-  log(`🤖 持續偵測遊戲啟動，就緒後自動注入 AI...`, 'info');
+  log('🤖 等待遊戲啟動並注入 AI...', 'info');
   stopAllAI();
-  // 重置注入標記
-  Object.keys(iframes).forEach(id => { if(iframes[id]) iframes[id]._aiInjected = false; });
+  Object.keys(iframes).forEach(id => { if (iframes[id]) iframes[id]._aiInjected = false; });
 
-  const maxWait = 15 * 60 * 1000; // 最多等 15 分鐘
+  const maxWait = 10 * 60 * 1000;
   const startTime = Date.now();
 
   while (Date.now() - startTime < maxWait && !abortTest) {
-    // 若手動暫停也繼續等（這個步驟不受 testPaused 影響）
     let injected = 0;
     for (let i = 1; i <= numStudents; i++) {
-      const id = `student${i}`;
+      const id = 'student' + i;
       if (iframes[id]?._aiInjected) { injected++; continue; }
       try {
-        const win = getWin(id);
+        const w = getWin(id);
         let ready = false;
-        if      (gameId === 4) ready = win?._w4AI?.isActive?.() === true;
-        else if (gameId === 1) ready = win?._w1AI?.isActive?.() === true;
-        else if (gameId === 2) ready = win?._w2AI?.isReady?.() === true;
-        else if (gameId === 6) ready = win?._w6AI?.isPlaying?.() === true;
-        else if (gameId === 7) ready = (win?._w7AI?.getFlipCards?.()?.length > 0 || win?._w7AI?.getSafeCmds?.()?.length > 0);
-        else if (gameId === 8) ready = win?.gameState?.phase === 'waiting_roll';
-        else {
+
+        if (gameId === 4) {
+          // W4：檢查 game-ui 可見（遊戲已啟動）
           const doc = getDoc(id);
-          const gui = doc?.getElementById('game-ui');
+          const gameUi = doc?.getElementById('game-ui');
+          const canvas = doc?.getElementById('gameCanvas');
+          ready = gameUi && !gameUi.classList.contains('hidden') && canvas;
+          if (!ready) ready = w?._w4AI?.isActive?.() === true;
+        } else if (gameId === 1) {
+          ready = w?._w1AI?.isActive?.() === true;
+        } else if (gameId === 2) {
+          ready = w?._w2AI?.isReady?.() === true;
+        } else if (gameId === 6) {
+          ready = w?._w6AI?.isPlaying?.() === true;
+        } else if (gameId === 7) {
+          ready = (w?._w7AI?.getFlipCards?.()?.length > 0 || w?._w7AI?.getSafeCmds?.()?.length > 0);
+        } else if (gameId === 8) {
+          ready = w?.gameState?.phase === 'waiting_roll';
+        } else {
+          const gui = getDoc(id)?.getElementById('game-ui');
           ready = gui && !gui.classList.contains('hidden');
         }
+
         if (ready) {
-          injectScript(id, script);
-          iframes[id]._aiInjected = true;
-          injected++;
-          setSlotStatus(id, '🤖 AI 運行中', 'var(--purple)');
-          log(`student${i} AI 注入成功`, 'ok');
+          const ok = injectScript(id, script);
+          if (ok) {
+            iframes[id]._aiInjected = true;
+            injected++;
+            setSlotStatus(id, '🤖 AI 運行中', 'var(--purple)');
+            log('student' + i + ' AI 注入成功', 'ok');
+          }
         }
       } catch(e) {}
     }
 
     if (injected >= numStudents) {
-      log(`✅ 全部 ${numStudents} 個學生端 AI 已注入，持續自動闖關`, 'ok');
-      setSlotStatus('teacher', '🎮 遊戲進行中', 'var(--green)');
+      log('✅ 全部 AI 已注入', 'ok');
       break;
     }
     await sleep(800);
   }
 }
 
-// ── W4 持續監測模式完成 ──
+// W4 監測玩法完成，自動繼續下一玩法
 async function stepWatchW4Progress() {
-  log('🔍 W4 監測中：模式完成時日誌會顯示提示', 'info');
+  log('🔍 W4 監測中...', 'info');
   let lastMode = 0;
   const maxWait = 30 * 60 * 1000;
   const startTime = Date.now();
 
   while (Date.now() - startTime < maxWait && !abortTest) {
     try {
+      // 找「直接進行下一關」按鈕
       const doc = getDoc('teacher');
-      const btn = doc?.querySelector('[onclick*="tcW4StartNextMode"]');
-      if (btn) {
-        const m = btn.getAttribute('onclick')?.match(/\d/);
-        const nextMode = m ? parseInt(m[0]) : 0;
+      const nextBtn = doc?.querySelector('[onclick*="tcW4StartNextMode"], [onclick*="StartNext"]');
+      if (nextBtn) {
+        const m = (nextBtn.getAttribute('onclick') || '').match(/\d+/);
+        const nextMode = m ? parseInt(m[0]) : lastMode + 1;
         if (nextMode > lastMode) {
           lastMode = nextMode;
-          const names = ['', '縮圈點擊', '鋼琴黑塊', '底線軌道'];
-          log(`🎵 W4 模式完成！請點老師端「▶ 下一玩法：${names[nextMode]||''}」按鈕`, 'ok');
-          const el = document.getElementById('step-label');
-          if (el) { el.textContent = `⚠️ W4 下一玩法：${names[nextMode]||''} 請操作老師端`; }
-          // 重置 AI 注入標記，等新模式啟動後重新注入
-          Object.keys(iframes).forEach(id => { if(iframes[id]) iframes[id]._aiInjected = false; });
-          // 背景繼續等新模式的 AI
-          stepStartAI().catch(()=>{});
+          const names = { 1:'玩法1', 2:'玩法2', 3:'玩法3' };
+          log('🎵 W4 玩法完成！自動進入下一玩法：' + (names[nextMode] || nextMode), 'ok');
+          // 自動點下一玩法按鈕
+          nextBtn.click();
+          await sleep(1000);
+          // 重置 AI 注入標記，等新玩法啟動
+          Object.keys(iframes).forEach(id => { if (iframes[id]) iframes[id]._aiInjected = false; });
+          stepInjectAI().catch(() => {});
         }
       }
     } catch(e) {}
@@ -1038,35 +1129,15 @@ async function stepWatchW4Progress() {
   }
 }
 
-// ── 等待手動結算 ──
 async function stepWaitForManualEnd() {
-  log('✅ AI 持續運行。你可以自由操作老師端（踢人、暫停、結算等）', 'info');
-  log('完成測試後，按「⏭ 下一步」結束', 'warn');
+  log('✅ AI 持續運行。結算後按「⏭ 下一步」結束測試', 'warn');
   setSlotStatus('teacher', '🎮 自由操作中', 'var(--green)');
   testPaused = true;
 }
 
-async function stepObserve() {
-  log('AI 遊玩中，按「⏭ 下一步」繼續', 'info');
-  testPaused = true;
-}
-
-async function stepKickStudent() {
-  log('【可選】請在老師端點「✕ 踢除」測試踢人，按「⏭ 下一步」繼續', 'warn');
-  testPaused = true;
-}
-
-async function stepSettle() {
-  log('請在老師端結算，完成後按「⏭ 下一步」', 'warn');
-  testPaused = true;
-}
-
-async function stepReturnLobby() {
-  log('測試移交手動操作', 'info');
-}
-
 async function stepDone() {
-  log(`🎉 測試完成！遊戲：${GAMES[parseInt(document.getElementById('game-select').value)]?.name}`, 'step');
+  const gameId = parseInt(document.getElementById('game-select').value);
+  log('🎉 測試完成！遊戲：' + GAMES[gameId]?.name, 'step');
   document.getElementById('status-dot').className = '';
   document.getElementById('status-dot').style.background = 'var(--green)';
   document.getElementById('step-label').textContent = '測試完成 ✓';
@@ -1074,42 +1145,33 @@ async function stepDone() {
 }
 
 // ════════════════════════════════════════
-// 測試執行控制
+// 測試控制
 // ════════════════════════════════════════
 async function startTest() {
   if (testRunning) { log('測試已在執行中', 'warn'); return; }
+  abortTest = false; testRunning = true; testPaused = false; currentStepIdx = 0;
 
-  abortTest = false;
-  testRunning = true;
-  testPaused  = false;
-  currentStepIdx = 0;
-
-  const gameId = parseInt(document.getElementById('game-select').value);
+  const gameId      = parseInt(document.getElementById('game-select').value);
   const numStudents = parseInt(document.getElementById('player-count').value);
 
   clearLog();
-  log(`開始測試 ${GAMES[gameId]?.icon} ${GAMES[gameId]?.name}（${numStudents} 位學生）`, 'step');
+  log('開始測試 ' + GAMES[gameId]?.icon + ' ' + GAMES[gameId]?.name + '（' + numStudents + ' 位學生）', 'step');
 
-  // 建立 viewport
   buildViewports();
-  await sleep(800);
+  await sleep(1000);
 
-  // 建立步驟
   stepList = buildStepList(gameId, numStudents);
   renderSteps();
-
-  // 等 iframes 物件初始化
-  await sleep(200);
+  await sleep(300);
 
   document.getElementById('status-dot').className = 'running';
 
-  // 逐步執行
   for (let i = 0; i < stepList.length; i++) {
     if (abortTest) break;
     currentStepIdx = i;
     const step = stepList[i];
     setStepState(i, 'active');
-    log(`步驟 ${i+1}/${stepList.length}：${step.label}`, 'step');
+    log('步驟 ' + (i + 1) + '/' + stepList.length + '：' + step.label, 'step');
 
     try {
       while (testPaused && !abortTest) await sleep(200);
@@ -1118,10 +1180,9 @@ async function startTest() {
       setStepState(i, 'done');
       updateProgress();
     } catch(e) {
-      log(`步驟失敗：${e.message}`, 'error');
+      log('步驟失敗：' + e.message, 'error');
       setStepState(i, 'failed');
       updateProgress();
-      // 繼續下一步（不中止）
     }
   }
 
@@ -1132,7 +1193,7 @@ async function startTest() {
 function nextStep() {
   if (!testRunning) { log('測試未執行', 'warn'); return; }
   testPaused = false;
-  log('手動跳過等待，執行下一步', 'info');
+  log('手動跳過，執行下一步', 'info');
 }
 
 function pauseTest() {
@@ -1140,13 +1201,11 @@ function pauseTest() {
   testPaused = !testPaused;
   document.getElementById('status-dot').className = testPaused ? '' : 'running';
   document.getElementById('step-label').textContent = testPaused ? '⏸ 已暫停' : (stepList[currentStepIdx]?.label || '');
-  log(testPaused ? '測試暫停' : '繼續測試', 'info');
+  log(testPaused ? '暫停' : '繼續', 'info');
 }
 
 function resetTest() {
-  abortTest = true;
-  testRunning = false;
-  testPaused  = false;
+  abortTest = true; testRunning = false; testPaused = false;
   document.getElementById('status-dot').className = '';
   document.getElementById('status-dot').style.background = 'var(--muted)';
   document.getElementById('step-label').textContent = '尚未開始';
@@ -1154,15 +1213,15 @@ function resetTest() {
   stopAllAI();
   document.getElementById('steps-panel').innerHTML = '';
   buildViewports();
-  log('測試已重置', 'warn');
+  log('已重置', 'warn');
 }
 
 // ════════════════════════════════════════
 // 初始化
 // ════════════════════════════════════════
 buildViewports();
-log('儀表板已就緒。按「▶ 開始測試」啟動自動化測試。', 'info');
-log('提示：可用「⏭ 下一步」跳過等待，「⏸ 暫停」隨時停下觀察。', 'info');
+log('儀表板就緒，按「▶ 開始測試」啟動。', 'info');
+log('流程：登入→建房→學生加入→自動選遊戲→開始→AI自動闖關', 'info');
 </script>
 </body>
 </html>
