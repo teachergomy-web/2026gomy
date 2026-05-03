@@ -694,15 +694,6 @@ body::before {
   <!-- 規則內容（可捲動） -->
   <div id="rules-content" style="width:100%;max-width:680px;padding:20px 22px 12px;flex:1;min-height:0;overflow-y:auto;"></div>
 
-  <!-- ★ 組別就緒清單 -->
-  <div id="rules-ready-list" style="
-    width:100%;max-width:680px;padding:0 22px 10px;flex-shrink:0;">
-    <div style="font-family:'Nunito',sans-serif;font-size:.72rem;font-weight:700;
-      color:rgba(255,255,255,.4);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">
-      🎮 組別準備狀態
-    </div>
-    <div id="rules-ready-slots" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
-  </div>
 
   <!-- 底部開始按鈕 -->
   <div style="width:100%;max-width:680px;padding:12px 22px 40px;flex-shrink:0;background:#080a14;">
@@ -713,12 +704,8 @@ body::before {
       font-family:'Nunito',sans-serif;font-weight:900;font-size:1.1rem;
       box-shadow:0 5px 0 #0c4a1a;
       -webkit-tap-highlight-color:transparent;">
-      ▶ 全班已準備完成，開始！
+      ▶ 全班開始！
     </button>
-    <div id="rules-not-ready-hint" style="display:none;margin-top:8px;text-align:center;
-      font-size:.75rem;color:rgba(255,180,0,.7);font-family:'Nunito',sans-serif;">
-      ⚠️ 部分學生尚未完成音效解鎖（仍可強制開始）
-    </div>
   </div>
 </div>
 
@@ -803,23 +790,6 @@ body::before {
         <div style="font-size:4rem;animation:heroBounce 1.8s ease-in-out infinite;">📺</div>
         <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:1.4rem;color:#f5c800;">請看老師螢幕</div>
         <div style="font-family:'Noto Sans TC',sans-serif;font-size:.95rem;color:rgba(255,255,255,.6);line-height:1.8;">老師正在說明遊戲規則</div>
-
-        <!-- ★ 音效解鎖按鈕 -->
-        <button id="student-audio-unlock-btn" onclick="studentAudioUnlock()"
-          style="padding:16px 32px;border-radius:14px;border:none;cursor:pointer;
-          background:linear-gradient(135deg,#b44fff,#7b2fff);color:#fff;
-          font-family:'Nunito',sans-serif;font-weight:900;font-size:1.05rem;
-          box-shadow:0 4px 0 #4a1a99;
-          animation:pulse 1.5s ease-in-out infinite alternate;">
-          ✋ 我準備好了！
-        </button>
-
-        <!-- ★ 已準備好提示（按完後顯示） -->
-        <div id="student-ready-msg" style="display:none;flex-direction:column;align-items:center;gap:10px;">
-            <div style="font-size:2rem;">✅</div>
-            <div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:1.1rem;color:#22c040;">已準備好！</div>
-            <div style="font-family:'Noto Sans TC',sans-serif;font-size:.85rem;color:rgba(255,255,255,.5);">等待老師確認所有人就緒後開始</div>
-        </div>
 
         <div style="display:flex;gap:8px;margin-top:4px;">
             <div style="width:8px;height:8px;border-radius:50%;background:#f5c800;animation:pulse 1.0s ease-in-out infinite alternate;"></div>
@@ -2091,39 +2061,7 @@ function closeRulesAndStart() {
 }
 
 // ── 老師端規則頁：更新組別就緒清單 ──
-function updateRulesReadyList() {
-  const overlay = document.getElementById('rules-overlay');
-  if (!overlay || overlay.style.display === 'none') return;
-  const rooms = window.getRooms();
-  const r = rooms[window.state.roomCode];
-  if (!r) return;
-  const players    = window.state.players || [];
-  const ready      = r.playerReady || {};
-  const readyCount = players.filter(p => ready[p.group]).length;
-  const total      = players.length;
-
-  const slotsEl = document.getElementById('rules-ready-slots');
-  if (slotsEl) {
-    slotsEl.innerHTML = players.map(p => {
-      const ok = !!ready[p.group];
-      return `<div style="display:flex;align-items:center;gap:6px;padding:6px 12px;
-        border-radius:10px;background:${ok?'rgba(34,192,64,.12)':'rgba(255,255,255,.05)'};
-        border:1px solid ${ok?'rgba(34,192,64,.4)':'rgba(255,255,255,.1)'};
-        font-family:'Nunito',sans-serif;font-size:.82rem;font-weight:700;
-        color:${ok?'#22c040':'rgba(255,255,255,.4)'};">
-        ${p.symbol||''} ${p.group} ${ok?'✅':'⏳'}</div>`;
-    }).join('');
-  }
-
-  const startBtn = document.getElementById('rules-start-btn');
-  const hint     = document.getElementById('rules-not-ready-hint');
-  if (startBtn) {
-    startBtn.textContent = readyCount >= total && total > 0
-      ? `▶ 全班已就緒，開始！`
-      : `▶ 全班已準備完成，開始！（${readyCount}/${total} 已就緒）`;
-  }
-  if (hint) hint.style.display = (readyCount < total && total > 0) ? 'block' : 'none';
-}
+function updateRulesReadyList() { /* 已簡化：不顯示準備狀態 */ }
 
 // ── 學生端解鎖音效並通知老師端已就緒 ──
 function studentAudioUnlock() {
