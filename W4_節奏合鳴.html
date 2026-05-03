@@ -1080,17 +1080,36 @@
     // Cytus 掃描線系統
     let scanY = 0;         // 掃描線目前 Y 位置
     let scanT = 0;         // 掃描線計時器
+    let prevScanY = 0;     // 上一幀 scanY（用於計算方向）
+    let scanDir = 'down';  // 掃描線目前方向：'down' | 'up'
     let spawnQueue = [];   // 預排隊的圓圈生成時間（秒）
     let musicTime = 0;     // 音樂播放時間（秒）
 
     function initCytusLevel(level) {
         const td = TRACK_DATA[level];
         if (!td) return;
-        // 每個 spawnTime 都安排生成 1-3 顆（根據關卡）
-        const circlesPerBatch = Math.min(Math.ceil(level / 2), 4); // LV1-2:1, LV3-4:2, LV5-6:3, LV7+:4
         spawnQueue = [];
-        td.spawnTimes.forEach(t => {
-            spawnQueue.push({ time: t, count: circlesPerBatch });
+        const times = td.spawnTimes;
+        // ★ drag/hold 頻率降低，且不同時出現
+        // drag：每 8 個音符最多 1 個（12.5%）；hold：每 10 個最多 1 個（10%）
+        // 兩者間距至少 3 個普通音符
+        let lastSpecial = -4; // 上次 drag/hold 的 index
+        let lastType    = '';  // 上次特殊類型
+
+        // hold 的生命週期（ms），用於封鎖後續音符
+        const scanPeriodMs = (60000 / (td.bpm || 120)) * 8;
+        const halfPeriod   = scanPeriodMs / 2;
+        const holdBlockMs  = halfPeriod * 1.25 + halfPeriod * 0.7 + 500; // lifeMs + holdMs + buffer
+
+        times.forEach((t, idx) => {
+            let ntype = 'normal';
+            if (level >= 5 && (idx - lastSpecial) >= 4) {
+                const r   = (idx * 1664525 + 1013904223) & 0x7fffffff;
+                const pct = (r & 0xff) / 255;
+                if (pct < 0.12 && lastType !== 'hold') { ntype = 'hold'; }
+            }
+            if (ntype !== 'normal') { lastSpecial = idx; lastType = ntype; }
+            spawnQueue.push({ time: t, ntype });
         });
         musicTime = 0;
         scanT = 0;
@@ -1099,38 +1118,70 @@
     function getScanPeriodMs(level) {
         const td = TRACK_DATA[level];
         if (!td) return 2000;
-        const beat = 60000 / td.bpm;
-        return beat * 8; // 8拍一個完整來回
+        return (60000 / td.bpm) * 8;
     }
 
-    // ★ Cytus Mode 3：生成一批圓圈
-    // 圓圈生命週期 = scanPeriod / 2（剛好在下一次掃描線到達時縮完）
-    function spawnCytusCircles(count) {
+    function scanYAt(t, H, scanPeriod) {
+        const p = (t % scanPeriod) / scanPeriod;
+        return H * 0.08 + H * 0.84 * (0.5 - 0.5 * Math.cos(p * Math.PI * 2));
+    }
+    function scanGoingDown(t, scanPeriod) {
+        const p = (t % scanPeriod) / scanPeriod;
+        return Math.sin(p * Math.PI * 2) > 0;
+    }
+
+    function spawnCytusNote(ntype) {
         const W = canvas.width, H = canvas.height;
         const level = gameState.level;
         const scanPeriod = getScanPeriodMs(level);
-        // 圓圈存活半個掃描週期，讓掃描線再次到達時剛好縮完
-        const life = scanPeriod / 2;
-        const margin = 55;
-        const accent = ['#00cfff','#ff6eb4','#ffe94a','#7be87b','#c084fc','#fb923c'];
-        for (let i = 0; i < count; i++) {
-            // 分散位置避免圓圈密集重疊（至少間距 80px）
-            let cx, cy, attempts = 0;
-            do {
-                cx = margin + Math.random() * (W - margin * 2);
-                cy = margin + Math.random() * (H - margin * 2);
-                attempts++;
-            } while (attempts < 8 && gameState.entities.some(ex =>
-                ex.type === 'circle' && Math.hypot(cx - ex.x, cy - ex.y) < 80
-            ));
+        const halfPeriod = scanPeriod / 2;
+        // ★ 縮圈速度 1.25x（比掃描線慢 25%，取平衡）
+        const lifeMs = halfPeriod * 1.25;
+
+        const arriveT    = scanT + halfPeriod;
+        const cy         = scanYAt(arriveT, H, scanPeriod);
+        const goDown     = scanGoingDown(arriveT, scanPeriod);
+        const noteDir    = goDown ? 'down' : 'up';
+        const darkColor  = goDown ? '#0a3020' : '#0a2040';
+        const brightColor = goDown ? '#00dc78' : '#00cfff';
+        const margin = 70;
+
+        let cx, att = 0;
+        do {
+            cx = margin + Math.random() * (W - margin * 2);
+            att++;
+        } while (att < 10 && gameState.entities.some(ex =>
+            (ex.type === 'circle' || ex.type === 'hold_circle') &&
+            Math.hypot(cx - (ex.x || ex.hx), cy - (ex.y || ex.hy)) < 90
+        ));
+
+        if (ntype === 'normal') {
             gameState.entities.push({
-                type: 'circle',
-                x: cx,
-                y: cy,
-                radius: 30, life, maxLife: life,
-                color: COLORS[Math.floor(Math.random() * COLORS.length)],
-                accentColor: accent[Math.floor(Math.random() * accent.length)],
-                shook: false,
+                type: 'circle', x: cx, y: cy,
+                radius: 30, life: lifeMs, maxLife: lifeMs,
+                noteDir, darkColor, brightColor,
+                noteColor: darkColor, shook: false,
+            });
+
+        } else if (ntype === 'hold') {
+            // ★ Hold：左右各一個頭部，同時出現，長條往中間（垂直）延伸
+            const holdMs  = halfPeriod * 0.7; // 固定長度
+            // 左側頭部
+            const lx = margin + Math.random() * (W / 2 - margin - 40);
+            // 右側頭部（對稱）
+            const rx = W - lx;
+            [lx, rx].forEach(hx => {
+                gameState.entities.push({
+                    type: 'hold_circle',
+                    hx, hy: cy,
+                    tailLen: H * 0.22, // 固定視覺尾巴長度
+                    radius: 30,
+                    life: lifeMs, maxLife: lifeMs,
+                    holdMs, holdProgress: 0,
+                    holding: false, holdDone: false,
+                    noteDir, darkColor, brightColor,
+                    noteColor: darkColor, goDown, shook: false,
+                });
             });
         }
     }
@@ -1240,32 +1291,44 @@
                 hit = true;
             }
         } else if (mode === 3) {
-            // ★ 玩法3 縮圈（Cytus）判定
-            let best = null, bestDist = Infinity;
-            for (let i = 0; i < gameState.entities.length; i++) {
+            // ── 普通縮圈判定 ──
+            for (let i = gameState.entities.length - 1; i >= 0; i--) {
                 const e = gameState.entities[i];
-                if (e.type !== 'circle' || e.hit) continue;
-                const d = Math.hypot(px - e.x, py - e.y);
-                if (d < e.radius + 40 && d < bestDist) { bestDist = d; best = { e, i }; }
+                if (e.type === 'circle' && !e.hit) {
+                    const d = Math.hypot(px - e.x, py - e.y);
+                    if (d < e.radius + 40) {
+                        const scanDist = Math.abs(scanY - e.y);
+                        // ★ 方向必須正確才能判定，否則完全忽略
+                        if (scanDir !== e.noteDir) { i--; continue; }
+                        const acc = e.brightColor || '#00cfff';
+                        let pts, label;
+                        if      (scanDist <= 25) { pts = 100; label = 'PERFECT'; }
+                        else if (scanDist <= 55) { pts = 60;  label = 'GREAT';   }
+                        else if (scanDist <= 90) { pts = 30;  label = 'GOOD';    }
+                        else                     { pts = 0;   label = 'MISS';    }
+                        addScore(pts, e.x, e.y, acc, label);
+                        floatingTexts.push({ x: e.x, y: e.y, text: '', color: acc, life: 0.6, ripple: true, rippleR: e.radius * 2 });
+                        const pc = pts >= 100 ? 16 : pts >= 60 ? 12 : 8;
+                        spawnHitParticles(e.x, e.y, acc, pc);
+                        spawnHitParticles(e.x, e.y, '#fff', Math.floor(pc * 0.4));
+                        gameState.entities.splice(i, 1);
+                        hit = true; break;
+                    }
+                } else if (e.type === 'hold_circle' && !e.holdDone && !e.hit) {
+                    const d = Math.hypot(px - e.hx, py - e.hy);
+                    if (d < e.radius + 40 && !e.holding) {
+                        const scanDist = Math.abs(scanY - e.hy);
+                        // ★ 方向必須正確
+                        if (scanDist <= 90 && scanDir === e.noteDir) {
+                            e.holding = true;
+                            const acc = e.brightColor || '#00cfff';
+                            floatingTexts.push({ x: e.hx, y: e.hy, text: 'HOLD!', color: acc, life: 0.5 });
+                            hit = true; break;
+                        }
+                    }
+                }
             }
-            if (best) {
-                const { e, i } = best;
-                const scanDist = Math.abs(scanY - e.y);
-                const acc = e.accentColor || e.color;
-                let pts, label;
-                if      (scanDist <= 25) { pts = 100; label = 'PERFECT'; }
-                else if (scanDist <= 55) { pts = 60;  label = 'GREAT';   }
-                else if (scanDist <= 90) { pts = 30;  label = 'GOOD';    }
-                else                     { pts = 0;   label = 'MISS';    }
-                addScore(pts, e.x, e.y, acc, label);
-                floatingTexts.push({ x: e.x, y: e.y, text: '', color: acc, life: 0.6, ripple: true, rippleR: e.radius * 2 });
-                // ★ 粒子特效
-                const pCount3 = pts >= 100 ? 16 : pts >= 60 ? 12 : 8;
-                spawnHitParticles(e.x, e.y, acc, pCount3);
-                spawnHitParticles(e.x, e.y, '#fff', Math.floor(pCount3 * 0.4));
-                gameState.entities.splice(i, 1);
-                hit = true;
-            }
+
         }
 
         if (isStart && !hit) gameState.combo = 0;
@@ -1548,13 +1611,27 @@
             scanT += dt;
             const scanPeriod = getScanPeriodMs(gameState.level);
             const prog = (scanT % scanPeriod) / scanPeriod;
+            prevScanY = scanY;
             scanY = canvas.height * 0.08 + canvas.height * 0.84 *
                     (0.5 - 0.5 * Math.cos(prog * Math.PI * 2));
+            // ★ 提前切換方向（亮起時機提前）：
+            // sin 快到 0 之前就預切換，讓圓圈在反彈前已亮起
+            {
+                const sinVal = Math.sin(prog * Math.PI * 2);
+                // 提前閾值：-0.25（約比極值提前 7% 週期）
+                if (sinVal >= -0.25) scanDir = sinVal >= 0 ? 'down' : 'down'; // 底部反彈前提早切換
+                if (sinVal <= 0.25 && sinVal < 0) scanDir = 'up';
+                if (sinVal > 0) scanDir = 'down';
+                if (sinVal < -0.25) scanDir = 'up';
+            }
 
-            // 從 spawnQueue 取出到時間的項目生成圓圈（最後5秒不生成）
-            while (spawnQueue.length > 0 && spawnQueue[0].time <= musicTime) {
-                const item = spawnQueue.shift();
-                spawnCytusCircles(item.count);
+            // ★ hold 封鎖期：若有 hold_circle 正在進行，不生成新音符
+            const hasActiveHold = gameState.entities.some(e => e.type === 'hold_circle');
+            if (!hasActiveHold) {
+                while (spawnQueue.length > 0 && spawnQueue[0].time <= musicTime) {
+                    const item = spawnQueue.shift();
+                    spawnCytusNote(item.ntype || 'normal');
+                }
             }
         }
 
@@ -1601,79 +1678,163 @@
             const e = gameState.entities[i];
 
             if (gameState.mode === 3) {
+
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                // HOLD 長按音符
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                // ② HOLD 長按音符
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                if (e.type === 'hold_circle') {
+                    e.life -= dt;
+                    const acc       = e.brightColor || '#00cfff';
+                    const darkAcc   = e.darkColor   || '#0a2040';
+                    const R         = e.radius;
+                    const scanClose = Math.abs(scanY - e.hy);
+                    const dirMatch   = scanDir === e.noteDir;
+                    // ★ 方向正確就亮，不需靠近
+                    const scanActive = dirMatch;
+                    const scanNear   = scanClose < R * 1.4; // 只用於穿越閃光
+                    const blend = dirMatch ? 1 : 0;
+
+                    // 長按計時
+                    if (e.holding) {
+                        e.holdProgress += dt;
+                        if (Math.random() < 0.3) {
+                            gameState.score += 2;
+                            spawnHitParticles(e.hx, e.hy, acc, 1);
+                        }
+                        // 完成：hold 時間到
+                        if (e.holdProgress >= e.holdMs) {
+                            addScore(100, e.hx, e.hy, acc, 'PERFECT');
+                            spawnHitParticles(e.hx, e.hy, acc, 16);
+                            floatingTexts.push({ x: e.hx, y: e.hy, text: '', color: acc, life: 0.5, ripple: true, rippleR: R * 2.5 });
+                            gameState.entities.splice(i, 1); continue;
+                        }
+                    }
+                    if (e.life <= 0 && !e.holding) {
+                        gameState.combo = 0;
+                        floatingTexts.push({ x: e.hx, y: e.hy, text: 'MISS', color: '#ff4040', life: 0.8 });
+                        gameState.entities.splice(i, 1); continue;
+                    }
+
+                    // 尾巴：長條消除隨掃描線（基準線）速度
+                    const tailDir = e.goDown ? 1 : -1;
+                    const tailLen = e.tailLen || canvas.height * 0.22;
+                    const tailX   = e.hx;
+                    const tailY0  = e.hy;
+                    const tailY1  = e.hy + tailDir * tailLen;
+                    // ★ consumed 依掃描線距頭部的距離計算（跟著基準線跑）
+                    let consumed = 0;
+                    if (e.holding) {
+                        // 掃描線從頭部位置（e.hy）移動的距離
+                        const scanMoved = Math.abs(scanY - e.hy);
+                        consumed = Math.min(1, scanMoved / tailLen);
+                    }
+
+                    // 尾巴（長條）
+                    ctx.save();
+                    const barW = R * 0.55;
+                    ctx.globalAlpha = e.holding ? 0.85 : (blend > 0 ? 0.6 : 0.35);
+                    if (e.holding) { ctx.shadowColor = acc; ctx.shadowBlur = 18; }
+                    const barG = ctx.createLinearGradient(tailX, tailY0, tailX, tailY1);
+                    barG.addColorStop(0, acc);
+                    barG.addColorStop(consumed, `${acc}99`);
+                    barG.addColorStop(1, blend > 0 ? acc : 'rgba(180,180,180,0.4)');
+                    ctx.fillStyle = blend > 0 ? barG : 'rgba(180,180,180,0.35)';
+                    const drawY0 = tailY0 + tailDir * tailLen * consumed;
+                    const drawLen = tailLen * (1 - consumed);
+                    ctx.fillRect(tailX - barW, drawY0, barW * 2, tailDir * drawLen);
+                    ctx.restore();
+
+                    // 頭部縮圈（與普通音符相同邏輯）
+                    const progress   = e.life > 0 ? Math.max(0, 1 - e.life / e.maxLife) : 1;
+                    const outerR     = R * (2.8 - 1.8 * progress);
+                    // 外環
+                    ctx.save();
+                    ctx.beginPath(); ctx.arc(e.hx, e.hy, outerR, 0, Math.PI * 2);
+                    ctx.strokeStyle = blend > 0 ? acc : 'rgba(200,200,200,0.55)';
+                    ctx.globalAlpha = blend > 0 ? (0.3 + blend * 0.65) : 0.55;
+                    ctx.lineWidth   = scanActive ? 2.5 : 1.5;
+                    if (scanActive) { ctx.shadowBlur = 14; ctx.shadowColor = acc; }
+                    ctx.stroke(); ctx.restore();
+                    // 內圓
+                    ctx.save();
+                    ctx.beginPath(); ctx.arc(e.hx, e.hy, R, 0, Math.PI * 2);
+                    ctx.strokeStyle = blend > 0 ? acc : 'rgba(220,220,220,0.75)';
+                    ctx.lineWidth   = 3;
+                    ctx.globalAlpha = blend > 0 ? (0.7 + blend * 0.3) : 0.75;
+                    if (scanActive || e.holding) { ctx.shadowBlur = 22; ctx.shadowColor = acc; }
+                    ctx.stroke();
+                    ctx.fillStyle = (scanActive || e.holding) ? acc : '#fff';
+                    ctx.globalAlpha = (scanActive || e.holding) ? 0.28 : 0.06;
+                    ctx.fill(); ctx.restore();
+                    // 按住中：持續粒子
+                    if (e.holding && Math.random() < 0.2) spawnHitParticles(e.hx, e.hy, acc, 1);
+                    continue;
+                }
+
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                // ③ 普通縮圈音符 (circle)
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                if (e.type !== 'circle') continue;
+
                 e.life -= dt;
                 if (e.life <= 0) {
                     gameState.combo = 0;
-                    // MISS 碎片效果
                     floatingTexts.push({ x: e.x, y: e.y, text: 'MISS', color: '#ff4040', life: 0.8 });
                     gameState.entities.splice(i, 1); continue;
                 }
 
-                const progress = 1 - (e.life / e.maxLife);
-                const outerRadius = e.radius * (2.6 - 1.6 * progress);
-                const acc = e.accentColor || e.color;
+                const progress    = 1 - (e.life / e.maxLife);
+                const outerRadius = e.radius * (2.8 - 1.8 * progress);
+                const brightAcc   = e.brightColor || '#00cfff';
+                const darkAcc     = e.darkColor   || '#0a2040';
 
-                // 震動 ripple：progress > 0.85 時觸發一次
-                if (progress > 0.85 && !e.shook) {
+                if (progress > 0.75 && !e.shook) {
                     e.shook = true;
-                    floatingTexts.push({ x: e.x, y: e.y, text: '', color: acc, life: 0.5, ripple: true, rippleR: e.radius * 1.8 });
+                    floatingTexts.push({ x: e.x, y: e.y, text: '', color: darkAcc, life: 0.4, ripple: true, rippleR: e.radius * 1.5 });
                 }
 
-                // 外環（細線，漸淡）
-                ctx.beginPath();
-                ctx.arc(e.x, e.y, outerRadius, 0, Math.PI * 2);
-                ctx.strokeStyle = acc;
-                ctx.globalAlpha = 0.45 + progress * 0.3;
-                ctx.lineWidth = 1.5;
-                ctx.stroke();
-                ctx.globalAlpha = 1;
+                const scanClose  = Math.abs(scanY - e.y);
+                const dirMatch   = scanDir === e.noteDir;
+                // ★ 方向正確就全部亮（不需要靠近），方向錯誤完全不亮
+                const isActive   = dirMatch;
+                const isNear     = scanClose < e.radius * 1.4; // 只用於穿越閃光
+                const acc        = isActive ? brightAcc : darkAcc;
 
-                // 外環內填充
-                ctx.beginPath();
-                ctx.arc(e.x, e.y, outerRadius, 0, Math.PI * 2);
-                ctx.fillStyle = acc;
-                ctx.globalAlpha = progress * 0.12;
-                ctx.fill();
-                ctx.globalAlpha = 1;
-
-                // 內圓（白色填充 + 顏色邊線）
-                ctx.beginPath();
-                ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
-                ctx.strokeStyle = acc;
+                // 外環（縮圈）
+                ctx.save(); ctx.beginPath(); ctx.arc(e.x, e.y, outerRadius, 0, Math.PI * 2);
+                ctx.strokeStyle = isActive ? brightAcc : 'rgba(120,180,140,0.45)';
+                ctx.globalAlpha = isActive ? 0.95 : 0.45;
+                ctx.lineWidth   = isActive ? 2.5 : 1.5;
+                if (isActive) { ctx.shadowBlur = 14; ctx.shadowColor = brightAcc; }
+                ctx.stroke(); ctx.restore();
+                // 內圓邊線
+                ctx.save(); ctx.beginPath(); ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
+                ctx.strokeStyle = isActive ? brightAcc : 'rgba(80,120,100,0.6)';
                 ctx.lineWidth = 3;
-                ctx.shadowBlur = 10; ctx.shadowColor = acc;
-                ctx.stroke();
-                ctx.shadowBlur = 0;
-
-                ctx.beginPath();
-                ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
-                ctx.fillStyle = '#fff';
-                ctx.globalAlpha = 0.1;
-                ctx.fill();
-                ctx.globalAlpha = 1;
-
+                ctx.globalAlpha = isActive ? 1 : 0.6;
+                if (isActive) { ctx.shadowBlur = 22; ctx.shadowColor = brightAcc; }
+                ctx.stroke(); ctx.restore();
+                // 內圓填充
+                ctx.save(); ctx.beginPath(); ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
+                ctx.fillStyle = isActive ? brightAcc : '#111';
+                ctx.globalAlpha = isActive ? 0.28 : 0.18;
+                ctx.fill(); ctx.restore();
                 // 內圓細邊
-                ctx.beginPath();
-                ctx.arc(e.x, e.y, e.radius - 5, 0, Math.PI * 2);
-                ctx.strokeStyle = '#fff';
-                ctx.globalAlpha = 0.4;
-                ctx.lineWidth = 1;
-                ctx.stroke();
-                ctx.globalAlpha = 1;
-
-                // 掃描線靠近時高亮
-                const scanClose = Math.abs(scanY - e.y);
-                if (scanClose < e.radius * 2) {
-                    const intensity = 1 - scanClose / (e.radius * 2);
-                    ctx.beginPath();
-                    ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
-                    ctx.fillStyle = acc;
-                    ctx.globalAlpha = intensity * 0.3;
-                    ctx.fill();
-                    ctx.globalAlpha = 1;
+                ctx.save(); ctx.beginPath(); ctx.arc(e.x, e.y, e.radius - 5, 0, Math.PI * 2);
+                ctx.strokeStyle = '#fff'; ctx.globalAlpha = isActive ? 0.5 : 0.2;
+                ctx.lineWidth = 1; ctx.stroke(); ctx.restore();
+                // 穿越閃光（方向正確時）
+                if (isActive) {
+                    const intensity = 1 - scanClose / (e.radius * 1.4);
+                    ctx.save(); ctx.beginPath(); ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = brightAcc; ctx.globalAlpha = intensity * 0.45; ctx.fill(); ctx.restore();
                 }
 
-            } else if (gameState.mode === 1 && e.type === 'tile6') {
+            } // end mode === 3
+
+            if (gameState.mode === 1 && e.type === 'tile6') {
                 // ★ Mode 1（黑塊）6軌
                 const H2 = canvas.height;
                 const judgeTop = H2 - M2_JUDGE_H;
@@ -2467,7 +2628,10 @@
             handleInput(x, y, true);
         }
     }, {passive:false});
-    canvas.addEventListener('touchmove',  e => { e.preventDefault(); updateTouchState(e); }, {passive:false});
+    canvas.addEventListener('touchmove', e => {
+        e.preventDefault(); updateTouchState(e);
+
+    }, {passive:false});
     canvas.addEventListener('touchend', e => {
         e.preventDefault(); updateTouchState(e);
         // 通知長按音符放開
@@ -2482,12 +2646,16 @@
         const t = Math.floor(x / trackWidth); isTouching[t] = true;
         handleInput(x, y, true);
     });
+
+    // drag 已移除
+    function _updateHoldRelease(px, py, isActive) {
+        // 手指是否還在 hold 圓圈上方
+    }
     window.addEventListener('mouseup', () => {
         isTouching = [false,false,false,false];
         for (const e of gameState.entities) {
-            if (e.type === 'persp' && e.isHold && e.holding) {
-                e.holding = false;
-            }
+            if (e.type === 'persp' && e.isHold && e.holding) e.holding = false;
+            if (e.type === 'hold_circle' && e.holding) e.holding = false;
         }
     });
 
