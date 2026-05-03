@@ -2156,12 +2156,24 @@
 
     // ★ AI 介面（供測試儀表板使用）
     window._w4AI = {
-        isActive:  () => gameState?.active === true,
-        getMode:   () => gameState?.mode || 1,
-        getCanvas: () => canvas,
-        getTW:     () => trackWidth,
-        entities:  () => gameState?.entities || [],
-        input:     (px, py, s) => handleInput(px, py, s),
+        isActive:    () => gameState?.active === true,
+        getMode:     () => gameState?.mode || 1,
+        getCanvas:   () => canvas,
+        getTW:       () => trackWidth,
+        entities:    () => gameState?.entities || [],
+        input:       (px, py, s) => handleInput(px, py, s),
+        // ★ Mode 1（黑塊）：取得軌道 X 中心
+        getM2TrackX: (track) => {
+            if (!m2TrackXs || !m2TrackXs.length) m2Layout();
+            return (m2TrackXs[track] || 0) + (m2ColW || 0) / 2;
+        },
+        // ★ Mode 1（黑塊）：取得判定區 Y
+        getJudgeY:   () => canvas.height - M2_JUDGE_H / 2,
+        // ★ Mode 2（透視）：取得音符的螢幕座標
+        getM3Proj:   (track, progress) => m3Proj(track, progress),
+        getM3BaseY:  () => m3BaseY,
+        // ★ Mode 3（縮圈）：取得掃描線 Y
+        getScanY:    () => scanY,
     };
     function _canvasXY(clientX, clientY) {
         const rect = canvas.getBoundingClientRect();
