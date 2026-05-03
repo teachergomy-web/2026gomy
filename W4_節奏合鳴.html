@@ -826,7 +826,8 @@
         gameState.maxCombo = 0;
         gameState.stats    = { total:0, perfect:0, great:0, good:0, ok:0, miss:0 };
         const td = TRACK_DATA[level];
-        gameState.timeLeft = (gameState.mode === 3 && td) ? td.duration : 120;
+        // ★ 所有模式時長都依音樂長度
+        gameState.timeLeft = td ? td.duration : 120;
         gameState.entities = [];
         gameState.spawnTimer = 0;
         gameState.active   = false;
@@ -945,8 +946,8 @@
         const td = TRACK_DATA[level];
         const bpm = td ? td.bpm : 120;
         const beat = 60000 / bpm;
-        // 每拍生一批（高關卡縮短到 0.75 拍）
-        const beats = level <= 3 ? 2 : level <= 6 ? 1.5 : 1;
+        // ★ 密度加大：LV1-3=1.2拍, LV4-6=0.9拍, LV7+=0.65拍
+        const beats = level <= 3 ? 1.2 : level <= 6 ? 0.9 : 0.65;
         return Math.round(beat * beats);
     }
 
@@ -995,12 +996,19 @@
         if (!td) return;
         m3MusicTime = 0;
         m3Seed = 42;
-        // 把 spawnTimes 轉成生成隊列，每個時間點左右各一音符
-        m3SpawnQueue = td.spawnTimes.map(t => ({
-            time: t,
-            left:  Math.floor(m3Rand() * 3),
-            right: 3 + Math.floor(m3Rand() * 3)
-        }));
+        // ★ 每個節拍出 1-2 組（高關卡密度加大）
+        const doubleChance = level <= 3 ? 0 : level <= 6 ? 0.25 : 0.5;
+        m3SpawnQueue = [];
+        td.spawnTimes.forEach(t => {
+            // 第一組（永遠出現）
+            m3SpawnQueue.push({ time: t, left: Math.floor(m3Rand()*3), right: 3+Math.floor(m3Rand()*3) });
+            // 第二組（機率出現，時間偏移半拍）
+            if (m3Rand() < doubleChance) {
+                const halfBeat = (30000 / (td.bpm || 120));
+                m3SpawnQueue.push({ time: t + halfBeat/1000, left: Math.floor(m3Rand()*3), right: 3+Math.floor(m3Rand()*3) });
+            }
+        });
+        m3SpawnQueue.sort((a, b) => a.time - b.time);
         m3Layout();
     }
 
@@ -1096,29 +1104,7 @@
         let hit = false;
 
         if (mode === 1) {
-            // ★ Cytus 判定：掃描線距圓圈中心的距離
-            let best = null, bestDist = Infinity;
-            for (let i = 0; i < gameState.entities.length; i++) {
-                const e = gameState.entities[i];
-                const d = Math.sqrt((px - e.x)**2 + (py - e.y)**2);
-                if (d < e.radius + 40 && d < bestDist) { bestDist = d; best = { e, i }; }
-            }
-            if (best) {
-                const scanDist = Math.abs(scanY - best.e.y);
-                const acc = best.e.accentColor || best.e.color;
-                let pts, label;
-                if      (scanDist <= 20) { pts = 100; label = 'PERFECT'; }
-                else if (scanDist <= 50) { pts = 60;  label = 'GREAT';   }
-                else if (scanDist <= 80) { pts = 30;  label = 'GOOD';    }
-                else                     { pts = 0;   label = 'MISS';    }
-                addScore(pts, best.e.x, best.e.y, acc, label);
-                // 命中波紋
-                floatingTexts.push({ x: best.e.x, y: best.e.y, text: '', color: acc, life: 0.6, ripple: true, rippleR: best.e.radius * 2 });
-                gameState.entities.splice(best.i, 1);
-                hit = true;
-            }
-        } else if (mode === 2) {
-            // ★ 6軌黑塊判定：找點擊位置對應的軌道
+            // ★ 玩法1 黑塊（tile6）判定
             const H2 = canvas.height;
             const judgeTop = H2 - M2_JUDGE_H;
             let m2Track = -1;
@@ -1126,14 +1112,12 @@
                 if (px >= m2TrackXs[i] && px < m2TrackXs[i] + m2ColW) { m2Track = i; break; }
             }
             if (m2Track < 0) {
-                // 點到空隙：MISS
                 gameState.combo = Math.max(0, gameState.combo - 1);
                 addScore(0, px, py, '#ff4d6d', 'MISS');
                 hit = true;
             } else {
                 const side = m2Track < 3 ? 0 : 1;
                 const hitColor = side === 0 ? '#00c8ff' : '#00dc78';
-                // 找判定區內此軌道最下方的方塊
                 let best = null, bestY = -Infinity;
                 gameState.entities.forEach(e => {
                     if (e.type !== 'tile6' || e.hit || e.miss || e.track !== m2Track) return;
@@ -1148,28 +1132,26 @@
                     else if (dist < 80) { pts = 30;  label = 'GOOD';    }
                     else                { pts = 10;  label = 'OK';       }
                     addScore(pts, m2TrackXs[m2Track] + m2ColW/2, judgeTop - 10, hitColor, label);
-                    // 命中波紋
                     const rx = m2TrackXs[m2Track] + m2ColW / 2;
                     const ry = judgeTop + M2_JUDGE_H / 2;
                     floatingTexts.push({ x: rx, y: ry, text: '', color: hitColor, life: 0.55, ripple: true, rippleR: m2ColW * 0.5 });
                     floatingTexts.push({ x: rx, y: ry, text: '', color: '#fff',   life: 0.35, ripple: true, rippleR: m2ColW * 0.3 });
                     hit = true;
                 } else {
-                    // 點到無方塊的軌道
                     gameState.combo = Math.max(0, gameState.combo - 1);
                     addScore(0, m2TrackXs[m2Track] + m2ColW/2, judgeTop - 10, '#ff4d6d', 'MISS');
                     hit = true;
                 }
             }
-        } else if (mode === 3) {
-            // ★ Mode 3 透視判定：找最近基準線的音符
+        } else if (mode === 2) {
+            // ★ 玩法2 透視（persp）判定
             let best = null, bestDist = Infinity;
             gameState.entities.forEach(e => {
                 if (e.type !== 'persp' || e.hit || e.miss) return;
-                const p = m3Proj(e.track, e.progress);
+                const p = m3Proj(e.track, Math.min(e.progress, 1));
                 const r = canvas.width * M3_NOTE_R * p.sc;
                 const d = Math.hypot(px - p.x, py - p.y);
-                if (d < r + 30 && Math.abs(e.progress - 1) < bestDist) {
+                if (d < r + 40 && Math.abs(e.progress - 1) < bestDist) {
                     bestDist = Math.abs(e.progress - 1); best = { e, p, r };
                 }
             });
@@ -1185,9 +1167,31 @@
                 else if (dist < 0.24) { pts = 30;  label = 'GOOD';    }
                 else                  { pts = 10;  label = 'OK';       }
                 addScore(pts, p.x, p.y, color, label);
-                // 命中波紋
                 floatingTexts.push({ x: p.x, y: p.y, text: '', color, life: 0.55, ripple: true, rippleR: r * 1.8 });
                 floatingTexts.push({ x: p.x, y: p.y, text: '', color: '#fff', life: 0.35, ripple: true, rippleR: r });
+                hit = true;
+            }
+        } else if (mode === 3) {
+            // ★ 玩法3 縮圈（Cytus）判定
+            let best = null, bestDist = Infinity;
+            for (let i = 0; i < gameState.entities.length; i++) {
+                const e = gameState.entities[i];
+                if (e.type !== 'circle' || e.hit) continue;
+                const d = Math.hypot(px - e.x, py - e.y);
+                if (d < e.radius + 40 && d < bestDist) { bestDist = d; best = { e, i }; }
+            }
+            if (best) {
+                const { e, i } = best;
+                const scanDist = Math.abs(scanY - e.y);
+                const acc = e.accentColor || e.color;
+                let pts, label;
+                if      (scanDist <= 25) { pts = 100; label = 'PERFECT'; }
+                else if (scanDist <= 55) { pts = 60;  label = 'GREAT';   }
+                else if (scanDist <= 90) { pts = 30;  label = 'GOOD';    }
+                else                     { pts = 0;   label = 'MISS';    }
+                addScore(pts, e.x, e.y, acc, label);
+                floatingTexts.push({ x: e.x, y: e.y, text: '', color: acc, life: 0.6, ripple: true, rippleR: e.radius * 2 });
+                gameState.entities.splice(i, 1);
                 hit = true;
             }
         }
@@ -1637,8 +1641,9 @@
                 if ((e.miss && e.progress > 1.2) || (e.hit && e.hitAnim > 1)) {
                     gameState.entities.splice(i, 1); continue;
                 }
-                const prog  = Math.min(e.progress, 1);
-                const pp    = m3Proj(e.track, prog);
+                // ★ 未命中時 progress 可超過 1（繼續往下移動不卡在基準線）
+                const prog  = e.hit ? Math.min(e.progress, 1) : e.progress;
+                const pp    = m3Proj(e.track, Math.min(prog, 1));
                 const nr    = canvas.width * M3_NOTE_R * pp.sc;
                 const side  = e.track < 3 ? 0 : 1;
                 const mainC = side === 0 ? '#00aaff' : '#00dd66';
