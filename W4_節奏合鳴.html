@@ -695,6 +695,10 @@
 @keyframes heroPulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.15);} }
 @keyframes dotBounce { 0%,80%,100%{transform:translateY(0);opacity:0.4;} 40%{transform:translateY(-10px);opacity:1;} }
 @keyframes neonPulse { 0%,100%{opacity:1;text-shadow:0 0 8px currentColor,0 0 20px currentColor;} 50%{opacity:0.75;text-shadow:0 0 4px currentColor,0 0 10px currentColor;} }
+@keyframes hitFlash { 0%{background:rgba(255,255,255,0.15);} 100%{background:transparent;} }
+@keyframes scoreFloat { 0%{opacity:1;transform:translateY(0) scale(1.2);} 100%{opacity:0;transform:translateY(-40px) scale(0.8);} }
+@keyframes borderGlow { 0%,100%{box-shadow:0 0 8px rgba(0,229,255,0.3),inset 0 0 8px rgba(0,229,255,0.05);} 50%{box-shadow:0 0 20px rgba(0,229,255,0.6),inset 0 0 12px rgba(0,229,255,0.1);} }
+@keyframes introFade { from{opacity:0;transform:scale(0.95);} to{opacity:1;transform:scale(1);} }
 @keyframes scanLine { 0%{transform:translateY(-100%);} 100%{transform:translateY(100vh);} }
 @keyframes glitch { 0%,100%{clip-path:inset(0 0 98% 0);} 5%{clip-path:inset(30% 0 60% 0);transform:translateX(-4px);} 10%{clip-path:inset(50% 0 30% 0);transform:translateX(4px);} 15%{clip-path:inset(0);transform:none;} }
 
@@ -705,10 +709,19 @@
 }
 
 /* HUD 科技感 */
+#game-ui {
+    animation: introFade 0.4s ease-out;
+}
 #game-header {
     background: linear-gradient(180deg, rgba(0,10,20,0.95) 0%, rgba(0,20,40,0.8) 100%) !important;
     border-bottom: 1px solid rgba(0,229,255,0.3) !important;
     box-shadow: 0 2px 20px rgba(0,229,255,0.1), inset 0 -1px 0 rgba(0,229,255,0.2) !important;
+}
+.hud-score {
+    transition: transform 0.1s ease;
+}
+.hud-score.bump {
+    animation: hitFlash 0.15s ease-out;
 }
 .hud-score, .hud-timer {
     font-family: 'Orbitron', 'Courier New', monospace !important;
@@ -825,6 +838,7 @@
         gameState.combo    = 0;
         gameState.maxCombo = 0;
         gameState.stats    = { total:0, perfect:0, great:0, good:0, ok:0, miss:0 };
+        _bgmStopped = false; // ★ 新關卡解除停止鎖定
         const td = TRACK_DATA[level];
         // ★ 所有模式時長都依音樂長度
         gameState.timeLeft = td ? td.duration : 120;
@@ -1136,6 +1150,10 @@
                     const ry = judgeTop + M2_JUDGE_H / 2;
                     floatingTexts.push({ x: rx, y: ry, text: '', color: hitColor, life: 0.55, ripple: true, rippleR: m2ColW * 0.5 });
                     floatingTexts.push({ x: rx, y: ry, text: '', color: '#fff',   life: 0.35, ripple: true, rippleR: m2ColW * 0.3 });
+                    // ★ 粒子特效
+                    const pCount1 = pts >= 100 ? 14 : pts >= 60 ? 10 : 7;
+                    spawnHitParticles(rx, ry, hitColor, pCount1);
+                    spawnHitParticles(rx, ry, '#fff', Math.floor(pCount1 * 0.4));
                     hit = true;
                 } else {
                     gameState.combo = Math.max(0, gameState.combo - 1);
@@ -1169,6 +1187,10 @@
                 addScore(pts, p.x, p.y, color, label);
                 floatingTexts.push({ x: p.x, y: p.y, text: '', color, life: 0.55, ripple: true, rippleR: r * 1.8 });
                 floatingTexts.push({ x: p.x, y: p.y, text: '', color: '#fff', life: 0.35, ripple: true, rippleR: r });
+                // ★ 粒子特效
+                const pCount2 = pts >= 100 ? 14 : pts >= 60 ? 10 : 7;
+                spawnHitParticles(p.x, p.y, color, pCount2);
+                spawnHitParticles(p.x, p.y, '#fff', Math.floor(pCount2 * 0.4));
                 hit = true;
             }
         } else if (mode === 3) {
@@ -1191,6 +1213,10 @@
                 else                     { pts = 0;   label = 'MISS';    }
                 addScore(pts, e.x, e.y, acc, label);
                 floatingTexts.push({ x: e.x, y: e.y, text: '', color: acc, life: 0.6, ripple: true, rippleR: e.radius * 2 });
+                // ★ 粒子特效
+                const pCount3 = pts >= 100 ? 16 : pts >= 60 ? 12 : 8;
+                spawnHitParticles(e.x, e.y, acc, pCount3);
+                spawnHitParticles(e.x, e.y, '#fff', Math.floor(pCount3 * 0.4));
                 gameState.entities.splice(i, 1);
                 hit = true;
             }
@@ -1248,6 +1274,23 @@
     }
 
     const floatingTexts = [];
+    const hitParticles  = []; // ★ 命中粒子特效
+
+    function spawnHitParticles(x, y, color, count) {
+        for (let i = 0; i < count; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 2.5 + Math.random() * 5.5;
+            hitParticles.push({
+                x, y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 2,
+                life: 1.0,
+                decay: 0.032 + Math.random() * 0.025,
+                r: 2 + Math.random() * 3.5,
+                color,
+            });
+        }
+    }
 
     // ── 渲染 ──
     let _loopRunning = false;
@@ -1598,7 +1641,7 @@
                     ctx.fillRect(tx, e.y, tw2, e.h);
                     ctx.globalAlpha = 1;
                 } else if (e.hit) {
-                    e.hitAnim += 0.05;
+                    e.hitAnim += 0.12; // ★ 快速消失
                     const a = Math.max(0, 1 - e.hitAnim);
                     ctx.globalAlpha = a * 0.55;
                     ctx.fillStyle = side === 0 ? '#00c8ff' : '#00dc78';
@@ -1641,9 +1684,17 @@
                 if ((e.miss && e.progress > 1.2) || (e.hit && e.hitAnim > 1)) {
                     gameState.entities.splice(i, 1); continue;
                 }
-                // ★ 未命中時 progress 可超過 1（繼續往下移動不卡在基準線）
-                const prog  = e.hit ? Math.min(e.progress, 1) : e.progress;
-                const pp    = m3Proj(e.track, Math.min(prog, 1));
+                // ★ 未命中時繼續往下移動超出畫面
+                const prog  = e.progress;
+                // 投影：超過1時在基準線下方線性延伸
+                let pp;
+                if (prog <= 1) {
+                    pp = m3Proj(e.track, prog);
+                } else {
+                    const base = m3Proj(e.track, 1);
+                    const over = (prog - 1) * (m3BaseY - m3VpY);
+                    pp = { x: base.x, y: base.y + over, sc: base.sc };
+                }
                 const nr    = canvas.width * M3_NOTE_R * pp.sc;
                 const side  = e.track < 3 ? 0 : 1;
                 const mainC = side === 0 ? '#00aaff' : '#00dd66';
@@ -1651,7 +1702,7 @@
 
                 if (e.miss) { /* miss 不畫 */ }
                 else if (e.hit) {
-                    e.hitAnim += 0.055;
+                    e.hitAnim += 0.12; // ★ 快速消失
                     const a = Math.max(0, 1 - e.hitAnim);
                     ctx.save(); ctx.globalAlpha = a * 0.8;
                     ctx.fillStyle = mainC; ctx.shadowColor = mainC; ctx.shadowBlur = 20 * a;
@@ -1714,6 +1765,26 @@
         }
         ctx.globalAlpha = 1.0;
         ctx.textAlign = 'left';
+
+        // ★ 命中粒子更新 + 繪製
+        for (let i = hitParticles.length - 1; i >= 0; i--) {
+            const p = hitParticles[i];
+            p.x  += p.vx;
+            p.y  += p.vy;
+            p.vy += 0.18; // 重力
+            p.vx *= 0.94; // 阻尼
+            p.life -= p.decay;
+            if (p.life <= 0) { hitParticles.splice(i, 1); continue; }
+            ctx.save();
+            ctx.globalAlpha = p.life * 0.9;
+            ctx.fillStyle   = p.color;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur  = 6;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.r * p.life, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
 
         // ★ Cytus 掃描線（Mode 1 專用）
         if (gameState.mode === 3) {
@@ -1930,8 +2001,10 @@
 
     // ── 音訊（音效解鎖已由 index.html 規則頁完成）──
     let _bgmAudio = null;
+    let _bgmStopped = false; // ★ 結算後鎖定，防止任何重啟
 
     function startBGM(levelOverride) {
+        if (_bgmStopped) return; // 結算後不允許重啟
         stopBGM();
         if (musicMuted) return;
         const level = levelOverride !== undefined ? levelOverride
@@ -1940,7 +2013,8 @@
         const url   = `./music/w4/track_${track}.mp3`;
         try {
             _bgmAudio = new Audio(url);
-            _bgmAudio.loop   = true;
+            _bgmAudio.loop   = false;
+            _bgmAudio.onended = () => { if (!_bgmStopped && _bgmAudio) startBGM(); };
             _bgmAudio.volume = 0.7;
             _bgmAudio.play().catch(() => {});
         } catch(e) {}
@@ -2337,10 +2411,9 @@
                     gameState.lastFrameTime = performance.now();
                     requestAnimationFrame(gameLoop);
                     // ★ 繼續時接續播放（不從頭）
-                    if (_bgmAudio) {
-                        _bgmAudio.play().catch(() => {});
-                    } else {
-                        startBGM();
+                    if (!_bgmStopped) {
+                        if (_bgmAudio) { _bgmAudio.play().catch(() => {}); }
+                        else { startBGM(); }
                     }
                 }
             });

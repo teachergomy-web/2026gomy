@@ -2483,8 +2483,8 @@ function w4ShowModeCompletePanel(completedMode, isAllDone) {
     const panelEl = document.getElementById('tc-w4-complete-panel');
     if (!panelEl) { w4RenderTCScores(); return; }
 
-    const modeNames     = ['', '縮圈點擊', '鋼琴黑塊', '底線軌道'];
-    const nextModeNames = ['', '▬ 鋼琴黑塊', '↓ 底線軌道', ''];
+    const modeNames     = ['', '玩法 1', '玩法 2', '玩法 3'];
+    const nextModeNames = ['', '▶ 玩法 2', '▶ 玩法 3', ''];
     const players = window.state.players || [];
     const sorted  = [...players].sort((a, b) => (TC.scores[b.group] || 0) - (TC.scores[a.group] || 0));
     const medals  = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
@@ -3040,7 +3040,7 @@ window.addEventListener('message', (e) => {
         const allComplete = players.length > 0 && doneCount >= players.length;
 
         if (allComplete) {
-            const modeNames = ['', '縮圈點擊', '鋼琴黑塊', '底線軌道'];
+            const modeNames = ['', '玩法 1', '玩法 2', '玩法 3'];
             if (allDone) {
                 showToast('🏆 三種玩法全部完成！');
                 w4ShowModeCompletePanel(mode, true);
