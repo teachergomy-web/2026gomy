@@ -910,10 +910,17 @@ function attachSync() {
 }
 
 function processAction(action) {
-  if (!gameState) return;
-  if (action.gameId && gameState.gameId && action.gameId !== gameState.gameId) return;
-  if (action.ts < _gameStartTime) return;
-  if (action.ts === _lastActionTs) return;
+  if (!gameState) { console.log('[W8] processAction: no gameState'); return; }
+  if (action.gameId && gameState.gameId && action.gameId !== gameState.gameId) {
+    console.log('[W8] processAction: gameId mismatch', action.gameId, gameState.gameId); return;
+  }
+  if (action.ts < _gameStartTime) {
+    console.log('[W8] processAction: ts too old', action.ts, '<', _gameStartTime); return;
+  }
+  if (action.ts === _lastActionTs) {
+    console.log('[W8] processAction: ts already processed', action.ts); return;
+  }
+  console.log('[W8] processAction: RUNNING', action.type, 'ts=', action.ts, 'role=', myRole);
   _lastActionTs = action.ts;
 
   if (action.type === 'W8_ANSWER' || action.actionType === 'W8_ANSWER') {
