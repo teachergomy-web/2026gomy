@@ -862,7 +862,8 @@ function attachSync() {
               const rc = window.parent.state?.roomCode;
               if (rooms && rc && rooms[rc] && rooms[rc].w8Action) {
                   const action = rooms[rc].w8Action;
-                  if (action.ts && action.ts !== _lastActionTs) {
+                  if (action && action.ts && action.ts !== _lastActionTs) {
+                      _lastActionTs = action.ts; // ★ 先記錄，防止 processAction 期間 poll 再次觸發
                       processAction(action);
                   }
               }
@@ -909,6 +910,20 @@ function processAction(action) {
         String(action.teamId) !== String(gameState.currentTurn)) {
       return;
     }
+
+    // ★ 立即清除 w8Action，防止 poll 重複觸發
+    try {
+      if (window.parent && window.parent.getRooms && window.parent.saveRooms) {
+        const rooms = window.parent.getRooms();
+        const rc = window.parent.state?.roomCode;
+        if (rooms && rc && rooms[rc]) {
+          rooms[rc].w8Action = null;
+          window.parent.saveRooms(rooms);
+        }
+      }
+      localStorage.removeItem('W8_ROLL');
+    } catch(e) {}
+
     const d = action.diceResult;
     showDiceAnim(d.d1, d.d2, d.total);
     updateState({ phase: 'rolled', diceResult: d });
