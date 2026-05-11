@@ -850,7 +850,8 @@ function attachSync() {
 
   const pollNow = () => {
     if (myRole === 'student') {
-      applyState(localStorage.getItem('W8_STATE'));
+      // ★ 只用 rooms 記憶體快取（老師廣播即時寫入）
+      // 不讀 localStorage.W8_STATE（多裝置時是舊值，會覆蓋最新狀態）
       try {
           if (window.parent && window.parent.getRooms) {
               const rooms = window.parent.getRooms();
@@ -899,7 +900,7 @@ function attachSync() {
     }
   };
   pollNow();
-  setInterval(pollNow, 400);
+  setInterval(pollNow, 200); // ★ 縮短間隔讓平板反應更快
 }
 
 function processAction(action) {
