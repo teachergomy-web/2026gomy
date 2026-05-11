@@ -660,13 +660,13 @@ const SPECIAL = [
 function getBoardLayout() {
   const path = [];
   path.push({x: 0, y: C + 6*M, type: 'corner', angle: 90}); 
-  for(let i=5; i>=0; i--) path.push({x: 0, y: C + i*M, type: 'left', angle: -90}); 
+  for(let i=5; i>=0; i--) path.push({x: 0, y: C + i*M, type: 'left', angle: 90}); // ★ 朝外 
   path.push({x: 0, y: 0, type: 'corner', angle: -45}); 
   for(let i=0; i<6; i++) path.push({x: C + i*M, y: 0, type: 'top', angle: 0}); 
   path.push({x: C + 6*M, y: 0, type: 'corner', angle: 45}); 
   for(let i=0; i<6; i++) path.push({x: C + 6*M, y: C + i*M, type: 'right', angle: 90}); 
   path.push({x: C + 6*M, y: C + 6*M, type: 'corner', angle: -45}); 
-  for(let i=5; i>=0; i--) path.push({x: C + i*M, y: C + 6*M, type: 'bottom', angle: 180}); 
+  for(let i=5; i>=0; i--) path.push({x: C + i*M, y: C + 6*M, type: 'bottom', angle: 0}); // ★ 朝外 
   return path;
 }
 
@@ -1014,7 +1014,7 @@ window.addEventListener('message', e => {
     }
   }
   if (e.data.type === 'W8_STATE' && myRole === 'student') {
-    if (window._isMoving) return;
+    if (myRole === 'teacher' && window._isMoving) return; // ★ 只封鎖老師端
     const incoming = e.data.state;
     if (!incoming?.teams) return;
     const str = JSON.stringify(incoming);
@@ -1032,8 +1032,8 @@ window.addEventListener('message', e => {
 });
 
 window.addEventListener('storage', e => {
-  if (e.key === 'W8_STATE' && myRole === 'student') { 
-      if (window._isMoving) return;
+  if (e.key === 'W8_STATE' && myRole === 'student') {
+      if (myRole === 'teacher' && window._isMoving) return; // ★ 只封鎖老師端
       gameState = JSON.parse(e.newValue); syncTeamsFromParent(); render(); 
   }
   if (e.key === 'W8_ROLL' && myRole === 'teacher') { processAction(JSON.parse(e.newValue)); }
@@ -2274,7 +2274,9 @@ function publishAnswer() {
 
 function nextTurn() {
   const gs = gameState;
-  const orderArray = gs.playOrder && gs.playOrder.length > 0 ? gs.playOrder : TEAMS.map(t=>t.id);
+  // ★ 每次從 gameState.teams 重新建立輪序（確保後來加入的組也包含）
+  const allIds = Object.keys(gs.teams || {}).map(Number).filter(n => !isNaN(n)).sort((a,b)=>a-b);
+  const orderArray = allIds.length > 0 ? allIds : (gs.playOrder?.length > 0 ? gs.playOrder.map(Number) : TEAMS.map(t=>t.id));
   
   const currentIdx = orderArray.findIndex(id => Number(id) === Number(gs.currentTurn));
   let nextIdx = (currentIdx + 1) % orderArray.length;
