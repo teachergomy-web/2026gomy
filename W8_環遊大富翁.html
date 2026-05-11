@@ -818,13 +818,6 @@ function attachSync() {
       const parsed = JSON.parse(raw);
       if (!parsed?.teams) return;
 
-      // ★ 防止舊狀態覆蓋：若本地已是 'rolled' 以後，忽略 'waiting_roll' 的舊廣播
-      const phaseOrder = { intro:0, waiting_roll:1, rolled:2, land_reveal:3,
-                           event:4, challenge:4, answering:4, revealing:4, done:5 };
-      const localRank    = phaseOrder[gameState?.phase] ?? 0;
-      const incomingRank = phaseOrder[parsed.phase]    ?? 0;
-      if (myRole === 'student' && localRank > 1 && incomingRank <= 1) return;
-
       _lastStateStr = raw;
       gameState = parsed;
       if (gameState.gameId) {
@@ -910,17 +903,10 @@ function attachSync() {
 }
 
 function processAction(action) {
-  if (!gameState) { console.log('[W8] processAction: no gameState'); return; }
-  if (action.gameId && gameState.gameId && action.gameId !== gameState.gameId) {
-    console.log('[W8] processAction: gameId mismatch', action.gameId, gameState.gameId); return;
-  }
-  if (action.ts < _gameStartTime) {
-    console.log('[W8] processAction: ts too old', action.ts, '<', _gameStartTime); return;
-  }
-  if (action.ts === _lastActionTs) {
-    console.log('[W8] processAction: ts already processed', action.ts); return;
-  }
-  console.log('[W8] processAction: RUNNING', action.type, 'ts=', action.ts, 'role=', myRole);
+  if (!gameState) return;
+  if (action.gameId && gameState.gameId && action.gameId !== gameState.gameId) return;
+  if (action.ts < _gameStartTime) return;
+  if (action.ts === _lastActionTs) return;
   _lastActionTs = action.ts;
 
   if (action.type === 'W8_ANSWER' || action.actionType === 'W8_ANSWER') {
@@ -1032,12 +1018,6 @@ window.addEventListener('message', e => {
     if (!incoming?.teams) return;
     const str = JSON.stringify(incoming);
     if (str === _lastStateStr) return;
-    // ★ 防舊狀態覆蓋
-    const phaseOrder = { intro:0, waiting_roll:1, rolled:2, land_reveal:3,
-                         event:4, challenge:4, answering:4, revealing:4, done:5 };
-    const localRank    = phaseOrder[gameState?.phase] ?? 0;
-    const incomingRank = phaseOrder[incoming.phase]   ?? 0;
-    if (localRank > 1 && incomingRank <= 1) return;
     _lastStateStr = str;
     gameState = incoming;
     if (!boardPos?.length) boardPos = getBoardLayout();
@@ -2039,7 +2019,7 @@ function showDiceAnim(d1, d2, total) {
 })();
 
 function rollDice() {
-  if(typeof sfxRoll==="function") sfxRoll();
+  try { if(typeof sfxRoll==="function") sfxRoll(); } catch(e) {}
   if (!gameState) return;
   const curTurn = gameState.currentTurn;
   const isMyTurn = Number(curTurn) === Number(myTeamId) || String(curTurn) === String(myTeamId) || curTurn == myTeamId;
