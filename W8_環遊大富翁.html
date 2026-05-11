@@ -1877,6 +1877,26 @@ function showDiceAnim(d1, d2, total) {
         overlay.classList.remove('show');
         badge.remove();
         wrap.innerHTML = '';
+        // ★ 釋放 WebGL 資源，避免 context 累積卡頓
+        animStates.forEach(st => {
+          if (!st) return;
+          try {
+            st.renderer.dispose();
+            st.renderer.forceContextLoss();
+            st.scene.traverse(obj => {
+              if (obj.geometry) obj.geometry.dispose();
+              if (obj.material) {
+                if (Array.isArray(obj.material)) {
+                  obj.material.forEach(m => { if (m.map) m.map.dispose(); m.dispose(); });
+                } else {
+                  if (obj.material.map) obj.material.map.dispose();
+                  obj.material.dispose();
+                }
+              }
+            });
+          } catch(e) {}
+        });
+        animStates.length = 0;
       }, 1500);
     }
   }
@@ -1947,6 +1967,11 @@ function rollDice() {
   const curTurn = gameState.currentTurn;
   const isMyTurn = Number(curTurn) === Number(myTeamId) || String(curTurn) === String(myTeamId) || curTurn == myTeamId;
   if (!isMyTurn || gameState.phase !== 'waiting_roll') return;
+
+  // ★ 防止連點（1.5秒 debounce）
+  const now = Date.now();
+  if (rollDice._lastTime && now - rollDice._lastTime < 1500) return;
+  rollDice._lastTime = now;
 
   const team = gameState.teams[myTeamId] || gameState.teams[String(myTeamId)];
   if (!team || team.skipTurn) return;
