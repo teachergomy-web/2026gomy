@@ -1079,6 +1079,22 @@ function startSyncListener() {
         if (snapPerspective !== 'teacher') {
             const pData = window.pStates[snapPerspective];
             if (pData && pData.joined) {
+
+                // ★ 即時偵測踢除（不靠 poll，Firebase 推送後馬上處理）
+                if (data.kicked && pData.group && data.kicked[pData.group]) {
+                    const kickedTs = data.kicked[pData.group].ts || 0;
+                    const kickAge  = Date.now() - kickedTs;
+                    if (kickAge > 0 && kickAge < 60000) {
+                        pData.joined = false; pData.group = ''; pData.symbol = '';
+                        pData.screen = 'screen-home';
+                        stopSyncListener();
+                        sessionStorage.removeItem('game_session');
+                        localStorage.removeItem('game_session_persistent');
+                        window.goTo('screen-home');
+                        window.showToast('🚷 你已被老師踢出房間');
+                        return;
+                    }
+                }
                 if (data.status === 'playing' && pData.screen !== 'screen-student-game') {
                     tcLaunchStudentIfNeeded();
                 }
