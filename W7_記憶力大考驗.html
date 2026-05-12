@@ -258,8 +258,18 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
    ════════════════════════════════════ */
 #screen-3{justify-content:flex-start;gap:0;overflow:hidden;}
 #safe-layout{
-  flex:1;min-height:0;width:100%;display:flex;flex-direction:column;align-items:center;
-  justify-content:space-evenly;padding:8px 16px 16px;gap:6px;
+  flex:1;min-height:0;width:100%;display:flex;flex-direction:row;align-items:center;
+  justify-content:center;padding:8px 16px 16px;gap:16px;
+}
+/* 左側欄：解鎖記錄 */
+#safe-left-col{
+  display:flex;flex-direction:column;align-items:flex-start;justify-content:center;
+  flex-shrink:0;width:min(160px,28vw);
+}
+/* 中間欄：指令+轉盤+控制+提示 */
+#safe-center-col{
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:space-evenly;gap:6px;flex:1;min-width:0;
 }
 
 /* 指令顯示區 */
@@ -279,9 +289,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 
 /* 解鎖記錄 */
 #safe-history{
-  width:100%;max-width:320px;background:var(--surface);border:1px solid var(--border);
+  width:100%;background:var(--surface);border:1px solid var(--border);
   border-radius:10px;padding:10px 14px;font-size:11px;font-family:'Space Mono',monospace;
-  max-height:80px;overflow-y:auto;
+  overflow-y:visible;
 }
 #safe-history-label{color:var(--muted);font-size:10px;margin-bottom:6px;letter-spacing:.08em;}
 #safe-history-list{display:flex;flex-direction:column;gap:4px;}
@@ -413,27 +423,32 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 <!-- ═══ SCREEN 3：金庫解碼 ═══ -->
 <div id="screen-3" class="screen">
   <div id="safe-layout">
-    <div id="safe-cmd-view">READY?</div>
-
-    <!-- 金庫轉盤 canvas -->
-    <div id="safe-canvas-wrap">
-      <canvas id="safeCanvas"></canvas>
+    <!-- 左欄：解鎖記錄 -->
+    <div id="safe-left-col">
+      <div id="safe-history">
+        <div id="safe-history-label">解鎖記錄</div>
+        <div id="safe-history-list"></div>
+      </div>
     </div>
 
-    <div id="safe-history">
-      <div id="safe-history-label">解鎖記錄</div>
-      <div id="safe-history-list"></div>
-    </div>
+    <!-- 中欄：指令顯示 + 轉盤 + 控制 + 提示 -->
+    <div id="safe-center-col">
+      <div id="safe-cmd-view">READY?</div>
 
-    <div id="safe-controls" class="hidden">
-      <div class="round-btn" onclick="operateGear(-1)">⬅</div>
-      <button id="safe-ok-btn" onclick="confirmSafeCommand()">OK</button>
-      <div class="round-btn" onclick="operateGear(1)">➡</div>
-    </div>
+      <div id="safe-canvas-wrap">
+        <canvas id="safeCanvas"></canvas>
+      </div>
 
-    <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
-      <div id="safe-tip">記住指令順序...</div>
-      <button id="safe-skip-btn" class="hidden" onclick="triggerSkipInstructions()">跳過觀察 ⏩</button>
+      <div id="safe-controls" class="hidden">
+        <div class="round-btn" onclick="operateGear(-1)">⬅</div>
+        <button id="safe-ok-btn" onclick="confirmSafeCommand()">OK</button>
+        <div class="round-btn" onclick="operateGear(1)">➡</div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+        <div id="safe-tip">記住指令順序...</div>
+        <button id="safe-skip-btn" class="hidden" onclick="triggerSkipInstructions()">跳過觀察 ⏩</button>
+      </div>
     </div>
   </div>
 </div>
