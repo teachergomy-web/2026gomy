@@ -833,6 +833,8 @@
     }
 
     function startGame(level) {
+        // ★ 提前解鎖 iOS 音效（在使用者手勢的同步堆疊中）
+        ensureAudioUnlocked(null);
         gameState.level    = level;
         gameState.score    = isPlatform ? accumulatedScore : 0;
         gameState.combo    = 0;
@@ -2372,23 +2374,55 @@
 
     // ── 音訊（音效解鎖已由 index.html 規則頁完成）──
     let _bgmAudio = null;
-    let _bgmStopped = false; // ★ 結算後鎖定，防止任何重啟
+    let _bgmStopped = false;
+    let _audioUnlocked = false; // iOS 音效解鎖狀態
+
+    // ★ iOS 音效解鎖：第一次使用者觸碰時，用靜音播放解鎖 AudioContext
+    function ensureAudioUnlocked(cb) {
+        if (_audioUnlocked) { if (cb) cb(); return; }
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const buf = ctx.createBuffer(1, 1, 22050);
+            const src = ctx.createBufferSource();
+            src.buffer = buf;
+            src.connect(ctx.destination);
+            src.start(0);
+            ctx.resume().then(() => {
+                _audioUnlocked = true;
+                if (cb) cb();
+            }).catch(() => { _audioUnlocked = true; if (cb) cb(); });
+        } catch(e) { _audioUnlocked = true; if (cb) cb(); }
+    }
 
     function startBGM(levelOverride) {
-        if (_bgmStopped) return; // 結算後不允許重啟
+        if (_bgmStopped) return;
         stopBGM();
         if (musicMuted) return;
         const level = levelOverride !== undefined ? levelOverride
                     : Math.max(1, Math.min(10, gameState.level || 1));
         const track = String(level).padStart(2, '0');
         const url   = `./music/w4/track_${track}.mp3`;
-        try {
-            _bgmAudio = new Audio(url);
-            _bgmAudio.loop   = false;
-            _bgmAudio.onended = () => { if (!_bgmStopped && _bgmAudio) startBGM(); };
-            _bgmAudio.volume = 0.7;
-            _bgmAudio.play().catch(() => {});
-        } catch(e) {}
+
+        function _doPlay() {
+            try {
+                _bgmAudio = new Audio(url);
+                _bgmAudio.loop    = false;
+                _bgmAudio.onended = () => { if (!_bgmStopped && _bgmAudio) startBGM(); };
+                _bgmAudio.volume  = 0.7;
+                const p = _bgmAudio.play();
+                if (p && p.catch) {
+                    p.catch(() => {
+                        // ★ play() 被擋：等 500ms 重試一次
+                        setTimeout(() => {
+                            if (_bgmAudio && !_bgmStopped) _bgmAudio.play().catch(() => {});
+                        }, 500);
+                    });
+                }
+            } catch(e) {}
+        }
+
+        // ★ 先確保 iOS 音效已解鎖，再播放
+        ensureAudioUnlocked(_doPlay);
     }
 
     function stopBGM() {
